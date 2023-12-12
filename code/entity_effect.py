@@ -3,9 +3,11 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from entity import Entity, Item, Character
+    from magic import Spell
 
 _bonus_dict = {'CON': 0, 'STR': 0, 'END': 0, 'DEX': 0, 'FOC': 0, 'INT': 0, 'WIL': 0, 'WGT': 0, 'LCK': 0}
 class BaseEffect():
+    parent: Entity
     def __init__(
         self,
         phys_atk_bonus: int = 0,
@@ -83,6 +85,7 @@ class ItemEffect(BaseEffect):
         self.parent.holder.inventory.remove(self)
     
 class CharacterEffect(BaseEffect):
+    parent: Character
     def __init__(
         self,
         phys_atk_bonus: int = 0,
@@ -108,8 +111,53 @@ class CharacterEffect(BaseEffect):
             dodge_chance_bonus = dodge_chance_bonus,
             attribute_bonuses = attribute_bonuses,
         )
+        
+    def remove(self) -> None:
+        """ Remove effect from character. """
+        self.parent.effects.remove(self)
 
-    
-
-
+class HealingEffect(ItemEffect):
+    def __init__(self, amount: int, consumable: bool = True):
+        super().__init__(
+            phys_atk_bonus=0,
+            magc_atk_bonus=0,
+            phys_defense_bonus=0,
+            phys_negation_bonus=0,
+            magc_defense_bonus=0,
+            magc_negation_bonus=0,
+            dodge_chance_bonus=0,
+            attribute_bonuses={},
+            needs_equipped=False,
+            consumable=consumable
+            )
+        
+        self.amount = amount
+        
+    def activate(self) -> None:
+        self.parent.holder.heal(self.amount)
+        self.consume()
+        
+class ScrollEffect(ItemEffect):
+    def __init__(self, spell: Spell, consumable: bool = True):
+        super().__init__(
+            phys_atk_bonus=0,
+            magc_atk_bonus=0,
+            phys_defense_bonus=0,
+            phys_negation_bonus=0,
+            magc_defense_bonus=0,
+            magc_negation_bonus=0,
+            dodge_chance_bonus=0,
+            attribute_bonuses={},
+            needs_equipped=False,
+            consumable=consumable
+            )
+        
+        self.spell = spell
+        
+    def activate(self) -> None:
+        # Ask Character for target.
+        target = None
+        self.spell.cast(caster=self.parent.holder, target=target)
+        self.consume()
+        
     

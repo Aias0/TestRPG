@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, List, Optional, Dict
+from typing import TYPE_CHECKING, List, Optional, Dict, Tuple
 
 from render_order import RenderOrder
 from item_types import ItemTypes
@@ -70,6 +70,8 @@ class Item(Entity):
         name: str,
         value: int,
         weight: int,
+        char: str = None,
+        color: Tuple[int, int, int] = None,
         itemtype: ItemTypes = ItemTypes.MISCELLANEOUS,
         description: str = None,
         effect: ItemEffect = ItemEffect(),
@@ -77,12 +79,44 @@ class Item(Entity):
     ) -> None:
         
         self.weight = weight
+        self.default_char = char
+        self.default_color = color
         self.effect = effect
         self.itemtype = itemtype
         self.equippable = {'Head': False, 'Chest': False, 'Legs': False, 'Boots': False, 'Gloves': False, 'Rings': False, 'Right Hand': False, 'Left Hand': False} | equippable
         self.equipped = False
         
         super().__init__(name=name, description=description, value=value)
+        
+    @property
+    def char(self) -> str:
+        if self.default_char:
+            return self.default_char
+        elif ItemTypes.is_armor(self.itemtype):
+            return '['
+        elif ItemTypes.is_weapon(self.itemtype):
+            return '/'
+        elif ItemTypes.is_consumable(self.itemtype):
+            return '!'
+        else:
+            return '?'
+        
+    @property
+    def color(self) -> Tuple[int, int, int]:
+        if self.default_color:
+            return self.default_color
+        elif ItemTypes.is_weapon(self.itemtype):
+            return 0, 191, 255
+        elif ItemTypes.is_armor(self.itemtype):
+            return 139, 69, 19
+        elif ItemTypes.is_consumable(self.itemtype):
+            return 127, 0, 255
+        else:
+            return 0, 0, 0
+            
+            
+        
+        
 
         
 class Character(Entity):

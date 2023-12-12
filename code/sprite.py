@@ -26,6 +26,7 @@ class Sprite():
         self.color = color
         self.blocks_movement = blocks_movement
         self.render_order = render_order
+        self.pickupable = pickupable
         
         self.entity.parent = self
         
@@ -45,6 +46,11 @@ class Sprite():
         # Move the entity by a given amount
         self.x += dx
         self.y += dy
+        
+    def __str__(self) -> str:
+        return f'{self.char}({self.color}) | {self.entity.name}'
+    def __repr__(self):
+        return f'({self.__str__()})'
 
 class Actor(Sprite):
     def __init__(
@@ -54,8 +60,8 @@ class Actor(Sprite):
         x: int = 0,
         y: int = 0,
         color: Tuple[int, int, int] = (255, 255, 255),
-        blocks_movement: bool = False,
-        render_order: RenderOrder = RenderOrder.CORPSE,
+        blocks_movement: bool = True,
+        render_order: RenderOrder = RenderOrder.ACTOR,
         ai = None,
         hostile = False
         ) -> None:

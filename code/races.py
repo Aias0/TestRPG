@@ -11,6 +11,7 @@ class BaseRace():
     def __init__(
         self,
         name: str,
+        defualt_char: str,
         attribute_bonuses: dict[str, int] = {},
         heal_effectiveness: float = 1,
         job_chance: Optional[dict[str, int]] = None,
@@ -20,6 +21,8 @@ class BaseRace():
         ) -> None:
         
         self.name = name
+        self.defualt_char = defualt_char
+        
         self.attribute_bonuses = self._bonus_dict | attribute_bonuses
         self.heal_effectiveness = heal_effectiveness
         
@@ -38,6 +41,7 @@ class Human(BaseRace):
     def __init__(self) -> None:
         super().__init__(
             name='Human',
+            defualt_char='h',
             attribute_bonuses={'DEX': 2, 'END': 1, 'CON': 1, 'FOC': 1},
             job_chance={'Rouge': 15}
             )
@@ -46,6 +50,7 @@ class Elf(BaseRace):
     def __init__(self) -> None:
         super().__init__(
             name='Elf',
+            defualt_char='e',
             attribute_bonuses={'FOC': 2, 'INT': 1},
             job_chance={'Mage': 20, 'Fighter': 5},
             vision_acuity=10,
@@ -56,6 +61,7 @@ class Dwarf(BaseRace):
     def __init__(self) -> None:
         super().__init__(
             name='Dwarf',
+            defualt_char='d',
             attribute_bonuses={'CON': 2, 'STR': 1},
             job_chance={'Fighter': 20, 'Mage': 5},
             dark_vision=75,
