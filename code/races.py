@@ -21,7 +21,7 @@ class BaseRace():
         ) -> None:
         
         self.name = name
-        self.defualt_char = defualt_char
+        self.default_char = defualt_char
         
         self.attribute_bonuses = self._bonus_dict | attribute_bonuses
         self.heal_effectiveness = heal_effectiveness

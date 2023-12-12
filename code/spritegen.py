@@ -131,7 +131,7 @@ def entity_to_sprite(entities: Entity | List[Entity]) -> Sprite | List[Sprite]:
         if type(entity) == Character:
             sprites.append(Actor(
                 character=entity,
-                char=entity.race.defualt_char,
+                char=entity.race.default_char,
                 color=entity.job.default_color,
             ))
         elif type(entity) == Item:
@@ -156,8 +156,10 @@ result = gen_enemies(
 
 print(result)
 [print(i.entity.description) for i in result]
+print('\n\n\n')
 
 result2 = gen_items(
     item_num_range=[3, 6],
 )
-print(result)
+print(result2)
+[print(i.entity.description) for i in result2]

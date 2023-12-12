@@ -1,7 +1,10 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Iterable
 
 from enum import auto, Enum
+
+if TYPE_CHECKING:
+    from entity import Item
 
 class ItemTypes(Enum):
     UNKNOWN = auto()
@@ -12,7 +15,7 @@ class ItemTypes(Enum):
     SCROLL = auto()
     
     SWORD = auto()
-    SHEILD = auto()
+    SHIELD = auto()
     
     HEAD_ARMOR = auto()
     CHEST_ARMOR = auto()
@@ -22,26 +25,26 @@ class ItemTypes(Enum):
     
     RING = auto()
     
-    @property
-    def weapons() -> list:
-        return [ItemTypes.SWORD]
-    def is_weapon(itemtype) -> bool:
-        return itemtype in ItemTypes.weapons
+    @staticmethod
+    def weapons() -> set:
+        return {ItemTypes.SWORD}
+    def is_weapon(item: Item) -> bool:
+        return item.itemtype in ItemTypes.weapons()
     
-    @property
-    def armors() -> list:
-        return [ItemTypes.HEAD_ARMOR, ItemTypes.CHEST_ARMOR, ItemTypes.LEG_ARMOR, ItemTypes.FOOT_ARMOR, ItemTypes.HAND_ARMOR]
-    def is_armor(itemtype) -> bool:
-        return itemtype in ItemTypes.armors
+    @staticmethod
+    def armors() -> set:
+        return {ItemTypes.HEAD_ARMOR, ItemTypes.CHEST_ARMOR, ItemTypes.LEG_ARMOR, ItemTypes.FOOT_ARMOR, ItemTypes.HAND_ARMOR}
+    def is_armor(item: Item) -> bool:
+        return item.itemtype in ItemTypes.armors()
     
-    @property
-    def accessories() -> list:
-        return [ItemTypes.RING]
-    def is_accessory(itemtype) -> bool:
-        return itemtype in ItemTypes.accessories
+    @staticmethod
+    def accessories() -> set:
+        return {ItemTypes.RING}
+    def is_accessory(item: Item) -> bool:
+        return item.itemtype in ItemTypes.accessories()
     
-    @property
-    def consumables() -> list:
-        return [ItemTypes.POTION, ItemTypes.SCROLL]
-    def is_consumable(itemtype) -> bool:
-        return itemtype in ItemTypes.consumables
+    @staticmethod
+    def consumables() -> set:
+        return {ItemTypes.POTION, ItemTypes.SCROLL}
+    def is_consumable(item: Item) -> bool:
+        return item.itemtype in ItemTypes.consumables()

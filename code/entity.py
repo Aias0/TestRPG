@@ -24,9 +24,9 @@ class Entity():
         if description:
             self.description = description
             
-        # Auto gen item description if one doen't exist.
+        # Auto gen item description if one doesn't exist.
         elif type(self) == Item:
-            attr_desc = {'CON': 'Constitution', 'STR': 'Strength', 'END': 'Endurance', 'DEX': 'Dexterity', 'FOC': 'Focus', 'INT': 'Intellegence', 'WIL': "Will", 'WGT': 'Weight', 'LCK': 'Luck'}
+            attr_desc = {'CON': 'Constitution', 'STR': 'Strength', 'END': 'Endurance', 'DEX': 'Dexterity', 'FOC': 'Focus', 'INT': 'Intelligence', 'WIL': "Will", 'WGT': 'Weight', 'LCK': 'Luck'}
             inv_vs_eqp = {True: 'equipped', False: 'in inventory'}
             self.description = f'A {name}.'
             
@@ -38,17 +38,21 @@ class Entity():
                     self.description += f' This increases {inc[0]}'
                 elif len(inc) > 1:
                     self.description += f' This increases {str(inc[:-1]).replace("[", "").replace("]", "")}, and {inc[-1]}'
+                
                 if dec and inc:
                     self.description += ' and '
                 elif dec:
+                
                     self.description += ' This '
                 if len(dec) == 1:
                     self.description += f'decreases {dec[0]}'
                 elif len(dec) >1:
                     self.description += f' This increases {str(dec[:-1]).replace("[", "").replace("]", "")}, and {dec[-1]}'
-                self.description += f'. Effects activates when {inv_vs_eqp[self.effect.needs_equipped]}.'
+                
+                if len(inc) >= 1 or len(dec) >= 1:
+                    self.description += f'. Effects activates when {inv_vs_eqp[self.effect.needs_equipped]}.'
              
-        # Auto gen character description if one doen't exist.
+        # Auto gen character description if one doesn't exist.
         elif type(self) == Character:
             self.description = f'A level {self.level} {RACES_PLURAL[self.race.name]} {re.sub(r"^(.)", lambda match: match.group(1).lower(), self.job.name)} named {self.name}.'
         else:
@@ -92,11 +96,11 @@ class Item(Entity):
     def char(self) -> str:
         if self.default_char:
             return self.default_char
-        elif ItemTypes.is_armor(self.itemtype):
+        elif ItemTypes.is_armor(self):
             return '['
-        elif ItemTypes.is_weapon(self.itemtype):
+        elif ItemTypes.is_weapon(self):
             return '/'
-        elif ItemTypes.is_consumable(self.itemtype):
+        elif ItemTypes.is_consumable(self):
             return '!'
         else:
             return '?'
@@ -105,11 +109,11 @@ class Item(Entity):
     def color(self) -> Tuple[int, int, int]:
         if self.default_color:
             return self.default_color
-        elif ItemTypes.is_weapon(self.itemtype):
+        elif ItemTypes.is_weapon(self):
             return 0, 191, 255
-        elif ItemTypes.is_armor(self.itemtype):
+        elif ItemTypes.is_armor(self):
             return 139, 69, 19
-        elif ItemTypes.is_consumable(self.itemtype):
+        elif ItemTypes.is_consumable(self):
             return 127, 0, 255
         else:
             return 0, 0, 0
@@ -122,7 +126,7 @@ class Item(Entity):
 class Character(Entity):
     parent: Actor
     
-    _attribute_names = {'CON': 'Constitution', 'STR': 'Strength', 'END': 'Endurance', 'DEX': 'Dexterity', 'FOC': 'Focus', 'INT': 'Intellegence', 'WIL': "Will", 'WGT': 'Weight', 'LCK': 'Luck'}
+    _attribute_names = {'CON': 'Constitution', 'STR': 'Strength', 'END': 'Endurance', 'DEX': 'Dexterity', 'FOC': 'Focus', 'INT': 'Intelligence', 'WIL': "Will", 'WGT': 'Weight', 'LCK': 'Luck'}
     
     def __init__(
         self,
@@ -165,13 +169,13 @@ class Character(Entity):
         self.needs_level_up = False
         
         # Attr Guide: 1: Ant | 10: Average Human | 100: Dragon
-        # Visable Attributes
+        # Visible Attributes
         self.base_CON = base_CON # constitution(CON) -> HP, phys resist
         self.base_STR = base_STR # strength(STR) -> phys atk, restrained resist
         self.base_END = base_END # endurance(END) -> SP, fatigue resist
         self.base_DEX = base_DEX # dexterity(DEX) -> hit/dodge chance
         self.base_FOC = base_FOC # focus(FOC) -> MP/strain, magic resist
-        self.base_INT = base_INT # intellegence(INT) -> magc atk, mental resist
+        self.base_INT = base_INT # Intelligence(INT) -> magc atk, mental resist
         # Hidden Attributes
         self.base_WIL = base_WIL # will(WIL) -> spirit resist, limit break
         self.base_WGT = base_WGT # weight[conceptual](WGT) -> conceptual atk/resist
@@ -483,28 +487,28 @@ class Character(Entity):
     def update_stats(self) -> None:
         # Resource Stats
         try:
-            hp_precent = self._hp/self.max_hp
+            hp_percent = self._hp/self.max_hp
         except:
             # This happens on character creation
-            hp_precent = 1
+            hp_percent = 1
         self.max_hp = (self.CON*self.level)//1.5
-        self._hp = int(self.max_hp * hp_precent)
+        self._hp = int(self.max_hp * hp_percent)
         
         try:
-            mp_precent = self._mp/self.max_mp
+            mp_percent = self._mp/self.max_mp
         except:
             # This happens on character creation
-            mp_precent = 1
+            mp_percent = 1
         self.max_mp = (self.FOC*self.level)//1.5
-        self._mp = int(self.max_mp * mp_precent)
+        self._mp = int(self.max_mp * mp_percent)
         
         try:
-            sp_precent = self._sp/self.max_sp
+            sp_percent = self._sp/self.max_sp
         except:
             # This happens on character creation
-            sp_precent = 1
+            sp_percent = 1
         self.max_sp = (self.END*self.level)//2
-        self._sp = int(self.max_sp * sp_precent)
+        self._sp = int(self.max_sp * sp_percent)
         
         # Attack Stats
         self.base_phys_atk = self.STR

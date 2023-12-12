@@ -48,9 +48,9 @@ class Sprite():
         self.y += dy
         
     def __str__(self) -> str:
-        return f'{self.char}({self.color}) | {self.entity.name}'
+        return f'{self.char}({str(self.color)[1:-1]}): {self.entity.name}'
     def __repr__(self):
-        return f'({self.__str__()})'
+        return f'{self.__str__()}'
 
 class Actor(Sprite):
     def __init__(
