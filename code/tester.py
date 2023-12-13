@@ -22,7 +22,7 @@ test = Actor(
 )
 guy = test.entity
 
-print(guy.equipment)
+""" print(guy.equipment)
 print(guy.inventory[0].description)
 print(f'{guy.weight}/{guy.carry_weight}')
 
@@ -49,16 +49,16 @@ guy.drop_inventory('Heavy Weight')
 print(guy.inventory)
 
 print(f'{guy.weight}/{guy.carry_weight}')
+ """
+print(f'Level: {guy.level}')
 
-print(f'{guy.level}')
-
-print(f'{guy.current_xp}/{guy.xp_to_next_level}')
+print(f'XP: {guy.current_xp}/{guy.xp_for_next_level}')
 
 print(guy.hp)
 
-guy.add_xp(460)
+guy.add_xp(500)
 
-print(f'{guy.current_xp}/{guy.xp_to_next_level}')
-print(f'{guy.level}')
+print(f'Level: {guy.level}')
+print(f'XP: {guy.current_xp}/{guy.xp_for_next_level}')
 
 print(guy.hp)

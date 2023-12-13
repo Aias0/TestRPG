@@ -18,17 +18,6 @@ if TYPE_CHECKING:
     from races import BaseRace
     from jobs import BaseJob
 
-
-base_race_list = ['Human', 'Elf', 'Dwarf']
-base_race_list = dict(zip(base_race_list, [10,]*3))
-
-base_job_list = dict(zip([job.__class__.__name__ for job in JOBS], [10]*len(JOBS)))
-
-base_level_list = {1:15, 2:10, 3:5}
-
-base_item_list = dict(zip([item.name for item in ITEMS], [10]*len(ITEMS)))
-
-
 def gen_enemies(
     enemy_num_range: int | list,
     race_list: Optional[Dict[BaseRace, int]] = None,
@@ -38,7 +27,11 @@ def gen_enemies(
     level_list: Optional[Dict[int, int]] = None,
     level_overwrite: bool = True,
     ) -> List[Actor]:
-    """ `overwrite` `True` overwrites defualt values, `False` blends values.\n\n"""
+    """ `overwrite` `True` overwrites default values, `False` blends values."""
+    
+    base_race_list = dict(zip([race.__class__.__name__ for race in RACES], [race.rarity for race in RACES]))
+    base_job_list = dict(zip([job.__class__.__name__ for job in JOBS], [job.rarity for job in JOBS]))
+    base_level_list = {1:15, 2:10, 3:5}
     
     # Convert int into tuple so random always is int
     if type(enemy_num_range) == int:
@@ -98,6 +91,8 @@ def gen_items(
     item_overwrite: bool = False,
 ) -> List[Sprite]:
     
+    base_item_list = dict(zip([item.name for item in ITEMS], [item.rarity for item in ITEMS]))
+    
     if type(item_num_range) == int:
         item_num_range = [item_num_range,]*2
     item_num_range[1] += 1
@@ -150,13 +145,11 @@ def entity_to_sprite(entities: Entity | List[Entity]) -> Sprite | List[Sprite]:
     
 result = gen_enemies(
     enemy_num_range=[4, 8],
-    race_list={'Human': 10, 'Elf': 2, 'Dwarf': 5},
-    
     )
 
 print(result)
 [print(i.entity.description) for i in result]
-print('\n\n\n')
+print()
 
 result2 = gen_items(
     item_num_range=[3, 6],

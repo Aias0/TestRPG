@@ -6,14 +6,14 @@ if TYPE_CHECKING:
 
 class BaseJob():
     parent: Character
-    def __init__(self, name: str, default_color: Tuple[int, int, int],base_chance: int = 10) -> None:
+    def __init__(self, name: str, default_color: Tuple[int, int, int],rarity: int = 10) -> None:
         self.name = name
         self.default_color = default_color
-        self.base_chance = base_chance
+        self.rarity = rarity
 
 class Mage(BaseJob):
     def __init__(self) -> None:
-        super().__init__(name='Mage', default_color=[0, 0, 255], base_chance= 5)
+        super().__init__(name='Mage', default_color=[0, 0, 255], rarity= 5)
 
 class Rouge(BaseJob):
     def __init__(self) -> None:
@@ -21,6 +21,6 @@ class Rouge(BaseJob):
 
 class Fighter(BaseJob):
     def __init__(self) -> None:
-        super().__init__(name='Fighter', default_color=[255, 0, 0], base_chance= 15)
+        super().__init__(name='Fighter', default_color=[255, 0, 0], rarity= 15)
         
 JOBS: List[BaseJob] = [Mage(), Rouge(), Fighter()]

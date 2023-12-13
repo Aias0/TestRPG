@@ -11,17 +11,18 @@ class BaseRace():
     def __init__(
         self,
         name: str,
-        defualt_char: str,
+        default_char: str,
         attribute_bonuses: dict[str, int] = {},
         heal_effectiveness: float = 1,
         job_chance: Optional[dict[str, int]] = None,
         default_corpse_val: int = 10,
         vision_acuity: int = 8,
         dark_vision: int = 0,
+        rarity: int = 10,
         ) -> None:
         
         self.name = name
-        self.default_char = defualt_char
+        self.default_char = default_char
         
         self.attribute_bonuses = self._bonus_dict | attribute_bonuses
         self.heal_effectiveness = heal_effectiveness
@@ -31,37 +32,41 @@ class BaseRace():
         self.vision_acuity = vision_acuity
         self.dark_vision = dark_vision
         
+        self.rarity = rarity
+        
         self.job_chance = job_chance
         for job in JOBS:
             if [job for job in JOBS if job.__class__.__name__ in self.job_chance.keys()]:
                 continue
-            self.job_chance[job] = job.base_chance
+            self.job_chance[job] = job.rarity
 
 class Human(BaseRace):
     def __init__(self) -> None:
         super().__init__(
             name='Human',
-            defualt_char='h',
+            default_char='h',
             attribute_bonuses={'DEX': 2, 'END': 1, 'CON': 1, 'FOC': 1},
-            job_chance={'Rouge': 15}
+            job_chance={'Rouge': 15},
+            rarity=15
             )
 
 class Elf(BaseRace):
     def __init__(self) -> None:
         super().__init__(
             name='Elf',
-            defualt_char='e',
+            default_char='e',
             attribute_bonuses={'FOC': 2, 'INT': 1},
             job_chance={'Mage': 20, 'Fighter': 5},
             vision_acuity=10,
             dark_vision=50,
+            rarity=5
             )
 
 class Dwarf(BaseRace):
     def __init__(self) -> None:
         super().__init__(
             name='Dwarf',
-            defualt_char='d',
+            default_char='d',
             attribute_bonuses={'CON': 2, 'STR': 1},
             job_chance={'Fighter': 20, 'Mage': 5},
             dark_vision=75,

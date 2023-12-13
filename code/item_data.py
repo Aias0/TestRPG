@@ -9,7 +9,7 @@ from magic import LightningBolt
 from item_types import ItemTypes
 
 health_potion = Item(
-    'Health Potion', 100, 1, itemtype=ItemTypes.POTION, effect=HealingEffect(amount=4)
+    'Health Potion', 100, 1, itemtype=ItemTypes.POTION, effect=HealingEffect(amount=4), rarity= 20
 )
 
 sword = Item(
@@ -17,7 +17,7 @@ sword = Item(
 )
 
 lightning_bolt_scroll = Item(
-    'Lightning Bolt Scroll', 200, 1, itemtype=ItemTypes.SCROLL, effect=ScrollEffect(LightningBolt())
+    'Lightning Bolt Scroll', 200, 1, itemtype=ItemTypes.SCROLL, effect=ScrollEffect(LightningBolt()), rarity=5
 )
 
 ITEMS = [health_potion, sword, lightning_bolt_scroll]

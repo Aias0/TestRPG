@@ -80,6 +80,7 @@ class Item(Entity):
         description: str = None,
         effect: ItemEffect = ItemEffect(),
         equippable: dict = {},
+        rarity: int = 10,
     ) -> None:
         
         self.weight = weight
@@ -89,6 +90,7 @@ class Item(Entity):
         self.itemtype = itemtype
         self.equippable = {'Head': False, 'Chest': False, 'Legs': False, 'Boots': False, 'Gloves': False, 'Rings': False, 'Right Hand': False, 'Left Hand': False} | equippable
         self.equipped = False
+        self.rarity = rarity
         
         super().__init__(name=name, description=description, value=value)
         
@@ -187,6 +189,8 @@ class Character(Entity):
         super().__init__(name=name, description=description, value=0)
         self.update_stats()
         
+    
+    # Attributes
     @property
     def CON(self) -> int:
         return self.base_CON + self.CON_intrinsic_bonus + self.CON_extrinsic_bonus
@@ -349,7 +353,7 @@ class Character(Entity):
             total += item.effect.attribute_bonuses['LCK']
         return total
     
-        
+    # Resources
     @property
     def hp(self) -> int:
         return self._hp
@@ -373,11 +377,18 @@ class Character(Entity):
     def sp(self, value: int) -> None:
         self._sp = max(0, min(value, self.max_sp))
     
+    # Defense/Resistance
     @property
     def phys_defense(self) -> int:
-        return self.base_phys_defense + self.phys_defense_bonus
+        return self.base_phys_defense + self.phys_defense_intrinsic_bonus + self.phys_defense_extrinsic_bonus
     @property
-    def phys_defense_bonus(self) -> int:
+    def phys_defense_intrinsic_bonus(self) -> int:
+        total = 0
+        for effect in self.effects:
+            total += effect.phys_defense_bonus
+        return total
+    @property
+    def phys_defense_extrinsic_bonus(self) -> int:
         total = 0
         for item in self.inventory:
             if item.effect.needs_equipped and not item.equipped:
@@ -387,9 +398,15 @@ class Character(Entity):
         
     @property
     def phys_negation(self) -> float:
-        return self.base_phys_negation + self.phys_negation_bonus
+        return self.base_phys_negation + self.phys_negation_intrinsic_bonus + self.phys_negation_extrinsic_bonus
     @property
-    def phys_negation_bonus(self) -> float:
+    def phys_negation_intrinsic_bonus(self) -> int:
+        total = 0
+        for effect in self.effects:
+            total += effect.phys_negation_bonus
+        return total
+    @property
+    def phys_negation_extrinsic_bonus(self) -> float:
         total = 0
         for item in self.inventory:
             if item.effect.needs_equipped and not item.equipped:
@@ -399,9 +416,15 @@ class Character(Entity):
     
     @property
     def phys_atk(self) -> int:
-        return self.base_phys_atk + self.phys_atk_bonus
+        return self.base_phys_atk + self.phys_atk_intrinsic_bonus + self.phys_atk_extrinsic_bonus
     @property
-    def phys_atk_bonus(self) -> int:
+    def phys_atk_intrinsic_bonus(self) -> int:
+        total = 0
+        for effect in self.effects:
+            total += effect.phys_atk_bonus
+        return total
+    @property
+    def phys_atk_extrinsic_bonus(self) -> int:
         total = 0
         for item in self.inventory:
             if item.effect.needs_equipped and not item.equipped:
@@ -409,23 +432,18 @@ class Character(Entity):
             total += item.effect.phys_atk_bonus
         return total
     
-    @property
-    def magc_negation(self) -> float:
-        return self.base_magc_negation + self.magc_negation_bonus
-    @property
-    def magc_negation_bonus(self) -> float:
-        total = 0
-        for item in self.inventory:
-            if item.effect.needs_equipped and not item.equipped:
-                continue
-            total += item.effect.magc_negation_bonus
-        return total
-        
+    
     @property
     def magc_defense(self) -> int:
-        return self.base_magc_defense + self.magc_defense_bonus
+        return self.base_magc_defense + self.magc_defense_intrinsic_bonus + self.magc_negation_extrinsic_bonus
     @property
-    def magc_defense_bonus(self) -> int:
+    def magc_defense_intrinsic_bonus(self) -> int:
+        total = 0
+        for effect in self.effects:
+            total += effect.magc_defense_bonus
+        return total
+    @property
+    def magc_defense_extrinsic_bonus(self) -> int:
         total = 0
         for item in self.inventory:
             if item.effect.needs_equipped and not item.equipped:
@@ -434,10 +452,34 @@ class Character(Entity):
         return total
     
     @property
-    def magc_atk(self) -> int:
-        return self.base_magc_atk + self.magc_atk_bonus
+    def magc_negation(self) -> float:
+        return self.base_magc_negation + self.magc_negation_intrinsic_bonus + self.magc_negation_extrinsic_bonus
     @property
-    def magc_atk_bonus(self) -> int:
+    def magc_negation_intrinsic_bonus(self) -> int:
+        total = 0
+        for effect in self.effects:
+            total += effect.magc_negation_bonus
+        return total
+    @property
+    def magc_negation_extrinsic_bonus(self) -> float:
+        total = 0
+        for item in self.inventory:
+            if item.effect.needs_equipped and not item.equipped:
+                continue
+            total += item.effect.magc_negation_bonus
+        return total
+    
+    @property
+    def magc_atk(self) -> int:
+        return self.base_magc_atk + self.magc_atk_intrinsic_bonus + self.magc_atk_extrinsic_bonus
+    @property
+    def magc_atk_intrinsic_bonus(self) -> int:
+        total = 0
+        for effect in self.effects:
+            total += effect.magc_atk_bonus
+        return total
+    @property
+    def magc_atk_extrinsic_bonus(self) -> int:
         total = 0
         for item in self.inventory:
             if item.effect.needs_equipped and not item.equipped:
@@ -445,43 +487,23 @@ class Character(Entity):
             total += item.effect.magc_atk_bonus
         return total
     
+    
     @property
     def dodge_chance(self) -> float:
-        return self.base_dodge_chance + self.dodge_chance_bonus
+        return self.base_dodge_chance + self.dodge_chance_intrinsic_bonus + self.dodge_chance_extrinsic_bonus
     @property
-    def dodge_chance_bonus(self) -> float:
+    def dodge_chance_intrinsic_bonus(self) -> int:
+        total = 0
+        for effect in self.effects:
+            total += effect.dodge_chance_bonus
+        return total
+    @property
+    def dodge_chance_extrinsic_bonus(self) -> float:
         total = 0
         for item in self.inventory:
             if item.effect.needs_equipped and not item.equipped:
                 continue
             total += item.effect.dodge_chance_bonus
-        return total
-        
-    @property
-    def xp_to_next_level(self) -> int:
-        return (self.level_up_base + self.level * self.level_up_factor) - self.current_xp
-    
-    
-    def add_xp(self, xp:int):
-        if self.current_xp + xp >= self.xp_to_next_level:
-            
-            self.current_xp = self.current_xp + xp - self.xp_to_next_level
-            self.level += 1
-            print('Level Up')
-            self.update_stats()
-            self.needs_level_up = True
-        else:
-            self.current_xp += xp
-            
-    @property
-    def carry_weight(self) -> int:
-        return self.STR*15
-
-    @property
-    def weight(self) -> int:
-        total = 0
-        for item in self.inventory:
-            total += item.weight
         return total
     
     def update_stats(self) -> None:
@@ -521,6 +543,40 @@ class Character(Entity):
         self.base_magc_negation = 0
         
         self.base_dodge_chance = self.DEX * .01
+    
+    # XP/Level
+    @property
+    def xp_for_next_level(self) -> int:
+        return self.level_up_base + self.level * self.level_up_factor
+    @property
+    def xp_to_next_level(self) -> int:
+        return self.xp_for_next_level - self.current_xp
+    
+    def add_xp(self, xp:int):
+        if xp < 0:
+            return
+        if self.current_xp + xp >= self.xp_for_next_level:
+            leftover = self.current_xp + xp - self.xp_for_next_level
+            self.current_xp = 0
+            self.level += 1
+            print('Level Up')
+            self.update_stats()
+            self.needs_level_up = True
+            self.add_xp(leftover)
+        else:
+            self.current_xp += xp
+    
+    # Inventory and Weight
+    @property
+    def carry_weight(self) -> int:
+        return self.STR*15
+
+    @property
+    def weight(self) -> int:
+        total = 0
+        for item in self.inventory:
+            total += item.weight
+        return total
         
     def add_inventory(self, item: Item, silent: bool = False) -> None:
         if self.weight + item.weight > self.carry_weight:
@@ -618,6 +674,7 @@ class Character(Entity):
                 self.unequip(item)
             else:
                 self.equip(item)
+    
         
     def die(self) -> None:
         self.value = self.corpse_value

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, List, Iterable
+from typing import TYPE_CHECKING
 
 from enum import auto, Enum
 
