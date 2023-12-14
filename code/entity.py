@@ -587,6 +587,7 @@ class Character(Entity):
         if not silent: print(f'{item} added to inventory.')
         
     def drop_inventory(self, item: str | Item, silent: bool = False) -> None:
+        """ `silent` to not print messages. """
         if type(item) == str:
             item = self.get_with_name(item)
         if item not in self.inventory:
@@ -652,6 +653,7 @@ class Character(Entity):
                 break
     
     def unequip(self, items: Item | str | List[Item | str], silent: bool = False) -> None:
+        """ `silent` to not print messages. """
         if type(items) != list:
             items: List[Item|str] = [items]
         items: List[Item] = [self.get_with_name(item) if type(item) == str else item for item in items]
@@ -664,16 +666,17 @@ class Character(Entity):
             item.equipped = False
             if not silent: print(f'Unequipped {item}.')
             
-    def toggle_equip(self, items: Item | str | List[Item | str]):
+    def toggle_equip(self, items: Item | str | List[Item | str], silent: bool = False):
+        """ `silent` to not print messages. """
         if type(items) != list:
             items: List[Item|str] = [items]
         items: List[Item] = [self.get_with_name(item) if type(item) == str else item for item in items]
         
         for item in items:
             if item.equipped:
-                self.unequip(item)
+                self.unequip(item, silent)
             else:
-                self.equip(item)
+                self.equip(item, silent)
     
         
     def die(self) -> None:

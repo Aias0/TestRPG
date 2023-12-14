@@ -21,7 +21,7 @@ class GameMap:
         
         self.tiles = np.full((width, height), fill_value=tile_types.wall, order='F')
         
-        self.visable = np.full(
+        self.visible = np.full(
             (width, height), fill_value=False, order='F'
         ) # Tiles player can see
         self.explored = np.full(
@@ -79,7 +79,7 @@ class GameMap:
         Otherwise, the default is "SHROUD".
         """
         console.tiles_rgb[0 : self.width, 0: self.height] = np.select(
-            condlist=[self.visable, self.explored],
+            condlist=[self.visible, self.explored],
             choicelist=[self.tiles['light'], self.tiles['dark']],
             default=tile_types.SHROUD,
         )
@@ -90,7 +90,7 @@ class GameMap:
         
         for sprite in sprites_sorted_for_rendering:
             # Only print sprites that are in FOV
-            if self.visable[sprite.x, sprite.y]:
+            if self.visible[sprite.x, sprite.y]:
                 console.print(
                     x=sprite.x, y=sprite.y, string=sprite.char, fg=sprite.color
                 )
