@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from entity import Character
 
 class Action:
-    def __init__(self, sprite: Sprite) -> None:
+    def __init__(self, sprite: Actor) -> None:
         self.sprite = sprite
         
     @property
@@ -36,7 +36,7 @@ class WaitAction(Action):
         pass
 
 class ActionWithDirection(Action):
-    def __init__(self, sprite: Sprite, dx: int, dy: int):
+    def __init__(self, sprite: Actor, dx: int, dy: int):
         super().__init__(sprite)
         
         self.dx = dx
@@ -65,8 +65,16 @@ class MeleeAction(ActionWithDirection):
         target = self.target_actor
         if not target:
             return # No entity to attack.
-        character: Character = target.entity
-        print(f"You kick {character.name}, much to {character.pronouns[character.gender][2]} annoyance!")
+        
+        damage = self.sprite.entity.phys_atk * target.entity.phys_defense - target.entity.phys_negation
+        
+        attack_desc = f'{self.sprite.entity.name.capitalize()} attacks {target.entity.name}'
+        if damage > 0:
+            print(f'{attack_desc} for {damage} hit points.')
+            target.entity.take_damage(damage)
+        else:
+            print(f'{attack_desc} but does no damage.')
+        
 
 class MovementAction(ActionWithDirection):
     def perform(self) -> None:

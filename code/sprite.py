@@ -90,7 +90,6 @@ class Actor(Sprite):
         y: int = 0,
         color: Tuple[int, int, int] = (255, 255, 255),
         blocks_movement: bool = True,
-        render_order: RenderOrder = RenderOrder.ACTOR,
         ai_cls: Type[BaseAI] = None,
         hostile = False
         ) -> None:
@@ -102,7 +101,7 @@ class Actor(Sprite):
             y=y,
             color=color,
             blocks_movement=blocks_movement,
-            render_order=render_order,
+            render_order= RenderOrder.ACTOR,
             pickupable=False,
             )
         self.entity: Character
