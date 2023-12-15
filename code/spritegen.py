@@ -14,12 +14,14 @@ from sprite import Sprite, Actor
 from render_order import RenderOrder
 from item_types import ItemTypes
 
+from ai import HostileEnemy
+
 if TYPE_CHECKING:
     from races import BaseRace
     from jobs import BaseJob
 
 def gen_enemies(
-    enemy_num_range: int | list,
+    enemy_num: int | tuple,
     race_list: Optional[Dict[BaseRace, int]] = None,
     race_overwrite: bool = False,
     job_list: Optional[Dict[BaseJob, int]] = None,
@@ -28,27 +30,29 @@ def gen_enemies(
     level_overwrite: bool = True,
     ) -> List[Actor]:
     """ `overwrite` `True` overwrites default values, `False` blends values."""
-    
     base_race_list = dict(zip([race.__class__.__name__ for race in RACES], [race.rarity for race in RACES]))
     base_job_list = dict(zip([job.__class__.__name__ for job in JOBS], [job.rarity for job in JOBS]))
     base_level_list = {1:15, 2:10, 3:5}
     
-    # Convert int into tuple so random always is int
-    if type(enemy_num_range) == int:
-        enemy_num_range = [enemy_num_range,]*2
+    # Convert int into list so random always is list
+    
+    if isinstance(enemy_num, int):
+        enemy_num_range = [enemy_num,]*2
+    else:
+        enemy_num_range = list(enemy_num)
     enemy_num_range[1] += 1
     
     if race_overwrite and race_list:
-        race_list = race_list
+        race_chance = race_list
     elif race_list:
-        race_list = base_race_list | race_list
+        race_chance = base_race_list | race_list
     else:
-        race_list = base_race_list
-    race_list, level_race_weights = zip(*race_list.items())
+        race_chance = base_race_list
+    race_chance, level_race_weights = zip(*race_chance.items())
     
     num_enemies = random.randrange(enemy_num_range[0], enemy_num_range[1])
     
-    enemy_races = random.choices(race_list, level_race_weights, k=num_enemies)
+    enemy_races = random.choices(race_chance, level_race_weights, k=num_enemies)
     
     if level_overwrite and level_list:
         level_chance = level_list
@@ -74,10 +78,11 @@ def gen_enemies(
                 name= f'{enemy_race.name} {enemy_job.name}',
                 corpse_value= enemy_race.default_corpse_val,
                 race= enemy_race,
+                gender= random.choice(['male', 'female']),
                 job= enemy_job,
                 level= random.choices(level_list, level_level_weights)[0]
             ))
-        
+
     enemies_actors: List[Actor] = entity_to_sprite(enemies)
     
     for enemy in enemies_actors:
@@ -86,15 +91,17 @@ def gen_enemies(
     return enemies_actors
 
 def gen_items(
-    item_num_range: int | list,
+    item_num: int | tuple,
     item_list: Optional[Dict[BaseRace, int]] = None,
     item_overwrite: bool = False,
 ) -> List[Sprite]:
     
     base_item_list = dict(zip([item.name for item in ITEMS], [item.rarity for item in ITEMS]))
     
-    if type(item_num_range) == int:
-        item_num_range = [item_num_range,]*2
+    if isinstance(item_num, int):
+        item_num_range = [item_num,]*2
+    else:
+        item_num_range = list(item_num)
     item_num_range[1] += 1
     
     if item_list and item_overwrite:
@@ -117,19 +124,21 @@ def gen_items(
     return entity_to_sprite(items)
     
 
-def entity_to_sprite(entities: Entity | List[Entity]) -> Sprite | List[Sprite]:
-    if type(entities) != list:
+def entity_to_sprite(entities: Entity | List[Entity], hostile: bool = True) -> Sprite | List[Sprite]:
+    if not isinstance(entities, list):
         entities = [entities]
     
     sprites = []
     for entity in entities:
-        if type(entity) == Character:
+        if isinstance(entity, Character):
             sprites.append(Actor(
                 character=entity,
                 char=entity.race.default_char,
                 color=entity.job.default_color,
+                ai_cls=HostileEnemy,
+                hostile = hostile
             ))
-        elif type(entity) == Item:
+        elif isinstance(entity, Item):
             sprites.append(Sprite(
                 entity=entity,
                 char=entity.char,
@@ -138,21 +147,5 @@ def entity_to_sprite(entities: Entity | List[Entity]) -> Sprite | List[Sprite]:
             ))
         else:
             sprites.append(Sprite())
-            
-    return sprites
-
-        
     
-result = gen_enemies(
-    enemy_num_range=[4, 8],
-    )
-
-print(result)
-[print(i.entity.description) for i in result]
-print()
-
-result2 = gen_items(
-    item_num_range=[3, 6],
-)
-print(result2)
-[print(i.entity.description) for i in result2]
+    return sprites

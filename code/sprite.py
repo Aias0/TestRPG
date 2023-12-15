@@ -1,15 +1,28 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Tuple, TypeVar, Optional, Type
 
 from render_order import RenderOrder
 
+import copy
+
 if TYPE_CHECKING:
+    from ai import BaseAI
     from entity import Entity, Character
+    from game_map import GameMap
+    
+T = TypeVar("T", bound="Sprite")
 
 class Sprite():
+    """
+    A generic object to represent actor, items, etc.
+    """
+    
+    gamemap: GameMap
+    
     def __init__(
         self,
         entity: Entity,
+        gamemap: Optional[GameMap] = None,
         char: str = '?',
         x: int = 0,
         y: int = 0,
@@ -30,13 +43,29 @@ class Sprite():
         
         self.entity.parent = self
         
-    def spawn(self):
+        if gamemap:
+            # If gamemap isn't provided now then it will be set later.
+            self.gamemap = gamemap
+            gamemap.sprites.add(self)
+        
+    def spawn(self: T, gamemap: GameMap, x: int, y: int) -> T:
         """Spawn a copy of this instance at the given location."""
-        pass
+        clone = copy.deepcopy(self)
+        clone.x = x
+        clone.y = y
+        clone.gamemap = gamemap
+        gamemap.sprites.add(clone)
+        return clone
     
-    def place(self):
+    def place(self, x: int, y: int, gamemap: Optional[GameMap]) -> None:
         """Place this entity at a new location.  Handles moving across GameMaps."""
-        pass
+        self.x = x
+        self.y = y
+        if gamemap:
+            if hasattr(self, 'gamemap'): # Possibly uninitialized.
+                self.gamemap.sprites.remove(self)
+            self.gamemap = gamemap
+            gamemap.sprites.add(self)
     
     def distance(self):
         """Return the distance between the current entity and the given (x, y) coordinate."""
@@ -62,7 +91,7 @@ class Actor(Sprite):
         color: Tuple[int, int, int] = (255, 255, 255),
         blocks_movement: bool = True,
         render_order: RenderOrder = RenderOrder.ACTOR,
-        ai = None,
+        ai_cls: Type[BaseAI] = None,
         hostile = False
         ) -> None:
         
@@ -77,9 +106,10 @@ class Actor(Sprite):
             pickupable=False,
             )
         self.entity: Character
-        
-        self.ai = ai
         self.entity.parent = self
+        
+        if ai_cls:
+            self.ai: Optional[BaseAI] = ai_cls(self)
         
         self.hostile = hostile
 

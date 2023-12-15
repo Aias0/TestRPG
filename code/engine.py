@@ -3,35 +3,40 @@ from typing import TYPE_CHECKING, Set, Iterable, Any
 
 from tcod.console import Console
 from tcod.context import Context
+from tcod.map import compute_fov
 
 from input_handler import EventHandler
 
 if TYPE_CHECKING:
     from sprite import Sprite, Actor
+    from entity import Character
     from game_map import GameMap
 
 class Engine:
+    game_map: GameMap
     
-    def __init__(self, entities: Set[Sprite], event_handler: EventHandler, game_map: GameMap, player: Actor):
-        self.entities = entities
-        self.event_handler = event_handler
-        self.game_map = game_map
+    def __init__(self, player: Actor):
+        self.event_handler: EventHandler = EventHandler(self)
         self.player = player
         
-    def handle_events(self, events: Iterable[Any]) -> None:
-        for event in events:
-            action = self.event_handler.dispatch(event)
-                
-            if action is None:
-                continue
+    def handle_npc_turns(self) -> None:
+        for sprite in self.game_map.sprites - {self.player}:
+            sprite: Actor
+            if sprite.ai:
+                sprite.ai.perform()
             
-            action.perform(self, self.player)
+    def update_fov(self) -> None:
+        """ Recompute the visible area based on the players point of view. """
+        self.game_map.visible[:] = compute_fov(
+            self.game_map.tiles['transparent'],
+            (self.player.x, self.player.y),
+            radius=8,
+        )
+        # If a tile is "visible" it should be added to "explored".
+        self.game_map.explored |= self.game_map.visible
     
     def render(self, console: Console, context: Context) -> None:
         self.game_map.render(console)
-        
-        for entity in self.entities:
-            console.print(entity.x, entity.y, entity.char, fg=entity.color)
             
         context.present(console)
         

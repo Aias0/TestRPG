@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Iterator, Tuple
+from typing import TYPE_CHECKING, Iterator, Tuple, List
 
 import random
 
@@ -8,7 +8,10 @@ import tile_types
 
 import tcod
 
+from spritegen import gen_enemies
+
 if TYPE_CHECKING:
+    from engine import Engine
     from sprite import Actor, Sprite
 
 class Room:
@@ -69,6 +72,17 @@ class RectangularRoom(Room):
             and self.y2 >= point[1]
         )
         
+def place_sprites(
+    room: RectangularRoom, dungeon: GameMap, sprites: List[Sprite]
+) -> None:
+        
+    for new_sprite in sprites:
+        x = random.randint(room.x1 + 1, room.x2 - 1)
+        y = random.randint(room.y1 + 1, room.y2 - 1)
+        
+        if not any(sprite.x == x and sprite.y == y for sprite in dungeon.sprites):
+            new_sprite.place(x, y, dungeon)
+        
 def tunnel_between(
     start: Tuple[int, int], end: Tuple[int, int]
 ) -> Iterator[Tuple[int, int]]:
@@ -88,16 +102,60 @@ def tunnel_between(
     for x, y in tcod.los.bresenham((corner_x, corner_y), (x2, y2)).tolist():
         yield x, y
         
-def generate_dungeon(map_width, map_height) -> GameMap:
-    dungeon = GameMap(map_width, map_height)
+def generate_dungeon(
+    max_rooms: int | tuple,
+    room_min_size: int,
+    room_max_size: int,
+    map_width: int,
+    map_height: int,
+    enemies_per_room_range: int | list,
+    engine: Engine,
+) -> GameMap:
+    """ Generate a new dungeon map. """
+    if isinstance(max_rooms, int):
+        max_room_range = [max_rooms,]*2
+    else:
+        max_room_range = list(max_rooms)
+    max_room_range[1] += 1
     
-    room_1 = RectangularRoom(x=20, y=15, width=10, height=15)
-    room_2 = RectangularRoom(x=35, y=15, width=10, height=15)
+    player = engine.player
+    dungeon = GameMap(engine, map_width, map_height, sprites=[player])
     
-    dungeon.tiles[room_1.inner] = tile_types.floor
-    dungeon.tiles[room_2.inner] = tile_types.floor
+    rooms: List[RectangularRoom] = []
     
-    for x, y in tunnel_between(room_2.center, room_1.center):
-        dungeon.tiles[x, y] = tile_types.floor
+    num_rooms = random.randrange(max_room_range[0], max_room_range[1])
+    for r in range(num_rooms):
+        room_width = random.randint(room_min_size, room_max_size)
+        room_height = random.randint(room_min_size, room_max_size)
+        
+        x = random.randint(0, dungeon.width - room_width - 1)
+        y = random.randint(0, dungeon.height - room_height - 1)
+        
+        # "RectangularRoom" class makes rectangles easier to work with
+        new_room = RectangularRoom(x, y, room_width, room_height)
+        
+        # Run through the other rooms and see if they intersect with this one.
+        if any(new_room.intersects(other_room) for other_room in rooms):
+            continue # This room intersects, so go to the next attempt.
+        # If there are no intersections then the room is valid.
+        
+        # Dig out this rooms inner area.
+        dungeon.tiles[new_room.inner] = tile_types.floor
+        
+        if len(rooms) == 0:
+            # The first room, where the player starts.
+            player.place(*new_room.center, dungeon)
+            new_room.safe = True
+        else: # All rooms after the first.
+            # Dig out a tunnel between this room and the previous one.
+            for x, y, in tunnel_between(rooms[-1].center, new_room.center):
+                dungeon.tiles[x, y] = tile_types.floor
+
+        if not new_room.safe:
+            sprites = gen_enemies(enemy_num=enemies_per_room_range)
+            place_sprites(new_room, dungeon, sprites)
+        
+        # Finally, append the new room to the list.
+        rooms.append(new_room)
     
     return dungeon

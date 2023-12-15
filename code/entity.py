@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from races import BaseRace
     from jobs import BaseJob
     from entity import Character
+    from engine import Engine
 
 class Entity():
     parent: Sprite
@@ -58,6 +59,10 @@ class Entity():
         else:
             self.description = 'This should\'t happen.'
         self.value = value
+        
+    @property
+    def engine(self) -> Engine:
+        return self.parent.gamemap.engine
         
     def __str__(self) -> str:
         return f'{self.name}'
@@ -128,13 +133,15 @@ class Item(Entity):
 class Character(Entity):
     parent: Actor
     
-    _attribute_names = {'CON': 'Constitution', 'STR': 'Strength', 'END': 'Endurance', 'DEX': 'Dexterity', 'FOC': 'Focus', 'INT': 'Intelligence', 'WIL': "Will", 'WGT': 'Weight', 'LCK': 'Luck'}
+    attribute_names = {'CON': 'Constitution', 'STR': 'Strength', 'END': 'Endurance', 'DEX': 'Dexterity', 'FOC': 'Focus', 'INT': 'Intelligence', 'WIL': "Will", 'WGT': 'Weight', 'LCK': 'Luck'}
+    pronouns: Dict[str, List[str]] = {'male': ['he', 'him', 'his'], 'female': ['she', 'hers', 'her'], 'other': ['they', 'them', 'theirs']}
     
     def __init__(
         self,
         name: str,
         corpse_value: int,
         race: BaseRace,
+        gender: str,
         job: BaseJob,
         description: str = None,
         level: int = 1,
@@ -156,6 +163,8 @@ class Character(Entity):
         
         self.race = race
         self.race.parent = self
+        
+        self.gender = gender
         
         self.job = job
         self.job.parent = self
