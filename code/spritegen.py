@@ -50,7 +50,7 @@ def gen_enemies(
         race_chance = base_race_list
     race_chance, level_race_weights = zip(*race_chance.items())
     
-    num_enemies = random.randrange(enemy_num_range[0], enemy_num_range[1])
+    num_enemies = random.randrange(*enemy_num_range)
     
     enemy_races = random.choices(race_chance, level_race_weights, k=num_enemies)
     
