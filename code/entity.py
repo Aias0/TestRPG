@@ -530,7 +530,7 @@ class Character(Entity):
         except:
             # This happens on character creation
             mp_percent = 1
-        self.max_mp = (self.FOC*self.level)//1.5
+        self.max_mp = int((self.FOC*self.level)/1.5)
         self._mp = int(self.max_mp * mp_percent)
         
         try:
@@ -689,14 +689,29 @@ class Character(Entity):
     
         
     def die(self) -> None:
-        self.value = self.corpse_value
-        
-        self.parent.char = "%"
-        self.parent.color = (191, 0, 0)
-        self.parent.blocks_movement = False
+        if self.engine.player is self.parent:
+            death_message = 'You died!'
+        else:
+            death_message = f'{self.name} is dead!'
+            
+        self.parent.entity=Corpse(
+            name=f"remains of {self.name}",
+            value=self.corpse_value,
+            weight=self.weight,
+            description=f"Remains of {self.name}. Has a faint oder.",
+            dead_character=self
+        )
+        self.parent.gamemap=self.parent.gamemap
+        self.parent.char="%"
+        self.parent.x=self.parent.x
+        self.parent.y=self.parent.y
+        self.parent.color=(191, 0, 0)
         self.parent.ai = None
-        self.name = f"remains of {self.name}"
         self.parent.render_order = RenderOrder.CORPSE
+        self.parent.blocks_movement = False
+
+        
+        print(death_message)
         
     def heal(self, amount: int) -> int:
         if self.hp == self.max_hp:
@@ -715,3 +730,31 @@ class Character(Entity):
 
     def take_damage(self, amount: int) -> None:
         self.hp -= amount
+        
+class Corpse(Item):
+    def __init__(
+        self,
+        name: str,
+        value: int,
+        weight: int,
+        dead_character: Character,
+        char: str = '%',
+        color: Tuple[int, int, int] = None,
+        description: str = None,
+        effect: ItemEffect = ItemEffect(),
+        rarity: int = 10,
+    ) -> None:
+        super().__init__(
+            name=name,
+            value=value,
+            weight=weight,
+            char=char,
+            color=color,
+            itemtype = RenderOrder.CORPSE,
+            description=description,
+            effect=effect,
+            equippable = {},
+            rarity=rarity
+        )
+        
+        self.dead_character = dead_character

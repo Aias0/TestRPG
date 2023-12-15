@@ -10,6 +10,7 @@ class ItemTypes(Enum):
     UNKNOWN = auto()
     
     MISCELLANEOUS = auto()
+    CORPSE = auto()
     
     POTION = auto()
     SCROLL = auto()

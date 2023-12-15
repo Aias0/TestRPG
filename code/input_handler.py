@@ -4,10 +4,36 @@ from typing import Optional, TYPE_CHECKING
 import tcod
 import tcod.event
 
-from actions import Action, EscapeAction, BumpAction
+from actions import Action, EscapeAction, BumpAction, WaitAction
 
 if TYPE_CHECKING:
     from engine import Engine
+    
+KEY_ACTION = {
+    'move_up': (0, -1),
+    'move_down': (0, 1),
+    'move_left': (-1, 0),
+    'move_right': (1, 0),
+    'move_up_right': (1, -1),
+    'move_up_left': (-1, -1),
+    'move_down_right': (1, 1),
+    'move_down_left': (-1, 1),
+    'wait': None
+}
+
+MOVE_KEY = {
+    tcod.event.KeySym.w: KEY_ACTION['move_up'],
+    tcod.event.KeySym.s: KEY_ACTION['move_down'],
+    tcod.event.KeySym.a: KEY_ACTION['move_left'],
+    tcod.event.KeySym.d: KEY_ACTION['move_right'],
+    tcod.event.KeySym.e: KEY_ACTION['move_up_right'],
+    tcod.event.KeySym.q: KEY_ACTION['move_up_left'],
+    tcod.event.KeySym.x: KEY_ACTION['move_down_right'],
+    tcod.event.KeySym.z: KEY_ACTION['move_down_left'],
+}
+WAIT_KEY = {
+    tcod.event.KeySym.PERIOD: KEY_ACTION['wait'],
+}
 
 class EventHandler(tcod.event.EventDispatch[Action]):
     def __init__(self, engine: Engine) -> None:
@@ -36,22 +62,12 @@ class EventHandler(tcod.event.EventDispatch[Action]):
         
         player = self.engine.player
         
-        if key == tcod.event.KeySym.w:
-            action = BumpAction(player, dx=0, dy=-1)
-        elif key == tcod.event.KeySym.s:
-            action = BumpAction(player, dx=0, dy=1)
-        elif key == tcod.event.KeySym.a:
-            action = BumpAction(player, dx=-1, dy=0)
-        elif key == tcod.event.KeySym.d:
-            action = BumpAction(player, dx=1, dy=0)
-        elif key == tcod.event.KeySym.q:
-            action = BumpAction(player, dx=-1, dy=-1)
-        elif key == tcod.event.KeySym.e:
-            action = BumpAction(player, dx=1, dy=-1)
-        elif key == tcod.event.KeySym.z:
-            action = BumpAction(player, dx=-1, dy=1)
-        elif key == tcod.event.KeySym.x:
-            action = BumpAction(player, dx=1, dy=1)
+        if key in MOVE_KEY:
+            dx, dy = MOVE_KEY[key]
+            action = BumpAction(player, dx, dy)
+            
+        elif key in WAIT_KEY:
+            action = WaitAction(player)
             
         elif key == tcod.event.KeySym.ESCAPE:
             action = EscapeAction(player)
