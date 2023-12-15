@@ -1,24 +1,15 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING, Iterator, Tuple
 
 import random
 
-if TYPE_CHECKING:
-    from game_map import GameMap
-    from sprite import Actor, Sprite
+from game_map import GameMap
+import tile_types
 
-def get_max_value_for_floor(
-    max_value_by_floor: List[Tuple(int, int)], floor: int
-) -> int:
-    current_value = 0
-    
-    for floor_minimum, value in max_value_by_floor:
-        if floor_minimum > floor:
-            break
-        else:
-            current_value = value
-            
-    return current_value
+import tcod
+
+if TYPE_CHECKING:
+    from sprite import Actor, Sprite
 
 class Room:
     @property
@@ -78,11 +69,35 @@ class RectangularRoom(Room):
             and self.y2 >= point[1]
         )
         
-def place_sprites(room: Room, gamemap: GameMap, floor_number: int) -> None:
-    number_of_enemies = random.randint(
-        0, get_max_value_for_floor()
-    )
-    number_of_items = random.randint(
-        0, get_max_value_for_floor()
-    )
-    enemies: List[Actor]
+def tunnel_between(
+    start: Tuple[int, int], end: Tuple[int, int]
+) -> Iterator[Tuple[int, int]]:
+    """Return an L-shaped tunnel between these two points."""
+    x1, y1 = start
+    x2, y2 = end
+    if random.random() < 0.5:
+        # Move horizontally, then vertically.
+        corner_x, corner_y = x2, y1
+    else:
+        # Move vertically, then horizontally.
+        corner_x, corner_y = x1, y2
+    
+    # Generate the coordinates for this tunnel.
+    for x, y in tcod.los.bresenham((x1, y1), (corner_x, corner_y)).tolist():
+        yield x, y
+    for x, y in tcod.los.bresenham((corner_x, corner_y), (x2, y2)).tolist():
+        yield x, y
+        
+def generate_dungeon(map_width, map_height) -> GameMap:
+    dungeon = GameMap(map_width, map_height)
+    
+    room_1 = RectangularRoom(x=20, y=15, width=10, height=15)
+    room_2 = RectangularRoom(x=35, y=15, width=10, height=15)
+    
+    dungeon.tiles[room_1.inner] = tile_types.floor
+    dungeon.tiles[room_2.inner] = tile_types.floor
+    
+    for x, y in tunnel_between(room_2.center, room_1.center):
+        dungeon.tiles[x, y] = tile_types.floor
+    
+    return dungeon

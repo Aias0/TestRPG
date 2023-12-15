@@ -25,7 +25,7 @@ class Entity():
             self.description = description
             
         # Auto gen item description if one doesn't exist.
-        elif type(self) == Item:
+        elif isinstance(self, Item):
             attr_desc = {'CON': 'Constitution', 'STR': 'Strength', 'END': 'Endurance', 'DEX': 'Dexterity', 'FOC': 'Focus', 'INT': 'Intelligence', 'WIL': "Will", 'WGT': 'Weight', 'LCK': 'Luck'}
             inv_vs_eqp = {True: 'equipped', False: 'in inventory'}
             self.description = f'A {name}.'
@@ -588,7 +588,7 @@ class Character(Entity):
         
     def drop_inventory(self, item: str | Item, silent: bool = False) -> None:
         """ `silent` to not print messages. """
-        if type(item) == str:
+        if isinstance(item, str):
             item = self.get_with_name(item)
         if item not in self.inventory:
             if not silent: print(f'{item} not in inventory.')
@@ -605,22 +605,22 @@ class Character(Entity):
         return [item for item in self.inventory if item.name == name][0]
     
     def in_inventory(self, item: str | Item) -> bool:
-        if type(item) == str:
+        if isinstance(item, str):
             return bool(self.get_with_name(item))
         return item in self.inventory
     
     def is_equipped(self, item: str | Item) -> bool:
-        if type(item) == str:
+        if isinstance(item, str):
             return bool(self.get_with_name(item))
         return item in self.equipment.values()
         
     def equip(self, items: Item | str | List[Item|str], slot: Optional[str] = None, silent: bool = False) -> None:
         """ Equips a single `Item` or multiple. Adds item to inventory if it isn't already present.\n\n`slot` only used on single equip.\n\n`silent` to not print messages."""
-        if type(items) != list:
+        if not isinstance(items, list):
             items:List[Item|str] = [items]
         else:
             slot = None
-        items: List[Item] = [self.get_with_name(item) if type(item) == str else item for item in items]
+        items: List[Item] = [self.get_with_name(item) if isinstance(item, str) else item for item in items]
         
         for item in items:
             if not item in self.inventory:
@@ -654,9 +654,9 @@ class Character(Entity):
     
     def unequip(self, items: Item | str | List[Item | str], silent: bool = False) -> None:
         """ `silent` to not print messages. """
-        if type(items) != list:
+        if not isinstance(items, list):
             items: List[Item|str] = [items]
-        items: List[Item] = [self.get_with_name(item) if type(item) == str else item for item in items]
+        items: List[Item] = [self.get_with_name(item) if isinstance(item, str) else item for item in items]
             
         for item in items:
             if not item in self.equipment.values():
@@ -668,9 +668,9 @@ class Character(Entity):
             
     def toggle_equip(self, items: Item | str | List[Item | str], silent: bool = False):
         """ `silent` to not print messages. """
-        if type(items) != list:
+        if not isinstance(items, list):
             items: List[Item|str] = [items]
-        items: List[Item] = [self.get_with_name(item) if type(item) == str else item for item in items]
+        items: List[Item] = [self.get_with_name(item) if isinstance(item, str) else item for item in items]
         
         for item in items:
             if item.equipped:
