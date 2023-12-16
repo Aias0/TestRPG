@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional, Tuple
 
+import random
+
 if TYPE_CHECKING:
     from engine import Engine
     from sprite import Sprite, Actor
@@ -66,7 +68,18 @@ class MeleeAction(ActionWithDirection):
         if not target:
             return # No entity to attack.
         
-        damage = self.sprite.entity.phys_atk * target.entity.phys_defense - target.entity.phys_negation
+        dodge_chance = target.entity.dodge_chance
+        if target.entity.DEX < self.sprite.entity.DEX - 2:
+            dodge_chance /= 2
+        elif target.entity.DEX > self.sprite.entity.DEX + 2:
+            dodge_chance *= 2
+
+        damage = self.sprite.entity.phys_atk * (1 - target.entity.phys_negation) - target.entity.phys_defense
+        rand = random.random()+self.sprite.entity.LCK/100
+        if rand < dodge_chance/2:
+            damage = 0
+        elif rand < dodge_chance:
+            damage //= 2
         
         attack_desc = f'{self.sprite.entity.name.capitalize()} attacks {target.entity.name}'
         if damage > 0:

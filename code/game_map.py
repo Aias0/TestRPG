@@ -6,6 +6,7 @@ from tcod.console import Console
 
 import tile_types
 from sprite import Sprite, Actor
+from entity import Corpse
 
 if TYPE_CHECKING:
     from engine import Engine
@@ -49,7 +50,7 @@ class GameMap:
     
     def get_actor_at_location(self, x: int, y: int) -> Optional[Actor]:
         for actor in self.actors:
-            if actor.x == x and actor.y == y:
+            if actor.x == x and actor.y == y and not isinstance(actor.entity, Corpse):
                 return actor
         
         return None

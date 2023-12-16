@@ -7,6 +7,8 @@ import tcod
 from actions import Action, MeleeAction, MovementAction, WaitAction
 from entity import Entity
 
+from tcod.map import compute_fov
+
 if TYPE_CHECKING:
     from sprite import Actor
 
@@ -49,8 +51,29 @@ class HostileEnemy(BaseAI):
         super().__init__(sprite)
         self.path: List[Tuple[int, int]] = []
         
-    def perform(self) -> None:
+        self.lose_aggro_turns = self.sprite.entity.INT // 3
+        self.aggro_turn = 0
+        
+        
+    def perform(self) -> Action:
         target = self.engine.player
+        
+        vis_tiles = compute_fov(
+            self.sprite.gamemap.tiles['transparent'],
+            (self.sprite.x, self.sprite.y),
+            radius=8,
+        )
+        if vis_tiles[target.x, target.y]:
+            self.sprite.hostile = True
+            self.aggro_turn = 0
+        else:
+            self.aggro_turn +=1
+            if self.aggro_turn > self.lose_aggro_turns:
+                self.sprite.hostile = False
+        
+        if not self.sprite.hostile:
+            return WaitAction(self.sprite).perform()
+        
         dx = target.x - self.sprite.x
         dy = target.y - self.sprite.y
         distance = max(abs(dx), abs(dy)) # Chebyshev distance.

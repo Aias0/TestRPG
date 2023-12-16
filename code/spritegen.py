@@ -80,7 +80,10 @@ def gen_enemies(
                 race= enemy_race,
                 gender= random.choice(['male', 'female']),
                 job= enemy_job,
-                level= random.choices(level_list, level_level_weights)[0]
+                level= random.choices(level_list, level_level_weights)[0],
+                base_CON=8,
+                base_DEX=8,
+                base_STR=8
             ))
 
     enemies_actors: List[Actor] = entity_to_sprite(enemies)
@@ -124,7 +127,7 @@ def gen_items(
     return entity_to_sprite(items)
     
 
-def entity_to_sprite(entities: Entity | List[Entity], hostile: bool = True) -> Sprite | List[Sprite]:
+def entity_to_sprite(entities: Entity | List[Entity]) -> Sprite | List[Sprite]:
     if not isinstance(entities, list):
         entities = [entities]
     
@@ -136,7 +139,6 @@ def entity_to_sprite(entities: Entity | List[Entity], hostile: bool = True) -> S
                 char=entity.race.default_char,
                 color=entity.job.default_color,
                 ai_cls=HostileEnemy,
-                hostile = hostile
             ))
         elif isinstance(entity, Item):
             sprites.append(Sprite(

@@ -1,1 +1,4 @@
-print(str([1, 2])[1:-1])
+value = 10.1
+value //= 2
+
+print(value)

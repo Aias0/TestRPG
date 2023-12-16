@@ -5,18 +5,19 @@ from tcod.console import Console
 from tcod.context import Context
 from tcod.map import compute_fov
 
-from input_handler import EventHandler
+from input_handler import MainGameEventHandler
 
 if TYPE_CHECKING:
     from sprite import Sprite, Actor
     from entity import Character
     from game_map import GameMap
+    from input_handler import EventHandler
 
 class Engine:
     game_map: GameMap
     
     def __init__(self, player: Actor):
-        self.event_handler: EventHandler = EventHandler(self)
+        self.event_handler: EventHandler = MainGameEventHandler(self)
         self.player = player
         
     def handle_npc_turns(self) -> None:

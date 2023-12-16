@@ -2,13 +2,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List, Optional, Dict, Tuple
 
 from render_order import RenderOrder
+from input_handler import GameOverEventHandler
+
 from item_types import ItemTypes
 
 from entity_effect import ItemEffect, CharacterEffect
 
 from races import RACES_PLURAL
-
 import re
+
+from spritegen import entity_to_sprite
 
 if TYPE_CHECKING:
     from sprite import Sprite, Actor
@@ -522,7 +525,7 @@ class Character(Entity):
         except:
             # This happens on character creation
             hp_percent = 1
-        self.max_hp = (self.CON*self.level)//1.5
+        self.max_hp = int((self.CON*self.level)/1.5)
         self._hp = int(self.max_hp * hp_percent)
         
         try:
@@ -551,7 +554,7 @@ class Character(Entity):
         self.base_magc_defense = int(self.FOC/3)
         self.base_magc_negation = 0
         
-        self.base_dodge_chance = self.DEX * .01
+        self.base_dodge_chance = self.DEX *.01 + self.LCK *.001
     
     # XP/Level
     @property
@@ -594,6 +597,7 @@ class Character(Entity):
         self.inventory.append(item)
         item.holder = self
         if not silent: print(f'{item} added to inventory.')
+        self.update_stats()
         
     def drop_inventory(self, item: str | Item, silent: bool = False) -> None:
         """ `silent` to not print messages. """
@@ -607,7 +611,13 @@ class Character(Entity):
         self.inventory.remove(item)
         item.holder = None
         if not silent: print(f'{item} dropped.')
-        #TODO place item on ground under character
+        self.update_stats()
+        
+        if not item.parent:
+            item.parent = entity_to_sprite(item)
+        item.parent.x = self.parent.x
+        item.parent.y = self.parent.y
+        self.parent.gamemap.sprites.add(item.parent)
         
     def get_with_name(self, name: str) -> Item:
         """ Returns Item in inventory with name `name`. """
@@ -660,6 +670,7 @@ class Character(Entity):
                 self.equipment[slot_val[0]] = item
                 item.equipped = True
                 break
+        self.update_stats()
     
     def unequip(self, items: Item | str | List[Item | str], silent: bool = False) -> None:
         """ `silent` to not print messages. """
@@ -674,6 +685,7 @@ class Character(Entity):
             self.equipment[list(self.equipment.keys())[list(self.equipment.values()).index(item)]] = None
             item.equipped = False
             if not silent: print(f'Unequipped {item}.')
+        self.update_stats()
             
     def toggle_equip(self, items: Item | str | List[Item | str], silent: bool = False):
         """ `silent` to not print messages. """
@@ -691,24 +703,28 @@ class Character(Entity):
     def die(self) -> None:
         if self.engine.player is self.parent:
             death_message = 'You died!'
+            self.engine.event_handler = GameOverEventHandler(self.engine)
+            
+            self.parent.char="%"
+            self.parent.color=(191, 0, 0)
+            self.parent.ai = None
         else:
             death_message = f'{self.name} is dead!'
             
-        self.parent.entity=Corpse(
-            name=f"remains of {self.name}",
-            value=self.corpse_value,
-            weight=self.weight,
-            description=f"Remains of {self.name}. Has a faint oder.",
-            dead_character=self
-        )
-        self.parent.gamemap=self.parent.gamemap
-        self.parent.char="%"
-        self.parent.x=self.parent.x
-        self.parent.y=self.parent.y
-        self.parent.color=(191, 0, 0)
-        self.parent.ai = None
-        self.parent.render_order = RenderOrder.CORPSE
-        self.parent.blocks_movement = False
+            self.parent.entity=Corpse(
+                name=f"remains of {self.name}",
+                value=self.corpse_value,
+                weight=self.weight,
+                description=f"Remains of {self.name}. Has a faint oder.",
+                dead_character=self
+            )
+            self.parent.char="%"
+            self.parent.x=self.parent.x
+            self.parent.y=self.parent.y
+            self.parent.color=(191, 0, 0)
+            self.parent.ai = None
+            self.parent.render_order = RenderOrder.CORPSE
+            self.parent.blocks_movement = False
 
         
         print(death_message)
@@ -728,8 +744,9 @@ class Character(Entity):
 
         return amount_recovered
 
-    def take_damage(self, amount: int) -> None:
+    def take_damage(self, amount: int) -> int:
         self.hp -= amount
+        return amount
         
 class Corpse(Item):
     def __init__(
