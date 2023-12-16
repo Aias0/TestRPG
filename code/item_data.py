@@ -13,7 +13,11 @@ health_potion = Item(
 )
 
 sword = Item(
-    'Sword', 5, 6, itemtype=ItemTypes.SWORD, effect=ItemEffect(phys_atk_bonus=2), equippable={'Left Hand': True, 'Right_Hand': True}
+    'Sword', 5, 6, itemtype=ItemTypes.SWORD, effect=ItemEffect(phys_atk_bonus=2)
+)
+
+chest_plate = Item(
+    'Chest plate', 10, 12, itemtype=ItemTypes.CHEST_ARMOR, effect=ItemEffect(phys_defense_bonus=5, phys_negation_bonus=2)
 )
 
 lightning_bolt_scroll = Item(

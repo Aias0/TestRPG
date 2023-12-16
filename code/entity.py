@@ -11,8 +11,6 @@ from entity_effect import ItemEffect, CharacterEffect
 from races import RACES_PLURAL
 import re
 
-from spritegen import entity_to_sprite
-
 if TYPE_CHECKING:
     from sprite import Sprite, Actor
     from races import BaseRace
@@ -87,7 +85,7 @@ class Item(Entity):
         itemtype: ItemTypes = ItemTypes.MISCELLANEOUS,
         description: str = None,
         effect: ItemEffect = ItemEffect(),
-        equippable: dict = {},
+        equippable: Optional[Dict[str, bool]] = None,
         rarity: int = 10,
     ) -> None:
         
@@ -96,9 +94,28 @@ class Item(Entity):
         self.default_color = color
         self.effect = effect
         self.itemtype = itemtype
-        self.equippable = {'Head': False, 'Chest': False, 'Legs': False, 'Boots': False, 'Gloves': False, 'Rings': False, 'Right Hand': False, 'Left Hand': False} | equippable
         self.equipped = False
         self.rarity = rarity
+        
+        if not equippable:
+            if self.itemtype == ItemTypes.HEAD_ARMOR:
+                equippable = {'Head': True}
+            elif self.itemtype == ItemTypes.CHEST_ARMOR:
+                equippable = {'Chest': True}
+            elif self.itemtype == ItemTypes.LEG_ARMOR:
+                equippable = {'Legs': True}
+            elif self.itemtype == ItemTypes.FOOT_ARMOR:
+                equippable = {'Boots': True}
+            elif self.itemtype == ItemTypes.HAND_ARMOR:
+                equippable = {'Gloves': True}
+            elif self.itemtype == ItemTypes.RING:
+                equippable = {'Rings': True}
+            elif ItemTypes.is_weapon(self):
+                equippable = {'Right Hand': True, 'Left Hand': True}
+            else:
+                equippable = {}
+        
+        self.equippable = {'Head': False, 'Chest': False, 'Legs': False, 'Boots': False, 'Gloves': False, 'Rings': False, 'Right Hand': False, 'Left Hand': False} | equippable
         
         super().__init__(name=name, description=description, value=value)
         
@@ -614,6 +631,7 @@ class Character(Entity):
         self.update_stats()
         
         if not item.parent:
+            from spritegen import entity_to_sprite
             item.parent = entity_to_sprite(item)
         item.parent.x = self.parent.x
         item.parent.y = self.parent.y

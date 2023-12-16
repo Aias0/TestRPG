@@ -5,11 +5,6 @@ from engine import Engine
 import sprite_data
 from mapgen import generate_dungeon
 
-from sprite import Actor
-from entity import Character
-from races import Human
-from jobs import Fighter
-
 def main() -> None:
     screen_width = 80
     screen_height = 50
@@ -23,12 +18,16 @@ def main() -> None:
     
     max_enemies_per_room = (0, 2)
     
-    tileset_file = 'assets/textures/dejavu10x10_gs_tc.png'
+    #tileset_file = 'assets/textures/dejavu10x10_gs_tc.png'
+    #tileset = tcod.tileset.load_tilesheet(
+    #    tileset_file, 32, 8, tcod.tileset.CHARMAP_TCOD
+    #)
     
+    tileset_file = 'assets/textures/rexpaint_cp437_10x10.png'
     tileset = tcod.tileset.load_tilesheet(
-        tileset_file, 32, 8, tcod.tileset.CHARMAP_TCOD
+        tileset_file, 16, 16, tcod.tileset.CHARMAP_CP437
     )
-    
+    tcod.tileset.CHARMAP_CP437
     player = copy.deepcopy(sprite_data.player)
     
     engine = Engine(player=player)

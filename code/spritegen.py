@@ -4,15 +4,10 @@ from typing import TYPE_CHECKING, List, Optional, Dict
 import random
 import numpy as np
 
-from races import RACES
-from jobs import JOBS
-from item_data import ITEMS
-
 from entity import Character, Item, Entity
 from sprite import Sprite, Actor
 
 from render_order import RenderOrder
-from item_types import ItemTypes
 
 from ai import HostileEnemy
 
@@ -30,6 +25,8 @@ def gen_enemies(
     level_overwrite: bool = True,
     ) -> List[Actor]:
     """ `overwrite` `True` overwrites default values, `False` blends values."""
+    from races import RACES
+    from jobs import JOBS
     base_race_list = dict(zip([race.__class__.__name__ for race in RACES], [race.rarity for race in RACES]))
     base_job_list = dict(zip([job.__class__.__name__ for job in JOBS], [job.rarity for job in JOBS]))
     base_level_list = {1:15, 2:10, 3:5}
@@ -98,7 +95,7 @@ def gen_items(
     item_list: Optional[Dict[BaseRace, int]] = None,
     item_overwrite: bool = False,
 ) -> List[Sprite]:
-    
+    from item_data import ITEMS
     base_item_list = dict(zip([item.name for item in ITEMS], [item.rarity for item in ITEMS]))
     
     if isinstance(item_num, int):

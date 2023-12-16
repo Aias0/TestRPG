@@ -6,6 +6,8 @@ import jobs
 
 from ai import HostileEnemy
 
+from item_data import sword
+
 player = Actor(
     char='@',
     character=Character(
@@ -15,7 +17,8 @@ player = Actor(
         gender='male',
         job=jobs.Fighter(),
         base_CON=14,
-        base_STR=14
+        base_STR=14,
+        starting_equipment=[sword]
         ),
     ai_cls=HostileEnemy
 )

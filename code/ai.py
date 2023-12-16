@@ -51,10 +51,10 @@ class HostileEnemy(BaseAI):
         super().__init__(sprite)
         self.path: List[Tuple[int, int]] = []
         
-        self.lose_aggro_turns = self.sprite.entity.INT // 3
+        self.lose_aggro_turns = self.sprite.entity.INT // 2
         self.aggro_turn = 0
         
-        
+    
     def perform(self) -> Action:
         target = self.engine.player
         
