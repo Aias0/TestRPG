@@ -6,6 +6,7 @@ from tcod.context import Context
 from tcod.map import compute_fov
 
 from input_handler import MainGameEventHandler
+from render_functions import render_resource_bar
 
 if TYPE_CHECKING:
     from sprite import Sprite, Actor
@@ -39,10 +40,32 @@ class Engine:
     def render(self, console: Console, context: Context) -> None:
         self.game_map.render(console)
         
-        console.print(
-            x=1,
+        render_resource_bar(
+            x=0,
+            y=45,
+            resource='hp',
+            console=console,
+            current_val=self.player.entity.hp,
+            maximum_val=self.player.entity.max_hp,
+            total_width=20
+        )
+        render_resource_bar(
+            x=0,
             y=47,
-            string=f'HP: {self.player.entity.hp}/{self.player.entity.max_hp}'
+            resource='mp',
+            console=console,
+            current_val=self.player.entity.mp,
+            maximum_val=self.player.entity.max_mp,
+            total_width=20
+        )
+        render_resource_bar(
+            x=0,
+            y=49,
+            resource='sp',
+            console=console,
+            current_val=self.player.entity.sp,
+            maximum_val=self.player.entity.max_sp,
+            total_width=20
         )
             
         context.present(console)

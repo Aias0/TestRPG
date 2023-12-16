@@ -3,7 +3,7 @@ import tcod, copy
 
 from engine import Engine
 import sprite_data
-from mapgen import generate_dungeon
+from mapgen import generate_dungeon_floor
 
 def main() -> None:
     screen_width = 80
@@ -32,7 +32,7 @@ def main() -> None:
     
     engine = Engine(player=player)
     
-    engine.game_map = generate_dungeon(
+    engine.game_map = generate_dungeon_floor(
         max_rooms=max_rooms,
         room_min_size= room_min_size,
         room_max_size=room_max_size,

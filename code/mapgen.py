@@ -102,7 +102,7 @@ def tunnel_between(
     for x, y in tcod.los.bresenham((corner_x, corner_y), (x2, y2)).tolist():
         yield x, y
         
-def generate_dungeon(
+def generate_dungeon_floor(
     max_rooms: int | tuple,
     room_min_size: int,
     room_max_size: int,
