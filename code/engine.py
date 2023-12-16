@@ -23,6 +23,8 @@ class Engine:
         
     def handle_npc_turns(self) -> None:
         for sprite in self.game_map.sprites - {self.player}:
+            if not hasattr(sprite, 'ai'):
+                continue
             sprite: Actor
             if sprite.ai:
                 sprite.ai.perform()

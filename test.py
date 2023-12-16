@@ -1,4 +1,2 @@
-value = 10.1
-value //= 2
-
-print(value)
+print(list([1]))
+print([[1]])

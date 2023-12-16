@@ -83,8 +83,10 @@ def gen_enemies(
                 base_STR=8
             ))
 
-    enemies_actors: List[Actor] = entity_to_sprite(enemies)
+    enemies_actors = entity_to_sprite(enemies)
     
+    if not isinstance(enemies_actors, list):
+        enemies_actors = [enemies_actors]
     for enemy in enemies_actors:
         enemy.hostile = True
         
@@ -147,4 +149,6 @@ def entity_to_sprite(entities: Entity | List[Entity]) -> Sprite | List[Sprite]:
         else:
             sprites.append(Sprite())
     
+    if len(sprites) == 1:
+        return sprites[0]
     return sprites

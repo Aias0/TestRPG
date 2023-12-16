@@ -123,12 +123,14 @@ class Item(Entity):
     def char(self) -> str:
         if self.default_char:
             return self.default_char
+        elif self.itemtype == ItemTypes.POTION:
+            return '¡'
         elif ItemTypes.is_armor(self):
             return '['
         elif ItemTypes.is_weapon(self):
             return '/'
         elif ItemTypes.is_consumable(self):
-            return '!'
+            return '◦'
         else:
             return '?'
         
