@@ -8,9 +8,10 @@ from tcod.map import compute_fov
 from input_handler import MainGameEventHandler
 from render_functions import render_resource_bar
 
+import numpy as np
+
 if TYPE_CHECKING:
-    from sprite import Sprite, Actor
-    from entity import Character
+    from sprite import Actor
     from game_map import GameMap
     from input_handler import EventHandler
 
@@ -20,6 +21,9 @@ class Engine:
     def __init__(self, player: Actor):
         self.event_handler: EventHandler = MainGameEventHandler(self)
         self.player = player
+        
+        self.wallhacks = False
+        self.omniscient = False
         
     def handle_npc_turns(self) -> None:
         for sprite in self.game_map.sprites - {self.player}:
@@ -36,6 +40,9 @@ class Engine:
             (self.player.x, self.player.y),
             radius=8,
         )
+        if self.omniscient:
+            self.game_map.visible = np.full(self.game_map.visible.shape, True)
+        
         # If a tile is "visible" it should be added to "explored".
         self.game_map.explored |= self.game_map.visible
     

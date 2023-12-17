@@ -217,6 +217,8 @@ class Character(Entity):
         self.equipment: Dict[str, Optional[Item]] = {'Head': None, 'Chest': None, 'Legs': None, 'Boots': None, 'Gloves': None, 'Ring': None, 'Right Hand': None, 'Left Hand': None}
         self.equip(starting_equipment, silent=True)
         
+        self.invincible = False
+        
         super().__init__(name=name, description=description, value=0)
         self.update_stats()
         
@@ -765,6 +767,8 @@ class Character(Entity):
         return amount_recovered
 
     def take_damage(self, amount: int) -> int:
+        if self.invincible:
+            return 0
         self.hp -= amount
         return amount
         

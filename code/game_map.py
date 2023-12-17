@@ -79,7 +79,7 @@ class GameMap:
         
         for sprite in sprites_sorted_for_rendering:
             # Only print sprite that are in the FOV
-            if self.visible[sprite.x, sprite.y]:
+            if self.visible[sprite.x, sprite.y] or self.engine.wallhacks:
                 console.print(
                     x=sprite.x, y=sprite.y, string=sprite.char, fg=sprite.color
                 )

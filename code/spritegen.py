@@ -87,8 +87,6 @@ def gen_enemies(
     
     if not isinstance(enemies_actors, list):
         enemies_actors = [enemies_actors]
-    for enemy in enemies_actors:
-        enemy.hostile = True
         
     return enemies_actors
 

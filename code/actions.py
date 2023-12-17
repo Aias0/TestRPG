@@ -67,6 +67,7 @@ class MeleeAction(ActionWithDirection):
         target = self.target_actor
         if not target:
             return # No entity to attack.
+        attack_desc = f'{self.sprite.entity.name.capitalize()} attacks {target.entity.name}'
         
         dodge_chance = target.entity.dodge_chance
         if target.entity.DEX < self.sprite.entity.DEX - 2:
@@ -77,14 +78,13 @@ class MeleeAction(ActionWithDirection):
         damage = self.sprite.entity.phys_atk * (1 - target.entity.phys_negation) - target.entity.phys_defense
         rand = random.random()+self.sprite.entity.LCK/100
         if rand < dodge_chance/2:
-            damage = 0
+            print(f'{attack_desc} but misses.')
+            return
         elif rand < dodge_chance:
             damage //= 2
-        
-        attack_desc = f'{self.sprite.entity.name.capitalize()} attacks {target.entity.name}'
-        if damage > 0:
-            print(f'{attack_desc} for {damage} hit points.')
-            target.entity.take_damage(damage)
+        damage_taken = target.entity.take_damage(damage)
+        if damage_taken > 0:
+            print(f'{attack_desc} for {damage_taken} hit points.')
         else:
             print(f'{attack_desc} but does no damage.')
         

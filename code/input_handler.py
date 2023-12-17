@@ -76,6 +76,11 @@ class MainGameEventHandler(EventHandler):
         elif key == tcod.event.KeySym.ESCAPE:
             action = EscapeAction(player)
             
+        elif key == tcod.event.KeySym.PRINTSCREEN:
+            from dev_tools import dev_command
+            command = input('Command: ')
+            print(dev_command(command, self.engine))
+            
         return action
     
 class GameOverEventHandler(EventHandler):

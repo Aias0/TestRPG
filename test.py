@@ -1,2 +1,2 @@
-print(list([1]))
-print([[1]])
+test = eval('False')
+print(type(test))
