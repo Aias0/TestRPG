@@ -17,12 +17,12 @@ class Sprite():
     A generic object to represent actor, items, etc.
     """
     
-    gamemap: GameMap
+    parent: GameMap
     
     def __init__(
         self,
         entity: Entity,
-        gamemap: Optional[GameMap] = None,
+        parent: Optional[GameMap] = None,
         char: str = '?',
         x: int = 0,
         y: int = 0,
@@ -43,17 +43,21 @@ class Sprite():
         
         self.entity.parent = self
         
-        if gamemap:
-            # If gamemap isn't provided now then it will be set later.
-            self.gamemap = gamemap
-            gamemap.sprites.add(self)
+        if parent:
+            # If parent isn't provided now then it will be set later.
+            self.parent = parent
+            parent.sprites.add(self)
+            
+    @property
+    def gamemap(self) -> GameMap:
+        return self.parent.gamemap
         
     def spawn(self: T, gamemap: GameMap, x: int, y: int) -> T:
         """Spawn a copy of this instance at the given location."""
         clone = copy.deepcopy(self)
         clone.x = x
         clone.y = y
-        clone.gamemap = gamemap
+        clone.parent = gamemap
         gamemap.sprites.add(clone)
         return clone
     
@@ -62,8 +66,9 @@ class Sprite():
         self.x = x
         self.y = y
         if gamemap:
-            if hasattr(self, 'gamemap'): # Possibly uninitialized.
-                self.gamemap.sprites.remove(self)
+            if hasattr(self, 'parent'): # Possibly uninitialized.
+                if self.parent is self.gamemap:
+                    self.gamemap.sprites.remove(self)
             self.gamemap = gamemap
             gamemap.sprites.add(self)
     

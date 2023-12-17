@@ -5,14 +5,13 @@ import numpy as np
 import tcod
 
 from actions import Action, MeleeAction, MovementAction, WaitAction
-from entity import Entity
 
 from tcod.map import compute_fov
 
 if TYPE_CHECKING:
     from sprite import Actor
 
-class BaseAI(Action, Entity):
+class BaseAI(Action):
     sprite: Actor
     
     def perform(self) -> None:
@@ -65,6 +64,8 @@ class HostileEnemy(BaseAI):
         )
 
         for sprite in self.engine.game_map.sprites - {self.sprite}:
+            if not sprite.ai:
+                continue
             sprite: Actor
             if vis_tiles[sprite.x, sprite.y] and sprite.hostile and not sprite.ai.aggro_turn:# If another sprite in range becomes hostile also become hostile.
                 self.sprite.hostile = True

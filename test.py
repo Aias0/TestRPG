@@ -1,5 +1,10 @@
-test = []
+test = 'thing'
 
-test.insert(0, 'test')
-
-print(test)
+match test:
+    case x if x in ['thing', 'other thing']:
+        print('1')
+    case 'thing':
+        print(2)
+    
+    case _:
+        print(3)

@@ -2,13 +2,20 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List, Tuple
 
 if TYPE_CHECKING:
-    from entity import Character
+    from entity import Character, Item
 
 class BaseJob():
     parent: Character
-    def __init__(self, name: str, default_color: Tuple[int, int, int],rarity: int = 10) -> None:
+    def __init__(
+        self,
+        name: str,
+        default_color: Tuple[int, int, int],
+        starting_equipment: List[Item] = [],
+        rarity: int = 10
+    ) -> None:
         self.name = name
         self.default_color = default_color
+        self.starting_equipment = starting_equipment
         self.rarity = rarity
 
 class Mage(BaseJob):

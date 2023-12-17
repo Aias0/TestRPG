@@ -9,6 +9,7 @@ from message_log import MessageLog
 from render_functions import render_resource_bar, render_names_at_mouse_location
 
 import numpy as np
+import color
 
 if TYPE_CHECKING:
     from sprite import Actor
@@ -54,7 +55,17 @@ class Engine:
     def render(self, console: Console) -> None:
         self.game_map.render(console)
         
-        self.message_log.render(console=console, x=21, y=45, width=40, height=5)
+        console.draw_rect(x=1, y=43, width=console.width-2, height=1, ch=ord('─'), fg=color.ui_color)
+        console.print(x=0, y=43, string='╟', fg=color.ui_color)
+        console.print(x=console.width-1, y=43, string='╢', fg=color.ui_color)
+        console.print(x=2, y=43, string=f'┤{"".join([" "]*len(self.player.entity.name))}├', fg=color.ui_color)
+        console.print(x=3, y=43, string=f'{self.player.entity.name}', fg=color.ui_text_color)
+        
+        self.message_log.render(console=console, x=21, y=45, width=38, height=5)
+        console.print(x=20, y=43, string='┬', fg=color.ui_color)
+        console.draw_rect(x=20, y=44, width=1, height=40, ch=ord('│'), fg=color.ui_color)
+        console.print(x=58, y=43, string='┬', fg=color.ui_color)
+        console.draw_rect(x=58, y=44, width=1, height=40, ch=ord('│'), fg=color.ui_color)
         
         render_resource_bar(
             x=0,

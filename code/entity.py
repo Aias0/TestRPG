@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from jobs import BaseJob
     from entity import Character
     from engine import Engine
+    from game_map import GameMap
 
 class Entity():
     parent: Sprite
@@ -53,7 +54,7 @@ class Entity():
                 
                 if len(inc) >= 1 or len(dec) >= 1:
                     self.description += f'. Effects activates when {inv_vs_eqp[self.effect.needs_equipped]}.'
-             
+        
         # Auto gen character description if one doesn't exist.
         elif type(self) == Character:
             self.description = f'A level {self.level} {RACES_PLURAL[self.race.name]} {re.sub(r"^(.)", lambda match: match.group(1).lower(), self.job.name)} named {self.name}.'
@@ -62,8 +63,12 @@ class Entity():
         self.value = value
         
     @property
+    def gamemap(self) -> GameMap:
+        return self.parent.gamemap
+        
+    @property
     def engine(self) -> Engine:
-        return self.parent.gamemap.engine
+        return self.gamemap.engine
         
     def __str__(self) -> str:
         return f'{self.name}'
@@ -168,7 +173,6 @@ class Character(Entity):
         description: str = None,
         level: int = 1,
         inventory: List[Item] = [],
-        starting_equipment: List[Item] = [],
         base_CON: int = 10,
         base_STR: int = 10,
         base_END: int = 10,
@@ -215,7 +219,7 @@ class Character(Entity):
         self.base_LCK = base_LCK # luck(LCK) -> effects chance
         
         self.equipment: Dict[str, Optional[Item]] = {'Head': None, 'Chest': None, 'Legs': None, 'Boots': None, 'Gloves': None, 'Ring': None, 'Right Hand': None, 'Left Hand': None}
-        self.equip(starting_equipment, silent=True)
+        self.equip(self.job.starting_equipment, silent=True)
         
         self.invincible = False
         
