@@ -1,2 +1,5 @@
-test = eval('False')
-print(type(test))
+test = []
+
+test.insert(0, 'test')
+
+print(test)

@@ -63,20 +63,23 @@ class HostileEnemy(BaseAI):
             (self.sprite.x, self.sprite.y),
             radius=8,
         )
-        for sprite in self.engine.game_map.sprites: 
-            if vis_tiles[sprite.x, sprite.y] and sprite.hostile:# If another sprite in range becomes hostile also become hostile.
+
+        for sprite in self.engine.game_map.sprites - {self.sprite}:
+            sprite: Actor
+            if vis_tiles[sprite.x, sprite.y] and sprite.hostile and not sprite.ai.aggro_turn:# If another sprite in range becomes hostile also become hostile.
                 self.sprite.hostile = True
-                self.aggro_turn = int(self.lose_aggro_turns * 3/4)
+                self.aggro_turn = int(self.lose_aggro_turns * 1/4 + 0.5)
             
         if vis_tiles[target.x, target.y]: # If player in FOV become hostile
             self.sprite.hostile = True
             self.aggro_turn = 0
-        else:
+        elif self.sprite.hostile:
             self.aggro_turn +=1
+            
             if self.aggro_turn > self.lose_aggro_turns:
                 self.sprite.hostile = False
-        
-        if not self.sprite.hostile:
+                self.aggro_turn = 0
+        else:
             return WaitAction(self.sprite).perform()
         
         dx = target.x - self.sprite.x
