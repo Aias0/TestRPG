@@ -1,4 +1,5 @@
-from typing import Iterable, List, Reversible, Tuple
+from __future__ import annotations
+from typing import List, Reversible, Tuple, Optional
 import textwrap
 
 import tcod
@@ -36,9 +37,16 @@ class MessageLog:
             self.messages[-1].count += 1
         else:
             self.messages.append(Message(text, fg))
+            
+    def input(
+        self, text: Optional[str] = None, fg: Tuple[int, int, int] = color.white
+    ) -> None:
+        self.messages.append(Message(text, fg))
+        
+    
 
     def render(
-        self, console: tcod.Console, x: int, y: int, width: int, height: int,
+        self, console: tcod.console.Console, x: int, y: int, width: int, height: int,
     ) -> None:
         """Render this log over the given area.
         `x`, `y`, `width`, `height` is the rectangular region to render onto
@@ -47,17 +55,8 @@ class MessageLog:
         self.render_messages(console, x, y, width, height, self.messages)
 
     @staticmethod
-    def wrap(string: str, width: int) -> Iterable[str]:
-        """Return a wrapped text message."""
-        for line in string.splitlines():  # Handle newlines in messages.
-            yield from textwrap.wrap(
-                line, width, expand_tabs=True,
-            )
-
-    @classmethod
     def render_messages(
-        cls,
-        console: tcod.Console,
+        console: tcod.console.Console,
         x: int,
         y: int,
         width: int,
@@ -71,7 +70,7 @@ class MessageLog:
         y_offset = height - 1
 
         for message in reversed(messages):
-            for line in reversed(list(cls.wrap(message.full_text, width))):
+            for line in reversed(textwrap.wrap(message.full_text, width)):
                 console.print(x=x, y=y + y_offset, string=line, fg=message.fg)
                 y_offset -= 1
                 if y_offset < 0:

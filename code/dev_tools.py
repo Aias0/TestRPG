@@ -28,7 +28,6 @@ def dev_command(command: str, engine: Engine) -> str:
         
         case ['god']:
             god = not god
-            print(god)
             invincible(engine, god)
             wallhacks(engine, god)
             return f'God mode: {onoff[god]}'
@@ -53,8 +52,12 @@ def dev_command(command: str, engine: Engine) -> str:
         case ['allseeing', cmd]:
             return omniscience(engine, onoff_bool[cmd])
             
+        case ['enemyai']:
+            return enemyai(engine)
+        case ['enemyai', cmd]:
+            return enemyai(engine, onoff_bool[cmd])
         case _:
-            return 'Command not found'
+            return f'command not found: {command}'
         
 def wallhacks(engine: Engine, state: Optional[bool] = None):
     if state is not None:
@@ -75,4 +78,10 @@ def omniscience(engine: Engine, state: Optional[bool] = None):
     else:
         engine.omniscient = not engine.omniscient
     return f'omniscience: {onoff[engine.omniscient]}'
+def enemyai(engine: Engine, state: Optional[bool] = None):
+    if state is not None:
+        engine.ai_on
+    else:
+        engine.ai_on = not engine.ai_on
+    return f'Enemy ai: {onoff[engine.ai_on]}'
     

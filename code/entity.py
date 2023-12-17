@@ -9,7 +9,7 @@ from item_types import ItemTypes
 from entity_effect import ItemEffect, CharacterEffect
 
 from races import RACES_PLURAL
-import re
+import re, color
 
 if TYPE_CHECKING:
     from sprite import Sprite, Actor
@@ -725,6 +725,7 @@ class Character(Entity):
     def die(self) -> None:
         if self.engine.player is self.parent:
             death_message = 'You died!'
+            death_message_color = color.player_die
             self.engine.event_handler = GameOverEventHandler(self.engine)
             
             self.parent.char="%"
@@ -732,6 +733,7 @@ class Character(Entity):
             self.parent.ai = None
         else:
             death_message = f'{self.name} is dead!'
+            death_message_color = color.enemy_die
             
             self.parent.entity=Corpse(
                 name=f"remains of {self.name}",
@@ -749,7 +751,7 @@ class Character(Entity):
             self.parent.blocks_movement = False
 
         
-        print(death_message)
+        self.engine.message_log.add_message(death_message, death_message_color)
         
     def heal(self, amount: int) -> int:
         if self.hp == self.max_hp:

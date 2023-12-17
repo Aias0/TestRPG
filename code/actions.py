@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional, Tuple
 
-import random
+import random, color
 
 if TYPE_CHECKING:
     from engine import Engine
@@ -68,6 +68,10 @@ class MeleeAction(ActionWithDirection):
         if not target:
             return # No entity to attack.
         attack_desc = f'{self.sprite.entity.name.capitalize()} attacks {target.entity.name}'
+        if self.sprite is self.engine.player:
+            attack_color = color.player_atk
+        else:
+            attack_color = color.enemy_atk
         
         dodge_chance = target.entity.dodge_chance
         if target.entity.DEX < self.sprite.entity.DEX - 2:
@@ -84,9 +88,13 @@ class MeleeAction(ActionWithDirection):
             damage //= 2
         damage_taken = target.entity.take_damage(damage)
         if damage_taken > 0:
-            print(f'{attack_desc} for {damage_taken} hit points.')
+            self.engine.message_log.add_message(
+                f'{attack_desc} for {damage_taken} hit points.', attack_color
+                )
         else:
-            print(f'{attack_desc} but does no damage.')
+            self.engine.message_log.add_message(
+                f'{attack_desc} but does no damage.', attack_color
+                )
         
 
 class MovementAction(ActionWithDirection):
