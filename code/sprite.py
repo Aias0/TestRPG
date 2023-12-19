@@ -69,7 +69,7 @@ class Sprite():
             if hasattr(self, 'parent'): # Possibly uninitialized.
                 if self.parent is self.gamemap:
                     self.gamemap.sprites.remove(self)
-            self.gamemap = gamemap
+            self.parent = gamemap
             gamemap.sprites.add(self)
     
     def distance(self):

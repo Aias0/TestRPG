@@ -37,7 +37,6 @@ class MessageLog:
             self.messages[-1].count += 1
         else:
             self.messages.append(Message(text, fg))
-        print(Message(text, fg).full_text)
             
     def input(
         self, text: Optional[str] = None, fg: Tuple[int, int, int] = color.white

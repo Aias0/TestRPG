@@ -9,7 +9,9 @@ from item_types import ItemTypes
 from entity_effect import ItemEffect, CharacterEffect
 
 from races import RACES_PLURAL
-import re, color
+import re, color, exceptions
+
+from itertools import groupby
 
 if TYPE_CHECKING:
     from sprite import Sprite, Actor
@@ -151,6 +153,11 @@ class Item(Entity):
             return 127, 0, 255
         else:
             return 0, 0, 0
+        
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        return False
             
             
         
@@ -614,14 +621,33 @@ class Character(Entity):
         for item in self.inventory:
             total += item.weight
         return total
+    
+    @property
+    def inventory_as_stacks(self) -> List[List[Item]]:
+        inv_as_stacks: List[List[Item]] = []
+    
+        for item in self.inventory:
+            if not inv_as_stacks:
+                inv_as_stacks.append([item])
+                continue
+            
+            for stack in inv_as_stacks:
+                if [_ for _ in stack if item == _]:
+                    stack.append(item)
+                    break
+            else:
+                inv_as_stacks.append([item])
+                
+        return inv_as_stacks
+
+            
         
-    def add_inventory(self, item: Item, silent: bool = False) -> None:
+    def add_inventory(self, item: Item, silent: bool = False) -> Optional[exceptions.Impossible]:
         if self.weight + item.weight > self.carry_weight:
-            if not silent: print(f'{item} is to heavy to add to inventory.')
-            return
+            return exceptions.Impossible(f'{item.name.capitalize()} is too heavy to add to inventory.')
         self.inventory.append(item)
         item.holder = self
-        if not silent: print(f'{item} added to inventory.')
+        if not silent: self.parent.gamemap.engine.message_log.add_message(f'{item.name.capitalize()} added to inventory({self.weight}/{self.carry_weight}).')
         self.update_stats()
         
     def drop_inventory(self, item: str | Item, silent: bool = False) -> None:
@@ -629,13 +655,13 @@ class Character(Entity):
         if isinstance(item, str):
             item = self.get_with_name(item)
         if item not in self.inventory:
-            if not silent: print(f'{item} not in inventory.')
+            if not silent: self.parent.gamemap.engine.message_log.add_message(f'{item.name.capitalize()} not in inventory.')
             return
         if self.is_equipped(item):
             self.unequip(item)
         self.inventory.remove(item)
         item.holder = None
-        if not silent: print(f'{item} dropped.')
+        if not silent: self.parent.gamemap.engine.message_log.add_message(f'{item.name.capitalize()} dropped.')
         self.update_stats()
         
         if not item.parent:
@@ -673,14 +699,14 @@ class Character(Entity):
                 self.add_inventory(item, silent)
             
             if not any(item.equippable.values()):
-                if not silent: print(f'Cannot equip {item.name}')
+                if not silent: self.parent.gamemap.engine.message_log.add_message(f'Cannot equip {item.name}')
                 break
             
             if slot:
                 if self.equipment[slot]:
-                    if not silent: print(f'{slot} already equipped.')
+                    if not silent: self.parent.gamemap.engine.message_log.add_message(f'{slot} already equipped.')
                     break
-                if not silent: print(f'Equipped {item} on {slot}.')
+                if not silent: self.parent.gamemap.engine.message_log.add_message(f'Equipped {item} on {slot}.')
                 self.equipment[slot] = item
                 item.equipped = True
                 break
@@ -689,10 +715,10 @@ class Character(Entity):
                 if not slot_val[1]:
                     continue
                 if self.equipment[slot_val[0]]:
-                    if not silent: print(f'{slot_val[0]} already equipped.')
+                    if not silent: self.parent.gamemap.engine.message_log.add_message(f'{slot_val[0]} already equipped.')
                     continue
                 
-                if not silent: print(f'Equipped {item} on {slot_val[0]}.')
+                if not silent: self.parent.gamemap.engine.message_log.add_message(f'Equipped {item} on {slot_val[0]}.')
                 self.equipment[slot_val[0]] = item
                 item.equipped = True
                 break
@@ -706,11 +732,11 @@ class Character(Entity):
             
         for item in items:
             if not item in self.equipment.values():
-                if not silent: print(f'{item} not equipped.')
+                if not silent: self.parent.gamemap.engine.message_log.add_message(f'{item} not equipped.')
                 
             self.equipment[list(self.equipment.keys())[list(self.equipment.values()).index(item)]] = None
             item.equipped = False
-            if not silent: print(f'Unequipped {item}.')
+            if not silent: self.parent.gamemap.engine.message_log.add_message(f'Unequipped {item}.')
         self.update_stats()
             
     def toggle_equip(self, items: Item | str | List[Item | str], silent: bool = False):
@@ -739,6 +765,7 @@ class Character(Entity):
             death_message = f'{self.name} is dead!'
             death_message_color = color.enemy_die
             
+            dead_weight = self.race.standard_weight
             self.parent.entity=Corpse(
                 name=f"remains of {self.name}",
                 value=self.corpse_value,
@@ -753,6 +780,7 @@ class Character(Entity):
             self.parent.ai = None
             self.parent.render_order = RenderOrder.CORPSE
             self.parent.blocks_movement = False
+            self.parent.entity.weight = dead_weight
 
         
         self.engine.message_log.add_message(death_message, death_message_color)

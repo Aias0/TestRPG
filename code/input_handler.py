@@ -1,13 +1,23 @@
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Dict
 
-import tcod, color
+import tcod, math
 from tcod import libtcodpy
 
-from actions import Action, EscapeAction, BumpAction, WaitAction
+from actions import (
+    Action,
+    EscapeAction,
+    BumpAction,
+    PickupAction,
+    WaitAction,
+)
+
+import color, exceptions
 
 if TYPE_CHECKING:
     from engine import Engine
+    from entity import Item
+    from sprite import Sprite, Actor
     
 KEY_ACTION = {
     'move_up': (0, -1),
@@ -36,16 +46,37 @@ WAIT_KEY = {
     tcod.event.KeySym.PERIOD: KEY_ACTION['wait'],
 }
 
-text_input = ''
+CURSOR_Y_KEYS = {
+    tcod.event.KeySym.UP: -1,
+    tcod.event.KeySym.DOWN: 1,
+}
 
 class EventHandler(tcod.event.EventDispatch[Action]):
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
+        self.engine.wait = True
     
-    def handle_events(self, context: tcod.context.Context) -> None:
-        for event in tcod.event.wait():
-            context.convert_event(event)
-            self.dispatch(event)
+    def handle_events(self, event: tcod.event.Event) -> None:
+        self.handle_action(self.dispatch(event))
+        
+    def handle_action(self, action: Optional[Action]) -> bool:
+        """ Handle actions return from event methods.
+        
+        Returns True if the action will advance a turn. """
+        
+        if action is None:
+            return False
+        
+        try:
+            action.perform()
+        except exceptions.Impossible as exc:
+            self.engine.message_log.add_message(exc.args[0], color.impossible)
+            return False # Skip enemy turn on exceptions.
+        
+        self.engine.handle_npc_turns()
+        
+        self.engine.update_fov()
+        return True
             
     def ev_mousemotion(self, event: tcod.event.MouseMotion) -> None:
         if self.engine.game_map.in_bounds(event.tile.x, event.tile.y):
@@ -57,22 +88,365 @@ class EventHandler(tcod.event.EventDispatch[Action]):
     def on_render(self, console: tcod.console.Console) -> None:
         self.engine.render(console)
     
-class MainGameEventHandler(EventHandler):
-    def handle_events(self, context: tcod.context.Context) -> None:
-        for event in tcod.event.wait():
-            context.convert_event(event)
-            
-            action = self.dispatch(event)
-                
-            if action is None:
-                continue
-            
-            action.perform()
-            
-            self.engine.handle_npc_turns()
-            
-            self.engine.update_fov() # Update the FOV before the players next action.
+class AskUserEventHandler(EventHandler):
+    """ Handles user input for actions which require special input. """
+    def handle_action(self, action: Action | None) -> bool:
+        """ Returns to the main event handler when a valid action is performed. """
+        if super().handle_action(action):
+            self.engine.event_handler = MainGameEventHandler(self.engine)
+            return True
+        return False
+    
+    def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
+        """ By default any key exits this input handler. """
+        if event.sym in { # Ignore modifier keys.
+            tcod.event.KeySym.LSHIFT,
+            tcod.event.KeySym.RSHIFT,
+            tcod.event.KeySym.LCTRL,
+            tcod.event.KeySym.RCTRL,
+            tcod.event.KeySym.LALT,
+            tcod.event.KeySym.RALT,
+        }:
+            return None
+        return self.on_exit()
+    
+    def ev_mousebuttondown(self, event: tcod.event.MouseButtonDown) -> Optional[Action]:
+        """ By default any mouse click exits this input handler. """
+        return self.on_exit()
+    
+    def on_exit(self) -> Optional[Action]:
+        """ Called when the user is trying to exit or cancel an action.
         
+        By default this returns to the main event handler. """
+        self.engine.event_handler = MainGameEventHandler(self.engine)
+        return None
+
+
+class MenuCollectionEventHandler(EventHandler):
+    def __init__(self, engine: Engine, submenu: int = 0) -> None:
+        super().__init__(engine)
+        self.menus: list[SubMenuEventHandler] = [
+            SubMenuEventHandler(engine, '@'),
+            SubMenuEventHandler(engine, 'Equipment'),
+            InventoryEventHandler(engine, 'Inventory'),
+        ]
+        for menu in self.menus:
+            menu.parent = self
+        self.selected_menu = submenu
+        self.engine.wait = False
+
+    def on_render(self, console: tcod.console.Console) -> None:
+        console.draw_rect(x=0, y=0, width=console.width, height=1, ch=ord('─'), fg=color.ui_color)
+        menu_x = 1
+        for i, menu in enumerate(self.menus):
+            title = menu.title
+            menu.menu_x = menu_x
+            if i == self.selected_menu:
+                title_border = f'╢{"".join([" "]*len(title))}╟'
+                title_color = color.ui_cursor_text_color
+            else:
+                title_border = f'┤{"".join([" "]*len(title))}├'
+                title_color = color.ui_text_color
+            console.print_box(x=menu_x,y=0, width=len(title_border), height=1, string=title_border, fg=color.ui_color)
+            console.print_box(x=menu_x+1,y=0, width=len(title), height=1, string=title, fg=title_color)
+            menu_x+=len(title_border)+1
+        self.engine.event_handler = self.menus[self.selected_menu]
+            
+class SubMenuEventHandler(EventHandler):
+    parent: MenuCollectionEventHandler
+    def __init__(self, engine: Engine, title: str):
+        self.engine = engine
+        self.title = title
+        self.menu_x = None
+        self.engine.wait = False
+        
+    def on_render(self, console: tcod.console.Console) -> None:
+        self.parent.on_render(console)
+        menu_console = tcod.console.Console(console.width, console.height-1)
+        
+        menu_console.blit(console, dest_x=0, dest_y=1)
+        
+    def ev_keydown(self, event: tcod.event.KeyDown) -> None:
+        key = event.sym
+        if key == tcod.event.KeySym.ESCAPE:
+            self.engine.event_handler = MainGameEventHandler(self.engine)
+        
+        elif key in range(49, 49+len(self.parent.menus)):
+            i = key - 49
+            self.parent.selected_menu = i
+            self.engine.event_handler = self.parent.menus[i]
+            
+        #elif key in [tcod.event.KeySym.d, tcod.event.KeySym.RIGHT]:
+        #    if self.parent.selected_menu + 1 < len(self.parent.menus):
+        #        self.parent.selected_menu += 1
+        #        self.engine.event_handler = self.parent.menus[self.parent.selected_menu]
+        #elif key in [tcod.event.KeySym.a, tcod.event.KeySym.LEFT]:
+        #    if self.parent.selected_menu - 1 >= 0:
+        #        self.parent.selected_menu -= 1
+        #        self.engine.event_handler = self.parent.menus[self.parent.selected_menu]
+
+class InventoryEventHandler(SubMenuEventHandler):
+    def __init__(self, engine: Engine, title: str):
+        super().__init__(engine, title)
+        self.item_stacks = self.engine.player.entity.inventory_as_stacks
+        self.selected_item = -1
+        self.page_amount = max(math.ceil(len(self.item_stacks)/33), 1)
+        self.current_page = 1
+        self.current_page_num_items = None
+    
+    def on_render(self, console: tcod.console.Console) -> None:
+        self.parent.on_render(console)
+        menu_console = tcod.console.Console(console.width, console.height-1)
+        
+        weight = self.engine.player.entity.weight
+        weight_text = f'Total Weight: {weight}'
+        menu_console.print_box(x=5, y=4, width=len(weight_text), height=1, string=weight_text, fg=color.ui_text_color)
+        menu_console.print_box(x=4, y=5, width=len(weight_text)+2, height=1, string=f'╘{"".join(["═"]*(len(weight_text)))}╛', fg=color.ui_color)
+        
+        carry_weight = self.engine.player.entity.carry_weight
+        carry_weight_text = f'Carrying Capacity: {carry_weight}'
+        menu_console.print_box(x=menu_console.width-len(carry_weight_text)-5, y=4, width=len(carry_weight_text), height=1, string=carry_weight_text, fg=color.ui_text_color)
+        menu_console.print_box(x=menu_console.width-len(carry_weight_text)-6, y=5, width=len(carry_weight_text)+2, height=1, string=f'╘{"".join(["═"]*(len(carry_weight_text)))}╛', fg=color.ui_color)
+
+        for page_num in range(1, self.page_amount+1):
+            if self.current_page != page_num:
+                continue
+            items_on_page = self.item_stacks[34*(page_num-1):34*page_num]
+            self.current_page_num_items = len(items_on_page)
+            
+            menu_console.print(x=4, y=7, string='┌', fg=color.ui_color)
+            menu_console.print(x=menu_console.width-5, y=7, string='┐', fg=color.ui_color)
+            for i in range(max(len(items_on_page), 1)):
+                menu_console.print(x=4, y=8+i, string='│', fg=color.ui_color)
+                menu_console.print(x=menu_console.width-5, y=8+i, string='│', fg=color.ui_color)
+            menu_console.print(x=4, y=8+max(len(items_on_page), 1), string='└', fg=color.ui_color)
+            menu_console.print(x=menu_console.width-5, y=8+max(len(items_on_page), 1), string='┘', fg=color.ui_color)
+                
+            y = 8
+            for i, stack in enumerate(items_on_page):
+                item_amount = ''
+                if i == self.selected_item:
+                    text_color = color.ui_cursor_text_color
+                else:
+                    text_color = color.ui_text_color
+                
+                if len(stack) > 1:
+                    item_amount = f'({len(stack)})'
+                menu_console.print(x=5, y=y, string=f'{chr(i+65)} - {stack[0].name} {item_amount}', fg=text_color)
+                weight_text = f'[{stack[0].weight*len(stack)}]'
+                menu_console.print(x=menu_console.width-5-len(weight_text), y=y, string=weight_text, fg=text_color)
+                y+=1
+            
+        menu_console.blit(console, dest_x=0, dest_y=1)
+        
+    def ev_keydown(self, event: tcod.event.KeyDown) -> None:
+        super().ev_keydown(event)
+        
+        key = event.sym
+        if key in range(tcod.event.KeySym.a, tcod.event.KeySym.a+len(self.item_stacks)):
+            self.selected_item = key - tcod.event.KeySym.a
+        
+        elif key == tcod.event.KeySym.DOWN:
+            if self.selected_item + 1 < self.current_page_num_items:
+                self.selected_item += 1
+        elif key  == tcod.event.KeySym.UP:
+            if self.selected_item - 1 >= -1:
+                self.selected_item -= 1
+        
+        elif key == tcod.event.KeySym.RIGHT:
+            self.selected_item = -1
+            if self.current_page+1 <= self.page_amount:
+                self.current_page += 1
+        elif key == tcod.event.KeySym.LEFT:
+            self.selected_item = -1
+            if self.current_page-1 >= 1:
+                self.current_page -= 1
+        
+        elif key == tcod.event.KeySym.BACKSPACE:
+            handle_drop = DropAmountEventHandler(self.engine)
+            handle_drop.parent = self
+            self.engine.event_handler = handle_drop
+                
+        elif key == tcod.event.KeySym.RETURN:
+            pass
+        
+class DropAmountEventHandler(EventHandler):
+    parent: InventoryEventHandler
+    
+    def on_render(self, console: tcod.console.Console) -> None:
+        self.parent.on_render(console)
+
+        drop_console = tcod.console.Console(22, 5)
+        
+        
+    def ev_keydown(self, event: tcod.event.KeyDown) -> None:
+        key = event.sym
+        
+        if key == tcod.event.KeySym.ESCAPE:
+            self.engine.event_handler = self.parent
+        
+        
+class MenuListEventHandler(EventHandler):
+    def __init__(self, engine: Engine, menu_items):
+        super().__init__(engine)
+        self.selected_index = 0
+        self.menu_items = menu_items
+        self.selected_items: list = []
+        
+    def on_render(self, console: tcod.console.Console):
+        super().on_render(console)
+        
+        menu_console = tcod.console.Console(len(max(self.menu_items, key=len))+2, len(self.menu_items)+4)
+        
+        menu_console.draw_frame(0, 0, menu_console.width, menu_console.height, fg=color.ui_color)
+        menu_console.print(x=menu_console.width-2, y=0, string='╥', fg=color.ui_color)
+        menu_console.print(x=menu_console.width-2, y=1, string='╚', fg=color.ui_color)
+        menu_console.print(x=menu_console.width-1, y=1, string='╡', fg=color.ui_color)
+        
+        menu_console.print(x=1, y=0, string='╥', fg=color.ui_color)
+        menu_console.print(x=1, y=1, string='╝', fg=color.ui_color)
+        menu_console.print(x=0, y=1, string='╞', fg=color.ui_color)
+        
+        menu_console.print(x=1, y=menu_console.height-1, string='╨', fg=color.ui_color)
+        menu_console.print(x=1, y=menu_console.height-2, string='╗', fg=color.ui_color)
+        menu_console.print(x=0, y=menu_console.height-2, string='╞', fg=color.ui_color)
+        
+        menu_console.print(x=menu_console.width-2, y=menu_console.height-1, string='╨', fg=color.ui_color)
+        menu_console.print(x=menu_console.width-2, y=menu_console.height-2, string='╔', fg=color.ui_color)
+        menu_console.print(x=menu_console.width-1, y=menu_console.height-2, string='╡', fg=color.ui_color)
+        
+        item_y = 2
+        for i, item in enumerate(self.menu_items):
+            if i==self.selected_index:
+                color_choice = color.ui_cursor_text_color
+            elif i in self.selected_items:
+                color_choice = color.ui_selected_text_color
+            else:
+                color_choice = color.ui_text_color
+            
+            menu_console.print_box(x=1, y=item_y, width=menu_console.width-2, height=menu_console.height-2, string=item, fg=color_choice, alignment=libtcodpy.CENTER)
+            item_y+=1
+        
+        menu_console.blit(console, dest_x=40-menu_console.width//2, dest_y=25-menu_console.height//2)
+        
+    def ev_keydown(self, event: tcod.event.KeyDown) -> None:
+        match event.sym:
+            case tcod.event.KeySym.ESCAPE:
+                self.engine.event_handler = MainGameEventHandler(self.engine)
+            
+            case tcod.event.KeySym.s | tcod.event.KeySym.DOWN:
+                if  len(self.menu_items) > self.selected_index + 1:
+                    self.selected_index +=1
+                else:
+                    self.selected_index = len(self.menu_items)-1
+                    #self.selected_index = 0
+            case tcod.event.KeySym.w | tcod.event.KeySym.UP:
+                if  0 <= self.selected_index - 1:
+                    self.selected_index -=1
+                else:
+                    self.selected_index = 0
+                    #self.selected_index = len(self.menu_items)-1
+            
+            case tcod.event.KeySym.RETURN:
+                match self.selected_index:
+                    case 0: #
+                        raise NotImplementedError()
+                    case 1: #
+                        raise NotImplementedError()
+                    case 2: #
+                        raise NotImplementedError()
+                    case 3: #
+                        raise NotImplementedError()
+                    case 4: #
+                        raise NotImplementedError()
+        
+class PauseMenuEventHandler(MenuListEventHandler):
+    def __init__(self, engine: Engine):
+        super().__init__(engine, ['Resume', 'Save Game', 'Load Game', 'Settings', 'Exit to Main Menu', 'Exit'])
+            
+    def ev_keydown(self, event: tcod.event.KeyDown) -> None:
+        match event.sym:
+            case tcod.event.KeySym.ESCAPE:
+                self.engine.event_handler = MainGameEventHandler(self.engine)
+                
+            case tcod.event.KeySym.q:
+                raise SystemExit()
+            
+            case tcod.event.KeySym.s | tcod.event.KeySym.DOWN:
+                if  len(self.menu_items) > self.selected_index + 1:
+                    self.selected_index +=1
+                else:
+                    self.selected_index = len(self.menu_items)-1
+                    #self.selected_index = 0
+            case tcod.event.KeySym.w | tcod.event.KeySym.UP:
+                if  0 <= self.selected_index - 1:
+                    self.selected_index -=1
+                else:
+                    self.selected_index = 0
+                    #self.selected_index = len(self.menu_items)-1
+            
+            case tcod.event.KeySym.RETURN:
+                match self.selected_index:
+                    case 0: # Resume
+                        self.engine.event_handler = MainGameEventHandler(self.engine)
+                    case 1: # Save Game
+                        raise NotImplementedError()
+                    case 2: # Load Game
+                        raise NotImplementedError()
+                    case 3: # Settings
+                        raise NotImplementedError()
+                    case 4: # Exit to Main Menu
+                        raise NotImplementedError()
+                    case 5: # Exit
+                        raise SystemExit()
+                
+class MultiPickupHandler(MenuListEventHandler):
+    def __init__(self, engine: Engine, items: list[Sprite], actor: Actor):
+        super().__init__(engine, [item.entity.name.title() for item in items])
+        self.items = items
+        self.actor = actor
+
+    def ev_keydown(self, event: tcod.event.KeyDown) -> None:
+        def pickup(indexes):
+            for i in indexes:
+                result = self.actor.entity.add_inventory(self.items[i].entity)
+                if not result:
+                    self.engine.game_map.sprites.remove(self.items[i])
+                    continue
+                self.engine.message_log.add_message(result.args[0], color.impossible)
+        match event.sym:
+            case tcod.event.KeySym.ESCAPE:
+                self.engine.event_handler = MainGameEventHandler(self.engine)
+            
+            case tcod.event.KeySym.s | tcod.event.KeySym.DOWN:
+                if  len(self.menu_items) > self.selected_index + 1:
+                    self.selected_index +=1
+                else:
+                    self.selected_index = len(self.menu_items)-1
+                    #self.selected_index = 0
+            case tcod.event.KeySym.w | tcod.event.KeySym.UP:
+                if  0 <= self.selected_index - 1:
+                    self.selected_index -=1
+                else:
+                    self.selected_index = 0
+                    #self.selected_index = len(self.menu_items)-1
+            
+            case tcod.event.KeySym.t:
+                pickup(list(range(len(self.items))))
+                self.engine.event_handler = MainGameEventHandler(self.engine)
+            case tcod.event.KeySym.g:
+                if self.selected_index not in self.selected_items:
+                    self.selected_items.append(self.selected_index)
+                else:
+                    self.selected_items.remove(self.selected_index)
+            
+            case tcod.event.KeySym.RETURN:
+                if not self.selected_items:
+                    self.selected_items = [self.selected_index]
+                pickup(self.selected_items)
+                self.engine.event_handler = MainGameEventHandler(self.engine)
+
+class MainGameEventHandler(EventHandler):
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
         action: Optional[Action] = None
         
@@ -88,42 +462,34 @@ class MainGameEventHandler(EventHandler):
             action = WaitAction(player)
             
         elif key == tcod.event.KeySym.ESCAPE:
-            action = EscapeAction(player)
+            self.engine.event_handler = PauseMenuEventHandler(self.engine)
             
         elif key == tcod.event.KeySym.v:
             self.engine.event_handler = HistoryViewer(self.engine)
+        
+        elif key == tcod.event.KeySym.g:
+            action = PickupAction(player)
+            
+        elif key == tcod.event.KeySym.m:
+            self.engine.event_handler = MenuCollectionEventHandler(self.engine)
+            
+        elif key == tcod.event.KeySym.i:
+            self.engine.event_handler = MenuCollectionEventHandler(self.engine, 2)
             
         elif key == tcod.event.KeySym.BACKSLASH:
             self.engine.event_handler = DevConsole(self.engine)
             
+        elif key in CURSOR_Y_KEYS:
+            if self.engine.hover_depth + CURSOR_Y_KEYS[key] in range(self.engine.hover_range):
+                self.engine.hover_depth += CURSOR_Y_KEYS[key]
+            
         return action
     
 class GameOverEventHandler(EventHandler):
-    def handle_events(self, context: tcod.context.Context) -> None:
-        for event in tcod.event.wait():
-            action = self.dispatch(event)
-                
-            if action is None:
-                continue
-            
-            action.perform()
-            
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
-        action: Optional[Action] = None
-        
-        key = event.sym
-        
-        if key == tcod.event.KeySym.ESCAPE:
-            action = EscapeAction(self.engine.player)
-            
-        # No valid key was pressed
-        return action
+        if event.sym == tcod.event.KeySym.ESCAPE:
+            raise SystemExit()
     
-CURSOR_Y_KEYS = {
-    tcod.event.KeySym.UP: -1,
-    tcod.event.KeySym.DOWN: 1,
-}
-
 class HistoryViewer(EventHandler):
     """Print the history on a larger window which can be navigated."""
     def __init__(self, engine: Engine) -> None:
@@ -137,7 +503,7 @@ class HistoryViewer(EventHandler):
         log_console = tcod.console.Console(console.width - 41, console.height - 2)
         
         # Draw a frame with a custom banner title.
-        log_console.draw_frame(0, 0, log_console.width, log_console.height)
+        log_console.draw_frame(0, 0, log_console.width, log_console.height, fg=color.ui_color)
         log_console.print_box(
             0, 0, log_console.width, 1, '┤               ├', alignment=libtcodpy.CENTER, fg=color.ui_color
         )
@@ -164,13 +530,15 @@ class HistoryViewer(EventHandler):
             adjust = CURSOR_Y_KEYS[event.sym]
             if adjust < 0 and self.cursor == 0:
                 # Only move from the top to the bottom when you're on the edge.
-                self.cursor = self.log_length - 1
+                #self.cursor = self.log_length - 1
+                pass
             elif adjust > 0 and self.cursor == self.log_length - 1:
                 # Same with bottom to top movement.
-                self.cursor = 0
+                #self.cursor = 0
+                pass
             else:
                 # Otherwise move while staying clamped to the bounds of the history log.
-                self.cursor = 0 # Move directly to the top message.
+                self.cursor = max(0, min(self.cursor + adjust, self.log_length - 1))
         elif event.sym == tcod.event.KeySym.HOME:
             self.cursor = 0 # Move directly to the top message.
         elif event.sym == tcod.event.KeySym.END:
@@ -184,7 +552,8 @@ class TextInputHandler(EventHandler):
         self.text_inputted = ''
         self.title = 'Input'
         self.input_index = -1
-        self._cursor_blink = 0
+        self._cursor_blink = 40
+        self.engine.wait = False
         
         self.x = x
         self.y = y
@@ -199,17 +568,6 @@ class TextInputHandler(EventHandler):
             self._cursor_blink = 0
         else:
             self._cursor_blink = amount
-            
-    def handle_events(self, context: tcod.context.Context) -> None:
-        for event in tcod.event.get():
-            context.convert_event(event)
-            
-            action = self.dispatch(event)
-                
-            if action is None:
-                continue
-            
-            action.perform()
             
     def on_render(self, console: tcod.console.Console):
         super().on_render(console) # Draw the main state as the background.
@@ -254,6 +612,9 @@ class TextInputHandler(EventHandler):
         input_console.blit(console, self.x, self.y)
                 
     def ev_textinput(self, event: tcod.event.TextInput) -> None:
+        if not self.width:
+            return # When first opening input box text can be inputted before render causing width to be None
+        self.cursor_blink = 55
         if len(self.text_inputted) + len(event.text) > self.width-2:
             return
         self.text_inputted += event.text
@@ -261,7 +622,6 @@ class TextInputHandler(EventHandler):
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
         match event.sym:
             case tcod.event.KeySym.RETURN:
-                self.cursor_blink = 40
     
                 self.use_input()
                 
@@ -269,6 +629,7 @@ class TextInputHandler(EventHandler):
                     self.engine.input_log.insert(0, self.text_inputted)
                 self.engine.event_handler = MainGameEventHandler(self.engine)
             case tcod.event.KeySym.BACKSPACE:
+                self.cursor_blink = 55
                 self.text_inputted = self.text_inputted[:-1]
                 self.input_index = -1
                 

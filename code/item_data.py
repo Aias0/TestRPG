@@ -9,7 +9,7 @@ from magic import LightningBolt
 from item_types import ItemTypes
 
 health_potion = Item(
-    'Health Potion', 100, 1, itemtype=ItemTypes.POTION, effect=HealingEffect(amount=4), rarity= 20
+    'Health Potion', 100, 1, itemtype=ItemTypes.POTION, effect=HealingEffect(amount=4), rarity= 25
 )
 
 sword = Item(

@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+from entity import Item
 
 if TYPE_CHECKING:
     from engine import Engine
@@ -29,12 +30,12 @@ def dev_command(command: str, engine: Engine) -> str:
         case ['god']:
             god = not god
             invincible(engine, god)
-            wallhacks(engine, god)
+            omniscience(engine, god)
             return f'God mode: {onoff[god]}'
         case ['god', cmd]:
             god = onoff_bool[cmd]
             invincible(engine, god)
-            wallhacks(engine, god)
+            omniscience(engine, god)
             return f'God mode: {onoff[god]}'
         
         case ['revealmap']:
@@ -56,6 +57,24 @@ def dev_command(command: str, engine: Engine) -> str:
             return enemyai(engine)
         case ['enemyai', cmd]:
             return enemyai(engine, onoff_bool[cmd])
+        
+        case['print', 'player', cmd]:
+            try:
+                return str(getattr(engine.player.entity, cmd))
+            except AttributeError:
+                return f'player.entity.{cmd} does not exist.'
+        
+        case ['cls']:
+            engine.message_log.messages = []
+            return 'message log cleared.'
+        
+        case ['testinv']:
+            for i in range(80):
+                engine.player.entity.add_inventory(Item(f'Test Item {i}', 1, 0))
+            return 'test inventory added.'
+        
+        case ['help']:
+            return ', '.join(['invincible', 'wallhacks', 'god', 'revealmap', 'hidemap', 'seeall', 'allseeing', 'enemyai', 'print player _', 'cls'])
         case _:
             return f'command not found: {command}'
         

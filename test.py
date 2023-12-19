@@ -1,10 +1,3 @@
-test = 'thing'
+inventory = [1, 2, 3, 4, 5, 6, 7, 8]
 
-match test:
-    case x if x in ['thing', 'other thing']:
-        print('1')
-    case 'thing':
-        print(2)
-    
-    case _:
-        print(3)
+print(inventory[:11])

@@ -121,7 +121,11 @@ def gen_items(
     for item in item_choices:
         items.append([i for i in ITEMS if i.name == item][0])
     
-    return entity_to_sprite(items)
+    item_sprites = entity_to_sprite(items)
+    if not isinstance(item_sprites, list):
+        item_sprites = [item_sprites]
+    
+    return item_sprites
     
 
 def entity_to_sprite(entities: Entity | List[Entity]) -> Sprite | List[Sprite]:

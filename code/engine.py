@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Set, Iterable, Any
 from tcod.console import Console
 from tcod.map import compute_fov
 
+import exceptions
 from input_handler import MainGameEventHandler
 from message_log import MessageLog
 from render_functions import render_resource_bar, render_names_at_mouse_location
@@ -11,8 +12,9 @@ from render_functions import render_resource_bar, render_names_at_mouse_location
 import numpy as np
 import color
 
+from sprite import Actor
+
 if TYPE_CHECKING:
-    from sprite import Actor
     from game_map import GameMap
     from input_handler import EventHandler
 
@@ -26,18 +28,25 @@ class Engine:
         self.player = player
         
         self.input_log = []
+        self.wait = True
+        self.hover_depth = 0
+        self.hover_range = 1
+        self.old_hover_range = 1
         
         self.wallhacks = False
         self.omniscient = False
         self.ai_on = True
         
     def handle_npc_turns(self) -> None:
-        for sprite in self.game_map.sprites - {self.player}:
-            if not hasattr(sprite, 'ai') or not self.ai_on:
-                continue
+        for sprite in self.game_map.sprites - {self.player} - {sprite for sprite in self.game_map.sprites if not isinstance(sprite, Actor)}:
             sprite: Actor
+            if not self.ai_on:
+                continue
             if sprite.ai:
-                sprite.ai.perform()
+                try:
+                    sprite.ai.perform()
+                except exceptions.Impossible:
+                    pass # Ignore impossible action exceptions from AI.
             
     def update_fov(self) -> None:
         """ Recompute the visible area based on the players point of view. """
@@ -95,4 +104,7 @@ class Engine:
             total_width=20
         )
         
+        if self.hover_range != self.old_hover_range:
+            self.hover_depth = 0
         render_names_at_mouse_location(console=console, x=21, y=44, engine=self)
+        self.old_hover_range = self.hover_range

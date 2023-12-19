@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import tcod, copy
-
+import traceback
 
 import color
 from engine import Engine
@@ -19,6 +19,7 @@ def main() -> None:
     max_rooms = [20, 30]
     
     max_enemies_per_room = (0, 2)
+    max_items_per_room = (0, 2)
     
     #tileset_file = 'assets/textures/dejavu10x10_gs_tc.png'
     #tileset = tcod.tileset.load_tilesheet(
@@ -41,6 +42,7 @@ def main() -> None:
         map_width=map_width,
         map_height=map_height,
         enemies_per_room_range=max_enemies_per_room,
+        items_per_room_range=max_items_per_room,
         engine=engine
     )
     
@@ -63,8 +65,19 @@ def main() -> None:
             engine.event_handler.on_render(console=root_console)
             context.present(root_console)
             
-            
-            engine.event_handler.handle_events(context)
+            try:
+                if engine.wait:
+                    for event in tcod.event.wait():
+                        context.convert_event(event)
+                        engine.event_handler.handle_events(event)
+                else:
+                    for event in tcod.event.get():
+                        context.convert_event(event)
+                        engine.event_handler.handle_events(event)
+            except Exception: # Handle exceptions in game.
+                traceback.print_exc() # Print error to stderr
+                # Then print to the message log.
+                engine.message_log.add_message(traceback.format_exc(), color.error)
             
 if __name__ == '__main__':
     main()

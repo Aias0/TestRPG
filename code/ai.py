@@ -63,7 +63,7 @@ class HostileEnemy(BaseAI):
             radius=8,
         )
 
-        for sprite in self.engine.game_map.sprites - {self.sprite}:
+        for sprite in self.engine.game_map.sprites - {self.sprite} - {sprite for sprite in self.engine.game_map.sprites if not hasattr(sprite, 'ai')}:
             if not sprite.ai:
                 continue
             sprite: Actor

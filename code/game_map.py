@@ -6,7 +6,7 @@ from tcod.console import Console
 
 import tile_types
 from sprite import Sprite, Actor
-from entity import Corpse
+from entity import Corpse, Item
 
 if TYPE_CHECKING:
     from engine import Engine
@@ -37,6 +37,13 @@ class GameMap:
         yield from (
             sprite for sprite in self.sprites
             if isinstance(sprite, Actor) and sprite.is_alive
+        )
+        
+    @property
+    def items(self) -> Iterator[Sprite]:
+        yield from (
+            sprite for sprite in self.sprites
+            if isinstance(sprite.entity, Item)
         )
         
     def get_blocking_sprite_at_location(

@@ -8,7 +8,7 @@ import tile_types
 
 import tcod
 
-from spritegen import gen_enemies
+from spritegen import gen_enemies, gen_items
 
 if TYPE_CHECKING:
     from engine import Engine
@@ -109,6 +109,7 @@ def generate_dungeon_floor(
     map_width: int,
     map_height: int,
     enemies_per_room_range: int | list,
+    items_per_room_range: int | list,
     engine: Engine,
 ) -> GameMap:
     """ Generate a new dungeon map. """
@@ -152,7 +153,7 @@ def generate_dungeon_floor(
                 dungeon.tiles[x, y] = tile_types.floor
 
         if not new_room.safe:
-            sprites = gen_enemies(enemy_num=enemies_per_room_range)
+            sprites: List[Sprite] = gen_enemies(enemy_num=enemies_per_room_range) + gen_items(item_num=items_per_room_range)
             place_sprites(new_room, dungeon, sprites)
         
         # Finally, append the new room to the list.

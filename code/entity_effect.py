@@ -1,6 +1,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
+import actions, color
+
+from exceptions import Impossible
+
 if TYPE_CHECKING:
     from entity import Entity, Item, Character
     from magic import Spell
@@ -36,7 +40,10 @@ class BaseEffect():
     
     def get_action(self) -> None:
         """Try to return the action for this item."""
-        raise NotImplementedError()
+        if isinstance(self.parent, Item):
+            return actions.EffectAction(self.parent.holder, self.parent)
+        elif isinstance(self.parent, Character):
+            return actions.EffectAction(self.parent.parent, self.parent)
     
     def activate(self) -> None:
         """Invoke this items ability."""
@@ -132,9 +139,20 @@ class HealingEffect(ItemEffect):
             )
         
         self.amount = amount
+    
+    def activate(self, action: actions.ItemAction) -> None:
+        amount_recovered = self.parent.holder.heal(self.amount)
+        you_or_enemy = {True: 'You', False: self.parent.name}
+        s = {{False: ['s', 'ed'], True: ['',]*2}}
+        is_player = self.parent == self.parent.engine.player
+        if amount_recovered > 0:
+            self.parent.engine.message_log.add_message(
+                f'{you_or_enemy[is_player]} consume{you_or_enemy[is_player][0]} the {self.parent.name}, and recover{you_or_enemy[is_player][1]} {amount_recovered} HP!',
+                color.health_recovered,
+            )
+        elif is_player:
+            raise Impossible('Your health is already full.')
         
-    def activate(self) -> None:
-        self.parent.holder.heal(self.amount)
         self.consume()
         
 class ScrollEffect(ItemEffect):

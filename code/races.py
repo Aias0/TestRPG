@@ -13,6 +13,7 @@ class BaseRace():
         name: str,
         default_char: str,
         attribute_bonuses: dict[str, int] = {},
+        standard_weight: int = 100,
         heal_effectiveness: float = 1,
         job_chance: Optional[dict[str, int]] = None,
         default_corpse_val: int = 10,
@@ -28,6 +29,7 @@ class BaseRace():
         self.heal_effectiveness = heal_effectiveness
         
         self.default_corpse_val = default_corpse_val
+        self.standard_weight = standard_weight
         
         self.vision_acuity = vision_acuity
         self.dark_vision = dark_vision
