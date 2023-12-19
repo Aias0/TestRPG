@@ -271,7 +271,7 @@ class InventoryEventHandler(SubMenuEventHandler):
                 self.engine.player.drop_inventory(self.items[self.selected_item][0])
                 
         elif key == tcod.event.KeySym.RETURN:
-            pass
+            self.items[self.selected_item][0].activate()
         
 class DropAmountEventHandler(EventHandler):
     parent: InventoryEventHandler
