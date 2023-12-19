@@ -263,9 +263,12 @@ class InventoryEventHandler(SubMenuEventHandler):
                 self.current_page -= 1
         
         elif key == tcod.event.KeySym.BACKSPACE:
-            handle_drop = DropAmountEventHandler(self.engine)
-            handle_drop.parent = self
-            self.engine.event_handler = handle_drop
+            if len(self.items[self.selected_item]) > 1:
+                handle_drop = DropAmountEventHandler(self.engine)
+                handle_drop.parent = self
+                self.engine.event_handler = handle_drop
+            else:
+                self.engine.player.drop_inventory(self.items[self.selected_item][0])
                 
         elif key == tcod.event.KeySym.RETURN:
             pass
@@ -277,6 +280,11 @@ class DropAmountEventHandler(EventHandler):
         self.parent.on_render(console)
 
         drop_console = tcod.console.Console(22, 5)
+
+        drop_console.draw_frame(0, 0, drop_console.width, drop_console.height, fg=color.ui_color)
+        drop_console.print(x=1, y=1, string: 'Drop Amount', fg=color.ui_text_color)
+
+        drop_console.blit(console, dest_x=4, dest_y=44)
         
         
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
