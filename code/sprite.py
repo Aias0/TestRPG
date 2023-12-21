@@ -85,6 +85,18 @@ class Sprite():
         return f'{self.char}({str(self.color)[1:-1]}): {self.entity.name}'
     def __repr__(self):
         return f'{self.__str__()}'
+    
+    def similar(self, other):
+        if isinstance(other, self.__class__):
+            for i, pair in enumerate(zip([_[1] for _ in vars(self).items() if _[0] != 'parent'], [_[1] for _ in vars(other).items() if _[0] != 'parent'])):
+                print(list(self.__dict__.keys())[i])
+                print(pair)
+                if hasattr(pair[0], 'similar') and not pair[0].similar(pair[1]):
+                    return False
+                elif pair[0] != pair[1]:
+                    return False
+                
+            return True
 
 class Actor(Sprite):
     def __init__(

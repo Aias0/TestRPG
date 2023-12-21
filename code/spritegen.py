@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, List, Optional, Dict
 
-import random
+import random, copy
 import numpy as np
 
 from entity import Character, Item, Entity
@@ -119,7 +119,7 @@ def gen_items(
     
     items:List[Item] = []
     for item in item_choices:
-        items.append([i for i in ITEMS if i.name == item][0])
+        items.append(copy.deepcopy([i for i in ITEMS if i.name == item][0]))
     
     item_sprites = entity_to_sprite(items)
     if not isinstance(item_sprites, list):

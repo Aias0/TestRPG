@@ -1,8 +1,10 @@
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING, Dict
+from typing import Optional, TYPE_CHECKING, Dict, List
 
-import tcod, math
+import tcod
 from tcod import libtcodpy
+
+import textwrap, math
 
 from actions import (
     Action,
@@ -126,7 +128,7 @@ class MenuCollectionEventHandler(EventHandler):
     def __init__(self, engine: Engine, submenu: int = 0) -> None:
         super().__init__(engine)
         self.menus: list[SubMenuEventHandler] = [
-            SubMenuEventHandler(engine, '@'),
+            StatusMenuEventHandler(engine, '@'),
             SubMenuEventHandler(engine, 'Equipment'),
             InventoryEventHandler(engine, 'Inventory'),
         ]
@@ -134,8 +136,11 @@ class MenuCollectionEventHandler(EventHandler):
             menu.parent = self
         self.selected_menu = submenu
         self.engine.wait = False
+        self.engine.event_handler = self.menus[self.selected_menu]
 
     def on_render(self, console: tcod.console.Console) -> None:
+        if isinstance(self.engine.event_handler, MenuCollectionEventHandler):
+            self.engine.event_handler = self.menus[self.selected_menu]
         console.draw_rect(x=0, y=0, width=console.width, height=1, ch=ord('─'), fg=color.ui_color)
         menu_x = 1
         for i, menu in enumerate(self.menus):
@@ -150,7 +155,6 @@ class MenuCollectionEventHandler(EventHandler):
             console.print_box(x=menu_x,y=0, width=len(title_border), height=1, string=title_border, fg=color.ui_color)
             console.print_box(x=menu_x+1,y=0, width=len(title), height=1, string=title, fg=title_color)
             menu_x+=len(title_border)+1
-        self.engine.event_handler = self.menus[self.selected_menu]
             
 class SubMenuEventHandler(EventHandler):
     parent: MenuCollectionEventHandler
@@ -184,6 +188,71 @@ class SubMenuEventHandler(EventHandler):
         #    if self.parent.selected_menu - 1 >= 0:
         #        self.parent.selected_menu -= 1
         #        self.engine.event_handler = self.parent.menus[self.parent.selected_menu]
+        
+class StatusMenuEventHandler(SubMenuEventHandler):
+    def on_render(self, console: tcod.console.Console) -> None:
+        self.parent.on_render(console)
+        menu_console = tcod.console.Console(console.width, console.height-1)
+        
+        player = self.engine.player.entity
+        
+        x_offset = 5
+        
+        name_bar_text = f'Name: {player.name}'
+        menu_console.print(x=x_offset, y=3, string=name_bar_text, fg=color.ui_text_color)
+        menu_console.print_box(x=x_offset-1, y=4, width=len(name_bar_text)+2, height=1, string=f'╘{"".join(["═"]*(len(name_bar_text)))}╛', fg=color.ui_color)
+        
+        race_text = f'Race: {player.race.name}'
+        menu_console.print(x=len(name_bar_text)+x_offset+4, y=3, string=race_text, fg=color.ui_text_color)
+        menu_console.print_box(x=len(name_bar_text)+x_offset+3, y=4, width=len(race_text)+2, height=1, string=f'╘{"".join(["═"]*(len(race_text)))}╛', fg=color.ui_color)
+        
+        job_text = f'Job: {player.job.name}'
+        menu_console.print(x=len(name_bar_text)+len(race_text)+x_offset+8, y=3, string=job_text, fg=color.ui_text_color)
+        menu_console.print_box(x=len(name_bar_text)+len(race_text)+x_offset+7, y=4, width=len(job_text)+2, height=1, string=f'╘{"".join(["═"]*(len(job_text)))}╛', fg=color.ui_color)
+        
+        attr_title_y = 7
+        if player.titles:
+            attr_title_y = 11
+            title_text = f'Title: {player.titles[0]}'
+            menu_console.print(x=x_offset, y=6, string=title_text, fg=color.ui_text_color)
+            menu_console.print_box(x=x_offset-1, y=7, width=len(title_text)+2, height=1, string=f'└{"".join(["─"]*(len(title_text)))}└', fg=color.ui_color)
+        
+        
+        menu_console.print(x=x_offset, y=attr_title_y, string='Attributes', fg=color.ui_text_color)
+        menu_console.print_box(x=x_offset-1, y=attr_title_y+1, width=len('Attributes')+2, height=1, string=f'╘{"".join(["═"]*(len("Attributes")))}╛', fg=color.ui_color)
+        menu_console.print(x=x_offset, y=attr_title_y+1, string='╤', fg=color.ui_color)
+        
+        
+        attr_y = attr_title_y + 3
+        attrs = {'CON': player.CON, 'STR': player.STR, 'END': player.END, 'DEX': player.DEX, 'FOC': player.FOC, 'INT': player.INT}
+        for attr in attrs:
+            menu_console.print(x=x_offset, y=attr_y-1, string='├', fg=color.ui_color)
+            menu_console.print(x=x_offset, y=attr_y, string='│', fg=color.ui_color)
+            player.INT_intrinsic_bonus
+            
+            attr_string = f'{attr}: {attrs[attr]}'
+
+            extrinsic_bonus = getattr(player, f'{attr}_extrinsic_bonus')
+            intrinsic_bonus = getattr(player, f'{attr}_intrinsic_bonus')
+            if extrinsic_bonus or intrinsic_bonus:
+                attr_string += f' ({getattr(player, f"base_{attr}")} + '
+            
+                if extrinsic_bonus:
+                    attr_string += f'{extrinsic_bonus}'
+                if extrinsic_bonus and intrinsic_bonus:
+                    attr_string += ' + '
+                if intrinsic_bonus:
+                    attr_string += f'{intrinsic_bonus}'
+
+                attr_string += ')'
+            
+            menu_console.print(x=x_offset+1, y=attr_y, string=attr_string, fg=color.ui_text_color)
+            
+            attr_y+=2
+        menu_console.print(x=x_offset, y=attr_y-1, string='└', fg=color.ui_color)
+            
+        
+        menu_console.blit(console, dest_x=0, dest_y=1)
 
 class InventoryEventHandler(SubMenuEventHandler):
     def __init__(self, engine: Engine, title: str):
@@ -193,37 +262,43 @@ class InventoryEventHandler(SubMenuEventHandler):
         self.page_amount = max(math.ceil(len(self.item_stacks)/33), 1)
         self.current_page = 1
         self.current_page_num_items = None
+        self.items_on_page = None
+        self.max_items_on_page = 26
     
     def on_render(self, console: tcod.console.Console) -> None:
         self.parent.on_render(console)
         menu_console = tcod.console.Console(console.width, console.height-1)
+        self.item_stacks = self.engine.player.entity.inventory_as_stacks
+        self.page_amount = max(math.ceil(len(self.item_stacks)/33), 1)
         
         weight = self.engine.player.entity.weight
         weight_text = f'Total Weight: {weight}'
-        menu_console.print_box(x=5, y=4, width=len(weight_text), height=1, string=weight_text, fg=color.ui_text_color)
-        menu_console.print_box(x=4, y=5, width=len(weight_text)+2, height=1, string=f'╘{"".join(["═"]*(len(weight_text)))}╛', fg=color.ui_color)
+        menu_console.print_box(x=5, y=3, width=len(weight_text), height=1, string=weight_text, fg=color.ui_text_color)
+        menu_console.print_box(x=4, y=4, width=len(weight_text)+2, height=1, string=f'╘{"".join(["═"]*(len(weight_text)))}╛', fg=color.ui_color)
         
         carry_weight = self.engine.player.entity.carry_weight
         carry_weight_text = f'Carrying Capacity: {carry_weight}'
-        menu_console.print_box(x=menu_console.width-len(carry_weight_text)-5, y=4, width=len(carry_weight_text), height=1, string=carry_weight_text, fg=color.ui_text_color)
-        menu_console.print_box(x=menu_console.width-len(carry_weight_text)-6, y=5, width=len(carry_weight_text)+2, height=1, string=f'╘{"".join(["═"]*(len(carry_weight_text)))}╛', fg=color.ui_color)
+        menu_console.print_box(x=menu_console.width-len(carry_weight_text)-5, y=3, width=len(carry_weight_text), height=1, string=carry_weight_text, fg=color.ui_text_color)
+        menu_console.print_box(x=menu_console.width-len(carry_weight_text)-6, y=4, width=len(carry_weight_text)+2, height=1, string=f'╘{"".join(["═"]*(len(carry_weight_text)))}╛', fg=color.ui_color)
 
         for page_num in range(1, self.page_amount+1):
             if self.current_page != page_num:
                 continue
-            items_on_page = self.item_stacks[34*(page_num-1):34*page_num]
-            self.current_page_num_items = len(items_on_page)
+            self.items_on_page = self.item_stacks[(self.max_items_on_page)*(page_num-1):(self.max_items_on_page)*page_num]
+            self.current_page_num_items = len(self.items_on_page)
+            if self.selected_item not in range(-1, len(self.items_on_page)):
+                self.selected_item = len(self.items_on_page)-1
             
-            menu_console.print(x=4, y=7, string='┌', fg=color.ui_color)
-            menu_console.print(x=menu_console.width-5, y=7, string='┐', fg=color.ui_color)
-            for i in range(max(len(items_on_page), 1)):
-                menu_console.print(x=4, y=8+i, string='│', fg=color.ui_color)
-                menu_console.print(x=menu_console.width-5, y=8+i, string='│', fg=color.ui_color)
-            menu_console.print(x=4, y=8+max(len(items_on_page), 1), string='└', fg=color.ui_color)
-            menu_console.print(x=menu_console.width-5, y=8+max(len(items_on_page), 1), string='┘', fg=color.ui_color)
+            menu_console.print(x=4, y=6, string='┌', fg=color.ui_color)
+            menu_console.print(x=menu_console.width-5, y=6, string='┐', fg=color.ui_color)
+            for i in range(max(len(self.items_on_page), 1)):
+                menu_console.print(x=4, y=7+i, string='│', fg=color.ui_color)
+                menu_console.print(x=menu_console.width-5, y=7+i, string='│', fg=color.ui_color)
+            menu_console.print(x=4, y=7+max(len(self.items_on_page), 1), string='└', fg=color.ui_color)
+            menu_console.print(x=menu_console.width-5, y=7+max(len(self.items_on_page), 1), string='┘', fg=color.ui_color)
                 
-            y = 8
-            for i, stack in enumerate(items_on_page):
+            y = 7
+            for i, stack in enumerate(self.items_on_page):
                 item_amount = ''
                 if i == self.selected_item:
                     text_color = color.ui_cursor_text_color
@@ -237,13 +312,26 @@ class InventoryEventHandler(SubMenuEventHandler):
                 menu_console.print(x=menu_console.width-5-len(weight_text), y=y, string=weight_text, fg=text_color)
                 y+=1
             
+            if page_num < self.page_amount:
+                menu_console.print(x=menu_console.width-10, y=7+max(len(self.items_on_page), 1), string='...>', fg=color.ui_text_color)
+            if page_num > 1:
+                menu_console.print(x=6, y=7+max(len(self.items_on_page), 1), string='<...', fg=color.ui_text_color)
+                
+        desc_console = tcod.console.Console(22, 5)
+        desc_console.draw_frame(0, 0, desc_console.width, desc_console.height, fg=color.ui_color)
+        if self.selected_item in range(0, len(self.items_on_page)):
+            for i, line in enumerate(textwrap.wrap(self.items_on_page[self.selected_item][0].description, desc_console.width-2, expand_tabs=True)):
+                desc_console.print(x=1, y=i+1, string=line, fg=color.ui_text_color)
+
+        desc_console.blit(menu_console, dest_x=menu_console.width-4-22, dest_y=43)
+
         menu_console.blit(console, dest_x=0, dest_y=1)
         
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
         super().ev_keydown(event)
         
         key = event.sym
-        if key in range(tcod.event.KeySym.a, tcod.event.KeySym.a+len(self.item_stacks)):
+        if key in range(tcod.event.KeySym.a, min(tcod.event.KeySym.a+self.current_page_num_items, tcod.event.KeySym.z+1)):
             self.selected_item = key - tcod.event.KeySym.a
         
         elif key == tcod.event.KeySym.DOWN:
@@ -262,36 +350,67 @@ class InventoryEventHandler(SubMenuEventHandler):
             if self.current_page-1 >= 1:
                 self.current_page -= 1
         
-        elif key == tcod.event.KeySym.BACKSPACE:
-            if len(self.items[self.selected_item]) > 1:
-                handle_drop = DropAmountEventHandler(self.engine)
+        elif key == tcod.event.KeySym.BACKSPACE and self.selected_item != -1:
+            if len(self.items_on_page[self.selected_item]) > 1:
+                handle_drop = DropAmountEventHandler(self.engine, self.items_on_page[self.selected_item])
                 handle_drop.parent = self
                 self.engine.event_handler = handle_drop
             else:
-                self.engine.player.drop_inventory(self.items[self.selected_item][0])
+                self.engine.player.entity.drop_inventory(self.items_on_page[self.selected_item][0])
                 
         elif key == tcod.event.KeySym.RETURN:
-            self.items[self.selected_item][0].activate()
-        
+            try:
+                self.items_on_page[self.selected_item][0].effect.activate()
+            except NotImplementedError:
+                pass
+            
 class DropAmountEventHandler(EventHandler):
     parent: InventoryEventHandler
+    def __init__(self, engine: Engine, stack: list[Item]):
+        super().__init__(engine)
+        self.stack = stack
+        self.amount = 1
+        self.engine.wait = False
     
     def on_render(self, console: tcod.console.Console) -> None:
-        self.parent.on_render(console)
+        
 
         drop_console = tcod.console.Console(22, 5)
 
         drop_console.draw_frame(0, 0, drop_console.width, drop_console.height, fg=color.ui_color)
-        drop_console.print(x=1, y=1, string: 'Drop Amount', fg=color.ui_text_color)
+        drop_console.print(x=2, y=2, string= 'Drop Amount:', fg=color.ui_text_color)
+        amount_max = f'/{len(self.stack)}'
+        drop_console.print(x=drop_console.width-len(amount_max)-2, y=2, string=amount_max, fg=color.ui_text_color)
+        amount_current = f'{self.amount}'
+        drop_console.print(x=drop_console.width-len(amount_max)-len(amount_current)-2, y=2, string=amount_current, fg=color.ui_cursor_text_color)
 
+        self.parent.on_render(console)
         drop_console.blit(console, dest_x=4, dest_y=44)
         
-        
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
-        key = event.sym
-        
-        if key == tcod.event.KeySym.ESCAPE:
-            self.engine.event_handler = self.parent
+        match event.sym:
+            case tcod.event.KeySym.ESCAPE:
+                self.engine.event_handler = self.parent
+                
+            case tcod.event.KeySym.UP:
+                self.amount = min(self.amount+1, len(self.stack))
+            case tcod.event.KeySym.DOWN:
+                self.amount = max(self.amount-1, 1)
+                
+            case tcod.event.KeySym.HOME:
+                self.amount = len(self.stack)
+            case tcod.event.KeySym.END:
+                self.amount = 1
+                
+            case tcod.event.KeySym.t:
+                for item in self.stack:
+                    self.engine.player.entity.drop_inventory(item)
+                self.engine.event_handler = self.parent
+                
+            case tcod.event.KeySym.RETURN:
+                for item in self.stack[:self.amount]:
+                    self.engine.player.entity.drop_inventory(item)
+                self.engine.event_handler = self.parent
         
         
 class MenuListEventHandler(EventHandler):

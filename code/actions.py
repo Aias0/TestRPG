@@ -46,7 +46,7 @@ class PickupAction(Action):
                 items_at_loc.append(item)
                 
         if not items_at_loc:
-            return
+            raise exceptions.Impossible("There is nothing here to pick up.")
         
         if len(items_at_loc) > 1:
             from input_handler import MultiPickupHandler

@@ -4,6 +4,10 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 from entity import Item
 
+from item_data import health_potion
+
+import copy
+
 if TYPE_CHECKING:
     from engine import Engine
 
@@ -60,7 +64,7 @@ def dev_command(command: str, engine: Engine) -> str:
         
         case['print', 'player', cmd]:
             try:
-                return str(getattr(engine.player.entity, cmd))
+                return f'{cmd}: {str(getattr(engine.player.entity, cmd))}'
             except AttributeError:
                 return f'player.entity.{cmd} does not exist.'
         
@@ -68,10 +72,17 @@ def dev_command(command: str, engine: Engine) -> str:
             engine.message_log.messages = []
             return 'message log cleared.'
         
-        case ['testinv']:
+        case ['testbiginv']:
             for i in range(80):
-                engine.player.entity.add_inventory(Item(f'Test Item {i}', 1, 0))
-            return 'test inventory added.'
+                engine.player.entity.add_inventory(Item(f'Test Item {i}', 1, 0), True)
+            return 'test inventory big added.'
+        case ['testmultiinv']:
+            for i in range(3):
+                engine.player.entity.add_inventory(copy.deepcopy(health_potion), True)
+            return 'test inventory multi added.'
+        
+        case ['test']:
+            print(vars(health_potion))
         
         case ['help']:
             return ', '.join(['invincible', 'wallhacks', 'god', 'revealmap', 'hidemap', 'seeall', 'allseeing', 'enemyai', 'print player _', 'cls'])

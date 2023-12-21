@@ -1,3 +1,10 @@
-inventory = [1, 2, 3, 4, 5, 6, 7, 8]
-
-print(inventory[:11])
+class test:
+    def __init__(self) -> None:
+        pass
+    
+class test2(test):
+    def __init__(self) -> None:
+        super().__init__()
+        
+        
+print(test2().__format__())

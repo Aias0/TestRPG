@@ -11,8 +11,6 @@ from entity_effect import ItemEffect, CharacterEffect
 from races import RACES_PLURAL
 import re, color, exceptions
 
-from itertools import groupby
-
 if TYPE_CHECKING:
     from sprite import Sprite, Actor
     from races import BaseRace
@@ -52,7 +50,7 @@ class Entity():
                 if len(dec) == 1:
                     self.description += f'decreases {dec[0]}'
                 elif len(dec) >1:
-                    self.description += f' This increases {str(dec[:-1]).replace("[", "").replace("]", "")}, and {dec[-1]}'
+                    self.description += f' This decreases {str(dec[:-1]).replace("[", "").replace("]", "")}, and {dec[-1]}'
                 
                 if len(inc) >= 1 or len(dec) >= 1:
                     self.description += f'. Effects activates when {inv_vs_eqp[self.effect.needs_equipped]}.'
@@ -76,6 +74,18 @@ class Entity():
         return f'{self.name}'
     def __repr__(self):
         return self.__str__()
+    
+    def similar(self, other):
+        if isinstance(other, self.__class__):
+            for i, pair in enumerate(zip([_[1] for _ in vars(self).items() if _[0] != 'parent'], [_[1] for _ in vars(other).items() if _[0] != 'parent'])):
+                #print(list(self.__dict__.keys())[i])
+                #print(pair)
+                if hasattr(pair[0], 'similar') and not pair[0].similar(pair[1]):
+                    return False
+                elif pair[0] != pair[1]:
+                    return False
+                
+            return True
 
         
 class Item(Entity):
@@ -153,15 +163,6 @@ class Item(Entity):
             return 127, 0, 255
         else:
             return 0, 0, 0
-        
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return self.__dict__ == other.__dict__
-        return False
-            
-            
-        
-        
 
         
 class Character(Entity):
@@ -191,6 +192,7 @@ class Character(Entity):
         base_LCK: int = 10,
         level_up_factor: int = 150,
         xp_given: int = 100,
+        titles: list = []
     ) -> None:
         self.effects: List[CharacterEffect] = []
         
@@ -211,6 +213,8 @@ class Character(Entity):
         self.level_up_factor = level_up_factor
         self.xp_given = xp_given
         self.needs_level_up = False
+        
+        self.titles = []
         
         # Attr Guide: 1: Ant | 10: Average Human | 100: Dragon
         # Visible Attributes
@@ -632,7 +636,7 @@ class Character(Entity):
                 continue
             
             for stack in inv_as_stacks:
-                if [_ for _ in stack if item == _]:
+                if [_ for _ in stack if item.similar(_)]:
                     stack.append(item)
                     break
             else:
@@ -664,7 +668,7 @@ class Character(Entity):
         if not silent: self.parent.gamemap.engine.message_log.add_message(f'{item.name.capitalize()} dropped.')
         self.update_stats()
         
-        if not item.parent:
+        if not hasattr(item, 'parent') or  not item.parent:
             from spritegen import entity_to_sprite
             item.parent = entity_to_sprite(item)
         item.parent.x = self.parent.x
@@ -773,6 +777,7 @@ class Character(Entity):
                 description=f"Remains of {self.name}. Has a faint oder.",
                 dead_character=self
             )
+            self.parent.entity.parent = self.parent
             self.parent.char="%"
             self.parent.x=self.parent.x
             self.parent.y=self.parent.y
@@ -781,6 +786,7 @@ class Character(Entity):
             self.parent.render_order = RenderOrder.CORPSE
             self.parent.blocks_movement = False
             self.parent.entity.weight = dead_weight
+            
 
         
         self.engine.message_log.add_message(death_message, death_message_color)
@@ -833,3 +839,15 @@ class Corpse(Item):
         )
         
         self.dead_character = dead_character
+        
+    def similar(self, other):
+        if isinstance(other, self.__class__):
+            for i, pair in enumerate(zip([_[1] for _ in vars(self).items() if _[0] != 'parent' and _[0] != 'dead_character'], [_[1] for _ in vars(other).items() if _[0] != 'parent' and _[0] != 'dead_character'])):
+                #print(list(self.__dict__.keys())[i])
+                #print(pair)
+                if hasattr(pair[0], 'similar') and not pair[0].similar(pair[1]):
+                    return False
+                elif pair[0] != pair[1]:
+                    return False
+                
+            return True

@@ -49,10 +49,16 @@ class BaseEffect():
         """Invoke this items ability."""
         raise NotImplementedError()
     
-    def __eq__(self, other) :
-        return self.__dict__ == other.__dict__
-    def __ne__(self, other) :
-        return self.__dict__ != other.__dict__
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            for pair in zip([_[1] for _ in vars(self).items() if _[0] != 'parent'], [_[1] for _ in vars(other).items() if _[0] != 'parent']):
+                if pair[0] != pair[1]:
+                    return False
+                
+            return True
+
+    def __hash__(self):
+            return hash(vars(self).values())
         
 
 

@@ -29,12 +29,13 @@ def render_names_at_mouse_location(
     )
     engine.hover_range = len(names_at_mouse_location)
 
-    extra = {True: '...', False: ''}
+    extra_after = {True: '...', False: ''}
+    extra_before = {True: '...', False: ''}
     if not names_at_mouse_location:
         engine.hover_depth = 0
     else:
         try:
-            console.print(x=x, y=y, string=f'{names_at_mouse_location[engine.hover_depth]}{extra[len(names_at_mouse_location) > 1]}', fg=color.ui_text_color)
+            console.print(x=x, y=y, string=f'{extra_before[engine.hover_depth>0]}{names_at_mouse_location[engine.hover_depth]}{extra_after[len(names_at_mouse_location)-1>engine.hover_depth]}', fg=color.ui_text_color)
         except IndexError:
             engine.hover_depth = 0
 
