@@ -15,6 +15,7 @@ from actions import (
 )
 
 import color, exceptions
+from item_types import ItemTypes
 
 if TYPE_CHECKING:
     from engine import Engine
@@ -129,7 +130,7 @@ class MenuCollectionEventHandler(EventHandler):
         super().__init__(engine)
         self.menus: list[SubMenuEventHandler] = [
             StatusMenuEventHandler(engine, '@'),
-            SubMenuEventHandler(engine, 'Equipment'),
+            EquipmentEventHandler(engine, 'Equipment'),
             InventoryEventHandler(engine, 'Inventory'),
         ]
         for menu in self.menus:
@@ -253,7 +254,63 @@ class StatusMenuEventHandler(SubMenuEventHandler):
             
         
         menu_console.blit(console, dest_x=0, dest_y=1)
-
+        
+class EquipmentEventHandler(SubMenuEventHandler):
+    def __init__(self, engine, title: str):
+        super().__init__(engine, title)
+        self.selected_slot = -1
+        self.slots = ['Head', 'Chest', 'Gloves', 'Legs', 'Boots', 'Amulet', 'Right Ring', 'Left Ring', 'Right Hand', 'Left Hand']
+    
+    def on_render(self, console: tcod.console.Console) -> None:
+        self.parent.on_render(console)
+        menu_console = tcod.console.Console(console.width, console.height-1)
+        
+        slot_y = 3
+        for i, slot in enumerate(self.slots):
+            self.equip_slot(menu_console, x=5, y=slot_y, title=slot, index=i)
+            slot_y += 4
+            if slot in ['Boots', 'Left Ring']:
+                slot_y += 1
+        
+        menu_console.blit(console, dest_x=0, dest_y=1)
+        
+    def equip_slot(self, console: tcod.console.Console, x: int, y: int, title: str, index: int) -> None:
+        item_in_slot = self.engine.player.entity.equipment[title]
+        if item_in_slot:
+            item_name = item_in_slot.name.capitalize()
+        else:
+            item_name = ''
+            
+        slot_color = {True: color.ui_cursor_text_color, False: color.ui_text_color}
+        console.print(x=x, y=y, string=title, fg=slot_color[index==self.selected_slot])
+        console.print_box(x=x-1, y=y+1, width=len(title)+2, height=1, string=f'╘{"".join(["═"]*(len(title)))}╛', fg=color.ui_color)
+        console.print(x=x, y=y+1, string='╤', fg=color.ui_color)
+        
+        console.print(x=x+2, y=y+2, string=item_name, fg=color.ui_text_color)
+        console.print(x=x, y=y+2, string='│', fg=color.ui_color)
+        console.print(x=x, y=y+3, string='└', fg=color.ui_color)
+        console.print(x=x+1, y=y+3, string=f'{"".join(["─"]*(max(len(item_name), 11)))}', fg=color.ui_color)
+        
+    def ev_keydown(self, event: tcod.event.KeyDown) -> None:
+        super().ev_keydown(event)
+        match event.sym:
+            
+            case tcod.event.KeySym.DOWN:
+                self.selected_slot = min(self.selected_slot+1, len(self.slots)-1)
+            case tcod.event.KeySym.UP:
+                self.selected_slot = max(self.selected_slot-1, -1)
+            case tcod.event.KeySym.HOME:
+                self.selected_slot = 0
+            case tcod.event.KeySym.END:
+                self.selected_slot = len(self.slots)-1
+                
+            case tcod.event.KeySym.BACKSPACE:
+                self.engine.player.entity.unequip(list(self.engine.player.entity.equipment.values())[self.selected_slot])
+            case tcod.event.KeySym.RETURN:
+                # Choose compatible item to equip.
+                pass
+        
+    
 class InventoryEventHandler(SubMenuEventHandler):
     def __init__(self, engine: Engine, title: str):
         super().__init__(engine, title)
@@ -300,6 +357,7 @@ class InventoryEventHandler(SubMenuEventHandler):
             y = 7
             for i, stack in enumerate(self.items_on_page):
                 item_amount = ''
+                equipped = ''
                 if i == self.selected_item:
                     text_color = color.ui_cursor_text_color
                 else:
@@ -307,7 +365,10 @@ class InventoryEventHandler(SubMenuEventHandler):
                 
                 if len(stack) > 1:
                     item_amount = f'({len(stack)})'
-                menu_console.print(x=5, y=y, string=f'{chr(i+65)} - {stack[0].name} {item_amount}', fg=text_color)
+                if self.engine.player.entity.is_equipped(stack[0]):
+                    equipped = '[E]'
+                
+                menu_console.print(x=5, y=y, string=f'{chr(i+65)} - {stack[0].name}{equipped} {item_amount}', fg=text_color)
                 weight_text = f'[{stack[0].weight*len(stack)}]'
                 menu_console.print(x=menu_console.width-5-len(weight_text), y=y, string=weight_text, fg=text_color)
                 y+=1
@@ -317,13 +378,13 @@ class InventoryEventHandler(SubMenuEventHandler):
             if page_num > 1:
                 menu_console.print(x=6, y=7+max(len(self.items_on_page), 1), string='<...', fg=color.ui_text_color)
                 
-        desc_console = tcod.console.Console(22, 5)
-        desc_console.draw_frame(0, 0, desc_console.width, desc_console.height, fg=color.ui_color)
         if self.selected_item in range(0, len(self.items_on_page)):
+            desc_console = tcod.console.Console(22, 5)
+            desc_console.draw_frame(0, 0, desc_console.width, desc_console.height, fg=color.ui_color)
             for i, line in enumerate(textwrap.wrap(self.items_on_page[self.selected_item][0].description, desc_console.width-2, expand_tabs=True)):
                 desc_console.print(x=1, y=i+1, string=line, fg=color.ui_text_color)
 
-        desc_console.blit(menu_console, dest_x=menu_console.width-4-22, dest_y=43)
+            desc_console.blit(menu_console, dest_x=menu_console.width-4-22, dest_y=43)
 
         menu_console.blit(console, dest_x=0, dest_y=1)
         

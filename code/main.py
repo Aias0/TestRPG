@@ -5,6 +5,8 @@ import traceback
 import color
 from engine import Engine
 import sprite_data
+import item_data
+
 from mapgen import generate_dungeon_floor
 
 def main() -> None:
@@ -32,6 +34,7 @@ def main() -> None:
     )
     tcod.tileset.CHARMAP_CP437
     player = copy.deepcopy(sprite_data.player)
+    player.entity.equip(copy.deepcopy(item_data.sword), silent=True)
     
     engine = Engine(player=player)
     

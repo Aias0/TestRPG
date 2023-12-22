@@ -229,7 +229,7 @@ class Character(Entity):
         self.base_WGT = base_WGT # weight[conceptual](WGT) -> conceptual atk/resist
         self.base_LCK = base_LCK # luck(LCK) -> effects chance
         
-        self.equipment: Dict[str, Optional[Item]] = {'Head': None, 'Chest': None, 'Legs': None, 'Boots': None, 'Gloves': None, 'Ring': None, 'Right Hand': None, 'Left Hand': None}
+        self.equipment: Dict[str, Optional[Item]] = {'Head': None, 'Chest': None, 'Gloves': None,  'Legs': None, 'Boots': None, 'Amulet': None, 'Right Ring': None, 'Left Ring': None, 'Right Hand': None, 'Left Hand': None}
         self.equip(self.job.starting_equipment, silent=True)
         
         self.invincible = False
