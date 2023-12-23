@@ -150,9 +150,10 @@ class HealingEffect(ItemEffect):
         amount_recovered = self.parent.holder.heal(self.amount)
         you_or_enemy = {True: 'You', False: self.parent.name}
         s = {False: ['s', 'ed'], True: ['',]*2}
-        if hasattr(self.parent, 'parent'):
+        try:
+            self.parent.parent.gamemap
             is_player = self.parent.holder == self.parent.engine.player.entity
-        else:
+        except:
             is_player = True
         if amount_recovered > 0:
             self.parent.engine.message_log.add_message(

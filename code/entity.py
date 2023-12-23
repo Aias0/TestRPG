@@ -62,6 +62,9 @@ class Entity():
             self.description = 'This should\'t happen.'
         self.value = value
         
+        from spritegen import entity_to_sprite
+        self.parent = entity_to_sprite(self)
+        
     @property
     def gamemap(self) -> GameMap:
         return self.parent.gamemap
@@ -670,9 +673,6 @@ class Character(Entity):
         if not silent: self.parent.gamemap.engine.message_log.add_message(f'{item.name.capitalize()} dropped.')
         self.update_stats()
         
-        if not hasattr(item, 'parent') or  not item.parent:
-            from spritegen import entity_to_sprite
-            item.parent = entity_to_sprite(item)
         item.parent.x = self.parent.x
         item.parent.y = self.parent.y
         self.parent.gamemap.sprites.add(item.parent)

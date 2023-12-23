@@ -226,7 +226,8 @@ class SubMenuEventHandler(EventHandler):
         #        self.parent.selected_menu -= 1
         #        self.engine.event_handler = self.parent.menus[self.parent.selected_menu]
     
-    def display_latest_message(self, console: tcod.console.Console):
+    def display_latest_message(self, console: tcod.console.Console, x:int = None, y: int = None):
+
         if not self.display_message and self.allow_display_message:
             return
         
@@ -237,17 +238,20 @@ class SubMenuEventHandler(EventHandler):
         
         message_console.draw_frame(x=0, y=0, width=message_console.width, height=message_console.height, fg=color.ui_color)
         
+        loc_x = x or int(console.width/2)-int(message_console.width/2)
+        loc_y= y or console.height-message_console.height-2
+        
         y=1
         for line in message_text:
             message_console.print(x=1, y=y, string=line, fg=message.fg)
             y += 1
             
-        message_console.blit(console, dest_x=int(console.width/2)-int(message_console.width/2), dest_y=console.height-message_console.height-2)
+        message_console.blit(console, dest_x=loc_x, dest_y=loc_y)
         if self.message_time is None:
             self.message_time = time.time()
-            #print(len(message.plain_text.split())*SETTINGS['words_per_minute']*0.003)
 
-        if time.time() - self.message_time >= len(message.plain_text.split())*SETTINGS['words_per_minute']*0.003:
+        time_clear = len(message.plain_text.split())*1/(SETTINGS['words_per_minute']/60 + .5)
+        if time.time() - self.message_time >= time_clear:
             self.display_message = False
             self.message_time = None
         
@@ -734,7 +738,7 @@ class MainGameEventHandler(EventHandler):
         elif key == tcod.event.KeySym.i:
             self.engine.event_handler = MenuCollectionEventHandler(self.engine, 2)
             
-        elif key == tcod.event.KeySym.BACKSLASH:
+        elif key == tcod.event.KeySym.BACKSLASH and SETTINGS['dev_console']:
             self.engine.event_handler = DevConsole(self.engine)
             
         elif key in CURSOR_Y_KEYS:

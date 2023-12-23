@@ -32,6 +32,7 @@ def main() -> None:
     tcod.tileset.CHARMAP_CP437
     player = copy.deepcopy(sprite_data.player)
     player.entity.equip(copy.deepcopy(item_data.sword), silent=True)
+    player.entity.add_inventory(copy.deepcopy(item_data.health_potion), silent=True)
     
     engine = Engine(player=player)
     
