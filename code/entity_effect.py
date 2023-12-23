@@ -95,7 +95,7 @@ class ItemEffect(BaseEffect):
 
     def consume(self) -> None:
         """Remove the consumed item from its containing inventory."""
-        self.parent.holder.inventory.remove(self)
+        self.parent.holder.inventory.remove(self.parent)
     
 class CharacterEffect(BaseEffect):
     parent: Character
@@ -146,14 +146,17 @@ class HealingEffect(ItemEffect):
         
         self.amount = amount
     
-    def activate(self, action: actions.ItemAction) -> None:
+    def activate(self) -> None:
         amount_recovered = self.parent.holder.heal(self.amount)
         you_or_enemy = {True: 'You', False: self.parent.name}
-        s = {{False: ['s', 'ed'], True: ['',]*2}}
-        is_player = self.parent == self.parent.engine.player
+        s = {False: ['s', 'ed'], True: ['',]*2}
+        if hasattr(self.parent, 'parent'):
+            is_player = self.parent.holder == self.parent.engine.player.entity
+        else:
+            is_player = True
         if amount_recovered > 0:
             self.parent.engine.message_log.add_message(
-                f'{you_or_enemy[is_player]} consume{you_or_enemy[is_player][0]} the {self.parent.name}, and recover{you_or_enemy[is_player][1]} {amount_recovered} HP!',
+                f'{you_or_enemy[is_player]} consume{s[is_player][0]} the {self.parent.name}, and recover{s[is_player][1]} {amount_recovered} HP!',
                 color.health_recovered,
             )
         elif is_player:

@@ -2,6 +2,8 @@
 import tcod, copy
 import traceback
 
+from config import SETTINGS
+
 import color
 from engine import Engine
 import sprite_data
@@ -10,8 +12,8 @@ import item_data
 from mapgen import generate_dungeon_floor
 
 def main() -> None:
-    screen_width = 80
-    screen_height = 50
+    screen_width = SETTINGS['screen_width']
+    screen_height = SETTINGS['screen_height']
     
     map_width = 80
     map_height = 43
@@ -23,12 +25,7 @@ def main() -> None:
     max_enemies_per_room = (0, 2)
     max_items_per_room = (0, 2)
     
-    #tileset_file = 'assets/textures/dejavu10x10_gs_tc.png'
-    #tileset = tcod.tileset.load_tilesheet(
-    #    tileset_file, 32, 8, tcod.tileset.CHARMAP_TCOD
-    #)
-    
-    tileset_file = 'assets/textures/rexpaint_cp437_10x10.png'
+    tileset_file = SETTINGS['tileset_file']
     tileset = tcod.tileset.load_tilesheet(
         tileset_file, 16, 16, tcod.tileset.CHARMAP_CP437
     )

@@ -20,7 +20,6 @@ class Message:
             return f"{self.plain_text} (x{self.count})"
         return self.plain_text
 
-
 class MessageLog:
     def __init__(self) -> None:
         self.messages: List[Message] = []

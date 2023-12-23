@@ -4,7 +4,7 @@ from typing import Optional, TYPE_CHECKING, Dict, List
 import tcod
 from tcod import libtcodpy
 
-import textwrap, math
+import textwrap, math, time
 
 from actions import (
     Action,
@@ -16,6 +16,10 @@ from actions import (
 
 import color, exceptions
 from item_types import ItemTypes
+
+from message_log import MessageLog
+
+from config import SETTINGS
 
 if TYPE_CHECKING:
     from engine import Engine
@@ -138,6 +142,8 @@ class MenuCollectionEventHandler(EventHandler):
         self.selected_menu = submenu
         self.engine.wait = False
         self.engine.event_handler = self.menus[self.selected_menu]
+        self.latest_message = self.engine.message_log.messages[-1]
+        self.latest_message_count = self.engine.message_log.messages[-1].count
 
     def on_render(self, console: tcod.console.Console) -> None:
         if isinstance(self.engine.event_handler, MenuCollectionEventHandler):
@@ -150,12 +156,34 @@ class MenuCollectionEventHandler(EventHandler):
             if i == self.selected_menu:
                 title_border = f'╢{"".join([" "]*len(title))}╟'
                 title_color = color.ui_cursor_text_color
+                
+                if self.latest_message != self.engine.message_log.messages[-1] or self.latest_message_count != self.engine.message_log.messages[-1].count:
+                    menu.display_message = True
+                    self.latest_message = self.engine.message_log.messages[-1]
+                    self.latest_message_count = self.engine.message_log.messages[-1].count
+                
             else:
                 title_border = f'┤{"".join([" "]*len(title))}├'
                 title_color = color.ui_text_color
             console.print_box(x=menu_x,y=0, width=len(title_border), height=1, string=title_border, fg=color.ui_color)
             console.print_box(x=menu_x+1,y=0, width=len(title), height=1, string=title, fg=title_color)
             menu_x+=len(title_border)+1
+        
+        console.print(x=console.width-2, y=0, string='├', fg=color.ui_color)
+        
+        sp_string = f'SP: {self.engine.player.entity.sp}/{self.engine.player.entity.max_sp}'
+        console.print(x=console.width-len(sp_string)-2, y=0, string=sp_string, fg=color.ui_text_color)
+        console.print(x=console.width-len(sp_string)-3, y=0, string='│', fg=color.ui_color)
+        
+        mp_string = f'MP: {self.engine.player.entity.mp}/{self.engine.player.entity.max_mp}'
+        console.print(x=console.width-len(mp_string)-len(sp_string)-3, y=0, string=mp_string, fg=color.ui_text_color)
+        console.print(x=console.width-len(mp_string)-len(sp_string)-4, y=0, string='│', fg=color.ui_color)
+        
+        hp_string = f'HP: {self.engine.player.entity.hp}/{self.engine.player.entity.max_hp}'
+        console.print(x=console.width-len(hp_string)-len(mp_string)-len(sp_string)-4, y=0, string=hp_string, fg=color.ui_text_color)
+        
+        console.print(x=console.width-len(hp_string)-len(mp_string)-len(sp_string)-5, y=0, string='┤', fg=color.ui_color)
+        
             
 class SubMenuEventHandler(EventHandler):
     parent: MenuCollectionEventHandler
@@ -165,10 +193,18 @@ class SubMenuEventHandler(EventHandler):
         self.menu_x = None
         self.engine.wait = False
         
+        self.message_max_time = 150
+        self.message_time = None
+        self.display_message = False
+        self.allow_display_message = True
+        
     def on_render(self, console: tcod.console.Console) -> None:
         self.parent.on_render(console)
         menu_console = tcod.console.Console(console.width, console.height-1)
         
+        
+        
+        self.display_latest_message(menu_console)
         menu_console.blit(console, dest_x=0, dest_y=1)
         
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
@@ -189,6 +225,35 @@ class SubMenuEventHandler(EventHandler):
         #    if self.parent.selected_menu - 1 >= 0:
         #        self.parent.selected_menu -= 1
         #        self.engine.event_handler = self.parent.menus[self.parent.selected_menu]
+    
+    def display_latest_message(self, console: tcod.console.Console):
+        if not self.display_message and self.allow_display_message:
+            return
+        
+        message = self.engine.message_log.messages[-1]
+        message_text = list(MessageLog.wrap(message.plain_text, 36))
+        
+        message_console = tcod.console.Console(width=min(len(message.plain_text)+2, 38), height=len(message_text)+2)
+        
+        message_console.draw_frame(x=0, y=0, width=message_console.width, height=message_console.height, fg=color.ui_color)
+        
+        y=1
+        for line in message_text:
+            message_console.print(x=1, y=y, string=line, fg=message.fg)
+            y += 1
+            
+        message_console.blit(console, dest_x=int(console.width/2)-int(message_console.width/2), dest_y=console.height-message_console.height-2)
+        if self.message_time is None:
+            self.message_time = time.time()
+            #print(len(message.plain_text.split())*SETTINGS['words_per_minute']*0.003)
+
+        if time.time() - self.message_time >= len(message.plain_text.split())*SETTINGS['words_per_minute']*0.003:
+            self.display_message = False
+            self.message_time = None
+        
+        
+        
+        
         
 class StatusMenuEventHandler(SubMenuEventHandler):
     def on_render(self, console: tcod.console.Console) -> None:
@@ -252,7 +317,7 @@ class StatusMenuEventHandler(SubMenuEventHandler):
             attr_y+=2
         menu_console.print(x=x_offset, y=attr_y-1, string='└', fg=color.ui_color)
             
-        
+        self.display_latest_message(menu_console)
         menu_console.blit(console, dest_x=0, dest_y=1)
         
 class EquipmentEventHandler(SubMenuEventHandler):
@@ -272,6 +337,7 @@ class EquipmentEventHandler(SubMenuEventHandler):
             if slot in ['Boots', 'Left Ring']:
                 slot_y += 1
         
+        self.display_latest_message(menu_console)
         menu_console.blit(console, dest_x=0, dest_y=1)
         
     def equip_slot(self, console: tcod.console.Console, x: int, y: int, title: str, index: int) -> None:
@@ -386,6 +452,7 @@ class InventoryEventHandler(SubMenuEventHandler):
 
             desc_console.blit(menu_console, dest_x=menu_console.width-4-22, dest_y=43)
 
+        self.display_latest_message(menu_console)
         menu_console.blit(console, dest_x=0, dest_y=1)
         
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
@@ -424,6 +491,9 @@ class InventoryEventHandler(SubMenuEventHandler):
                 self.items_on_page[self.selected_item][0].effect.activate()
             except NotImplementedError:
                 pass
+            except exceptions.Impossible as exc:
+                self.engine.message_log.add_message(exc.args[0], color.impossible)
+                
             
 class DropAmountEventHandler(EventHandler):
     parent: InventoryEventHandler

@@ -109,7 +109,6 @@ class Item(Entity):
         self.weight = weight
         self.default_char = char
         self.default_color = color
-        self.effect = effect
         self.itemtype = itemtype
         self.equipped = False
         self.rarity = rarity
@@ -133,6 +132,9 @@ class Item(Entity):
                 equippable = {}
         
         self.equippable = {'Head': False, 'Chest': False, 'Legs': False, 'Boots': False, 'Gloves': False, 'Rings': False, 'Right Hand': False, 'Left Hand': False} | equippable
+        
+        self.effect = effect
+        self.effect.parent = self
         
         super().__init__(name=name, description=description, value=value)
         
