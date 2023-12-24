@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 from entity import Item
 
-from item_data import health_potion
+import item_data
 
 import copy
 
@@ -72,17 +72,18 @@ def dev_command(command: str, engine: Engine) -> str:
             engine.message_log.messages = []
             return 'message log cleared.'
         
-        case ['testbiginv']:
+        case ['biginv']:
             for i in range(80):
                 engine.player.entity.add_inventory(Item(f'Test Item {i}', 1, 0), True)
             return 'test inventory big added.'
-        case ['testmultiinv']:
+        case ['multiinv']:
             for i in range(3):
-                engine.player.entity.add_inventory(copy.deepcopy(health_potion), True)
+                engine.player.entity.add_inventory(copy.deepcopy(item_data.health_potion), True)
             return 'test inventory multi added.'
-        
-        case ['test']:
-            print(vars(health_potion))
+        case ['equipinv']:
+            for i in range(5):
+                engine.player.entity.add_inventory(copy.deepcopy(item_data.sword), True)
+                return 'test inventory equip added.'
         
         case ['help']:
             return ', '.join(['invincible', 'wallhacks', 'god', 'revealmap', 'hidemap', 'seeall', 'allseeing', 'enemyai', 'print player _', 'cls'])

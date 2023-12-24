@@ -134,7 +134,7 @@ class Item(Entity):
             else:
                 equippable = {}
         
-        self.equippable = {'Head': False, 'Chest': False, 'Legs': False, 'Boots': False, 'Gloves': False, 'Rings': False, 'Right Hand': False, 'Left Hand': False} | equippable
+        self.equippable = {'Head': False, 'Chest': False, 'Legs': False, 'Boots': False, 'Gloves': False, 'Amulet': False, 'Left Ring': False, 'Right Ring': False, 'Right Hand': False, 'Left Hand': False} | equippable
         
         self.effect = effect
         self.effect.parent = self
@@ -691,8 +691,8 @@ class Character(Entity):
             return bool(self.get_with_name(item))
         return item in self.equipment.values()
         
-    def equip(self, items: Item | str | List[Item|str], slot: Optional[str] = None, silent: bool = False) -> None:
-        """ Equips a single `Item` or multiple. Adds item to inventory if it isn't already present.\n\n`slot` only used on single equip.\n\n`silent` to not print messages."""
+    def equip(self, items: Item | str | List[Item|str], slot: Optional[str] = None, silent: bool = False, force: bool = True) -> None:
+        """ Equips a single `Item` or multiple. Adds item to inventory if it isn't already present.\n\n`slot` only used on single equip.\n\n`silent` to not print messages.\n\n`force` to equip items in slots that already have items."""
         if not isinstance(items, list):
             items:List[Item|str] = [items]
         else:
@@ -709,9 +709,16 @@ class Character(Entity):
                 break
             
             if slot:
-                if self.equipment[slot]:
+                if self.equipment[slot] == item:
+                    if not silent: self.parent.gamemap.engine.message_log.add_message(f'{item.name} already equipped on {slot}.')
+                    break
+                elif self.equipment[slot] and not force:
                     if not silent: self.parent.gamemap.engine.message_log.add_message(f'{slot} already equipped.')
                     break
+                elif self.equipment[slot]:
+                    self.unequip(self.equipment[slot])
+                if self.is_equipped(item):
+                    self.unequip(item)
                 if not silent: self.parent.gamemap.engine.message_log.add_message(f'Equipped {item} on {slot}.')
                 self.equipment[slot] = item
                 item.equipped = True

@@ -255,10 +255,6 @@ class SubMenuEventHandler(EventHandler):
             self.display_message = False
             self.message_time = None
         
-        
-        
-        
-        
 class StatusMenuEventHandler(SubMenuEventHandler):
     def on_render(self, console: tcod.console.Console) -> None:
         self.parent.on_render(console)
@@ -323,7 +319,8 @@ class StatusMenuEventHandler(SubMenuEventHandler):
             
         self.display_latest_message(menu_console)
         menu_console.blit(console, dest_x=0, dest_y=1)
-        
+
+
 class EquipmentEventHandler(SubMenuEventHandler):
     def __init__(self, engine, title: str):
         super().__init__(engine, title)
@@ -377,8 +374,70 @@ class EquipmentEventHandler(SubMenuEventHandler):
             case tcod.event.KeySym.BACKSPACE:
                 self.engine.player.entity.unequip(list(self.engine.player.entity.equipment.values())[self.selected_slot])
             case tcod.event.KeySym.RETURN:
-                # Choose compatible item to equip.
-                pass
+                if self.selected_slot == -1:
+                    return
+                equip_handle = EquipEventHandler(self.engine, self.slots[self.selected_slot])
+                equip_handle.parent = self
+                self.engine.event_handler = equip_handle
+
+class EquipEventHandler(EventHandler):
+    parent: EquipmentEventHandler
+    def __init__(self, engine: Engine, slot: str) -> None:
+        super().__init__(engine)
+        self.slot = slot
+        self.selected_item = -1
+        self.engine.wait = False
+        
+    def on_render(self, console: tcod.console.Console) -> None:
+        self.parent.on_render(console)
+        
+        self.items_for_slot = list({item for item in self.engine.player.entity.inventory if item.equippable[self.slot]})
+        
+        equip_console = tcod.console.Console(30, len(self.items_for_slot)+4)
+        equip_console.draw_frame(0, 0, width=equip_console.width, height=equip_console.height, fg=color.ui_color)
+        equip_title = f'Equip {self.slot}'
+        equip_console.print_box(
+            0, 0, equip_console.width, 1, f'┤{"".join([" "]*len(equip_title))}├', alignment=libtcodpy.CENTER, fg=color.ui_color
+        )
+        equip_console.print_box(
+            0, 0, equip_console.width, 1, equip_title, alignment=libtcodpy.CENTER, fg=color.ui_text_color
+        )
+        
+        
+        acronym = {'Head': 'H', 'Chest': 'C', 'Legs': 'L', 'Boots': 'B', 'Gloves': 'G', 'Amulet': 'A', 'Left Ring': 'LR', 'Right Ring': 'RR', 'Right Hand': 'RH', 'Left Hand': 'LH'}
+        y=2
+        for i, item in enumerate(self.items_for_slot):
+            text_color = color.ui_text_color
+            extra = ''
+            if i == self.selected_item:
+                text_color = color.ui_cursor_text_color
+            elif self.engine.player.entity.is_equipped(item):
+                text_color = color.ui_selected_text_color
+            if self.engine.player.entity.is_equipped(item) and self.engine.player.entity.equipment[self.slot] != item:
+                extra = f'[{[acronym[j[0]] for j in self.engine.player.entity.equipment.items() if j[1] == item][0]}]'
+
+            equip_console.print(x=2, y=y, string=f'{item.name}{extra}', fg=text_color)
+            y+=1
+        
+        equip_console.blit(console, dest_x=console.width-equip_console.width-4, dest_y=4)
+        
+    def ev_keydown(self, event: tcod.event.KeyDown) -> None:
+        match event.sym:
+            case tcod.event.KeySym.ESCAPE:
+                self.engine.event_handler = self.parent
+            
+            case tcod.event.KeySym.DOWN:
+                self.selected_item = min(self.selected_item+1, len(self.items_for_slot)-1)
+            case tcod.event.KeySym.UP:
+                self.selected_item = max(self.selected_item-1, -1)
+            case tcod.event.KeySym.HOME:
+                self.selected_item = 0
+            case tcod.event.KeySym.END:
+                self.selected_item = len(self.items_for_slot)-1
+                
+            case tcod.event.KeySym.RETURN:
+                if self.selected_item != -1:
+                    self.engine.player.entity.equip(self.items_for_slot[self.selected_item], self.slot)
         
     
 class InventoryEventHandler(SubMenuEventHandler):
@@ -472,6 +531,10 @@ class InventoryEventHandler(SubMenuEventHandler):
         elif key  == tcod.event.KeySym.UP:
             if self.selected_item - 1 >= -1:
                 self.selected_item -= 1
+        elif key  == tcod.event.KeySym.HOME:
+            self.selected_item = 0
+        elif key  == tcod.event.KeySym.END:
+            self.selected_item = self.current_page_num_items-1
         
         elif key == tcod.event.KeySym.RIGHT:
             self.selected_item = -1
@@ -498,7 +561,6 @@ class InventoryEventHandler(SubMenuEventHandler):
             except exceptions.Impossible as exc:
                 self.engine.message_log.add_message(exc.args[0], color.impossible)
                 
-            
 class DropAmountEventHandler(EventHandler):
     parent: InventoryEventHandler
     def __init__(self, engine: Engine, stack: list[Item]):
@@ -508,8 +570,6 @@ class DropAmountEventHandler(EventHandler):
         self.engine.wait = False
     
     def on_render(self, console: tcod.console.Console) -> None:
-        
-
         drop_console = tcod.console.Console(22, 5)
 
         drop_console.draw_frame(0, 0, drop_console.width, drop_console.height, fg=color.ui_color)
@@ -708,6 +768,7 @@ class MultiPickupHandler(MenuListEventHandler):
                 pickup(self.selected_items)
                 self.engine.event_handler = MainGameEventHandler(self.engine)
 
+
 class MainGameEventHandler(EventHandler):
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
         action: Optional[Action] = None
@@ -746,12 +807,14 @@ class MainGameEventHandler(EventHandler):
                 self.engine.hover_depth += CURSOR_Y_KEYS[key]
             
         return action
-    
+
+
 class GameOverEventHandler(EventHandler):
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
         if event.sym == tcod.event.KeySym.ESCAPE:
             raise SystemExit()
-    
+
+
 class HistoryViewer(EventHandler):
     """Print the history on a larger window which can be navigated."""
     def __init__(self, engine: Engine) -> None:
@@ -807,7 +870,8 @@ class HistoryViewer(EventHandler):
             self.cursor = self.log_length - 1 # Move directly to the last message.
         else: # Any other key moves back to the main game state.
             self.engine.event_handler = MainGameEventHandler(self.engine)
-            
+
+   
 class TextInputHandler(EventHandler):
     def __init__(self, engine: Engine, x: int = 20, y: int = 41, width: int = None):
         super().__init__(engine)
