@@ -9,7 +9,7 @@ from item_types import ItemTypes
 from entity_effect import ItemEffect, CharacterEffect
 
 from races import RACES_PLURAL
-import re, color, exceptions
+import re, color, exceptions, random
 
 if TYPE_CHECKING:
     from sprite import Sprite, Actor
@@ -197,7 +197,9 @@ class Character(Entity):
         base_LCK: int = 10,
         level_up_factor: int = 150,
         xp_given: int = 100,
-        titles: list = []
+        titles: list = [],
+        dominant_hand: str = None,
+        
     ) -> None:
         self.effects: List[CharacterEffect] = []
         
@@ -219,7 +221,11 @@ class Character(Entity):
         self.xp_given = xp_given
         self.needs_level_up = False
         
-        self.titles = []
+        self.titles = titles
+        
+        self.dominant_hand = dominant_hand
+        if self.dominant_hand is None:
+            self.dominant_hand = random.choices(['right', 'left', 'ambidextrous'], [90, 10, 1])[0]
         
         # Attr Guide: 1: Ant | 10: Average Human | 100: Dragon
         # Visible Attributes
@@ -480,9 +486,18 @@ class Character(Entity):
     def phys_atk_extrinsic_bonus(self) -> int:
         total = 0
         for item in self.inventory:
-            if item.effect.needs_equipped and not item.equipped:
+            if item.effect.needs_equipped:
                 continue
             total += item.effect.phys_atk_bonus
+        for slot, item in self.equipment.items():
+            if item is None:
+                continue
+            if slot in ['Left Hand', 'Right Hand'] and self.dominant_hand.capitalize() in slot:
+                total += item.effect.phys_atk_bonus
+            elif slot in ['Left Hand', 'Right Hand']:
+                total += int(item.effect.phys_atk_bonus/4)
+            else:
+                total += item.effect.phys_atk_bonus
         return total
     
     
@@ -535,9 +550,18 @@ class Character(Entity):
     def magc_atk_extrinsic_bonus(self) -> int:
         total = 0
         for item in self.inventory:
-            if item.effect.needs_equipped and not item.equipped:
+            if item.effect.needs_equipped:
                 continue
             total += item.effect.magc_atk_bonus
+        for slot, item in self.equipment.items():
+            if item is None:
+                continue
+            if slot in ['Left Hand', 'Right Hand'] and self.dominant_hand.capitalize() in slot:
+                total += item.effect.magc_atk_bonus
+            elif slot in ['Left Hand', 'Right Hand']:
+                total += int(item.effect.magc_atk_bonus/4)
+            else:
+                total += item.effect.magc_atk_bonus
         return total
     
     
@@ -777,6 +801,9 @@ class Character(Entity):
         else:
             death_message = f'{self.name} is dead!'
             death_message_color = color.enemy_die
+            
+            for item in self.inventory:
+                self.drop_inventory(item, True)
             
             dead_weight = self.race.standard_weight
             self.parent.entity=Corpse(

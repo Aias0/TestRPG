@@ -6,6 +6,8 @@ from tcod import libtcodpy
 
 import textwrap, math, time
 
+import pyperclip
+
 from actions import (
     Action,
     EscapeAction,
@@ -973,6 +975,11 @@ class TextInputHandler(EventHandler):
             
             case tcod.event.KeySym.ESCAPE:
                 self.engine.event_handler = MainGameEventHandler(self.engine)
+    
+            case tcod.event.KeySym.v:
+                if tcod.event.get_keyboard_state()[tcod.event.KeySym.LCTRL.scancode]:
+                    self.text_inputted += pyperclip.paste()
+
                 
     def use_input(self) -> None:
         raise NotImplementedError()

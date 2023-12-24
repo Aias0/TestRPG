@@ -1,10 +1,4 @@
-class test:
-    def __init__(self) -> None:
-        pass
-    
-class test2(test):
-    def __init__(self) -> None:
-        super().__init__()
-        
-        
-print(test2().__format__())
+import random
+
+for i in range(100):
+    print(random.choices(['right', 'left', 'ambidextrous'], [90, 10, 1]))
