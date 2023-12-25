@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Tuple, TypeVar, Optional, Type
 
 from render_order import RenderOrder
 
-import copy
+import copy, math
 
 if TYPE_CHECKING:
     from ai import BaseAI
@@ -50,7 +50,11 @@ class Sprite():
             
     @property
     def gamemap(self) -> GameMap:
-        return self.parent.gamemap
+        return self.parent
+    
+    @property
+    def name(self) -> str:
+        return self.entity.name
         
     def spawn(self: T, gamemap: GameMap, x: int, y: int) -> T:
         """Spawn a copy of this instance at the given location."""
@@ -72,9 +76,9 @@ class Sprite():
             self.parent = gamemap
             gamemap.sprites.add(self)
     
-    def distance(self):
+    def distance(self, x: int, y: int):
         """Return the distance between the current entity and the given (x, y) coordinate."""
-        pass
+        return math.sqrt((x-self.x)**2 + (y-self.y)**2)
     
     def move(self, dx: int, dy: int) -> None:
         # Move the entity by a given amount

@@ -6,7 +6,7 @@ from entity_effect import ItemEffect, HealingEffect, ScrollEffect
 
 from magic import LightningBolt
 
-from item_types import ItemTypes
+from game_types import ItemTypes
 
 health_potion = Item(
     'Health Potion', 100, 1, itemtype=ItemTypes.POTION, effect=HealingEffect(amount=4), rarity= 25

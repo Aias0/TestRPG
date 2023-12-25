@@ -8,16 +8,19 @@ import textwrap, math, time
 
 import pyperclip
 
+
+
 from actions import (
     Action,
-    EscapeAction,
+    DropItem,
+    EffectAction,
     BumpAction,
     PickupAction,
     WaitAction,
 )
 
 import color, exceptions
-from item_types import ItemTypes
+from game_types import ItemTypes
 
 from message_log import MessageLog
 
@@ -96,40 +99,6 @@ class EventHandler(tcod.event.EventDispatch[Action]):
     
     def on_render(self, console: tcod.console.Console) -> None:
         self.engine.render(console)
-    
-class AskUserEventHandler(EventHandler):
-    """ Handles user input for actions which require special input. """
-    def handle_action(self, action: Action | None) -> bool:
-        """ Returns to the main event handler when a valid action is performed. """
-        if super().handle_action(action):
-            self.engine.event_handler = MainGameEventHandler(self.engine)
-            return True
-        return False
-    
-    def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
-        """ By default any key exits this input handler. """
-        if event.sym in { # Ignore modifier keys.
-            tcod.event.KeySym.LSHIFT,
-            tcod.event.KeySym.RSHIFT,
-            tcod.event.KeySym.LCTRL,
-            tcod.event.KeySym.RCTRL,
-            tcod.event.KeySym.LALT,
-            tcod.event.KeySym.RALT,
-        }:
-            return None
-        return self.on_exit()
-    
-    def ev_mousebuttondown(self, event: tcod.event.MouseButtonDown) -> Optional[Action]:
-        """ By default any mouse click exits this input handler. """
-        return self.on_exit()
-    
-    def on_exit(self) -> Optional[Action]:
-        """ Called when the user is trying to exit or cancel an action.
-        
-        By default this returns to the main event handler. """
-        self.engine.event_handler = MainGameEventHandler(self.engine)
-        return None
-
 
 class MenuCollectionEventHandler(EventHandler):
     def __init__(self, engine: Engine, submenu: int = 0) -> None:
@@ -557,7 +526,8 @@ class InventoryEventHandler(SubMenuEventHandler):
                 
         elif key == tcod.event.KeySym.RETURN:
             try:
-                self.items_on_page[self.selected_item][0].effect.activate()
+                action = self.items_on_page[self.selected_item][-1].effect.get_action()
+                return action
             except NotImplementedError:
                 pass
             except exceptions.Impossible as exc:
@@ -600,14 +570,12 @@ class DropAmountEventHandler(EventHandler):
                 self.amount = 1
                 
             case tcod.event.KeySym.t:
-                for item in self.stack:
-                    self.engine.player.entity.drop_inventory(item)
                 self.engine.event_handler = self.parent
+                return DropItem(self.engine.player, self.stack)
                 
             case tcod.event.KeySym.RETURN:
-                for item in self.stack[:self.amount]:
-                    self.engine.player.entity.drop_inventory(item)
                 self.engine.event_handler = self.parent
+                return DropItem(self.engine.player, self.stack[:self.amount])
         
         
 class MenuListEventHandler(EventHandler):

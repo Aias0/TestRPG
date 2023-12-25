@@ -4,7 +4,7 @@ from races import Human
 from jobs import Mage
 
 from entity_effect import ItemEffect
-from item_types import ItemTypes
+from game_types import ItemTypes
 
 
 test = Actor(

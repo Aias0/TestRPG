@@ -4,12 +4,14 @@ from typing import TYPE_CHECKING, List, Optional, Dict, Tuple
 from render_order import RenderOrder
 from input_handler import GameOverEventHandler
 
-from item_types import ItemTypes
+from game_types import ItemTypes
 
 from entity_effect import ItemEffect, CharacterEffect
 
 from races import RACES_PLURAL
 import re, color, exceptions, random
+
+from game_types import DamageTypes
 
 if TYPE_CHECKING:
     from sprite import Sprite, Actor
@@ -147,6 +149,8 @@ class Item(Entity):
             return self.default_char
         elif self.itemtype == ItemTypes.POTION:
             return '¡'
+        elif self.itemtype == ItemTypes.SCROLL:
+            return '~'
         elif ItemTypes.is_armor(self):
             return '['
         elif ItemTypes.is_weapon(self):
@@ -842,11 +846,36 @@ class Character(Entity):
 
         return amount_recovered
 
-    def take_damage(self, amount: int) -> int:
+    
+    def take_damage(
+        self, amount: int, damage_type: DamageTypes = DamageTypes.PHYS, attacker: Optional[Character] = None, dodgeable: bool = True
+        ) -> int:
         if self.invincible:
             return 0
-        self.hp -= amount
-        return amount
+        
+        type_to_var = {
+            DamageTypes.PHYS: {'atk': self.phys_atk, 'neg': self.phys_negation, 'def': self.phys_defense},
+            DamageTypes.MAGC: {'atk': self.magc_atk, 'neg': self.magc_negation, 'def': self.magc_defense},
+        }
+        
+        dodge_chance = 0
+        if dodgeable:
+            dodge_chance = self.dodge_chance
+            if attacker:
+                if dodge_chance < attacker.DEX-2:
+                    dodge_chance /= 2
+                elif dodge_chance < attacker.DEX+2:
+                    dodge_chance *= 2
+        
+        damage = amount * (1 - type_to_var[damage_type]['neg']) - type_to_var[damage_type]['def']
+        rand = random.random() + attacker.LCK/100 - self.LCK/100
+        if rand < dodge_chance/2:
+            return None
+        elif rand < dodge_chance:
+            damage //= 2
+            
+        self.hp -= damage
+        return damage
         
 class Corpse(Item):
     def __init__(

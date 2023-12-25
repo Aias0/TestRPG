@@ -36,18 +36,19 @@ class BaseEffect():
         
     def get_effect(self) -> None:
         """Try to return the effect for this item."""
-        raise NotImplementedError()
+        raise Impossible(f'{self.parent} effect has no effect.')
     
     def get_action(self) -> None:
         """Try to return the action for this item."""
+        from entity import Item, Character
         if isinstance(self.parent, Item):
-            return actions.EffectAction(self.parent.holder, self.parent)
+            return actions.EffectAction(self.parent.holder.parent, self)
         elif isinstance(self.parent, Character):
-            return actions.EffectAction(self.parent.parent, self.parent)
+            return actions.EffectAction(self.parent.parent, self)
     
-    def activate(self) -> None:
+    def activate(self, action: actions.EffectAction) -> None:
         """Invoke this items ability."""
-        raise NotImplementedError()
+        raise Impossible(f'{self.parent} effect has no action.')
     
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -146,17 +147,13 @@ class HealingEffect(ItemEffect):
         
         self.amount = amount
     
-    def activate(self) -> None:
+    def activate(self, action: actions.EffectAction) -> None:
         amount_recovered = self.parent.holder.heal(self.amount)
         you_or_enemy = {True: 'You', False: self.parent.name}
         s = {False: ['s', 'ed'], True: ['',]*2}
-        try:
-            self.parent.parent.gamemap
-            is_player = self.parent.holder == self.parent.engine.player.entity
-        except:
-            is_player = True
+        is_player = self.parent.holder == self.parent.holder.parent.parent.engine.player.entity
         if amount_recovered > 0:
-            self.parent.engine.message_log.add_message(
+            self.parent.holder.parent.parent.engine.message_log.add_message(
                 f'{you_or_enemy[is_player]} consume{s[is_player][0]} the {self.parent.name}, and recover{s[is_player][1]} {amount_recovered} HP!',
                 color.health_recovered,
             )
@@ -182,7 +179,7 @@ class ScrollEffect(ItemEffect):
         
         self.spell = spell
         
-    def activate(self) -> None:
+    def activate(self, action: actions.EffectAction) -> None:
         # Ask Character for target.
         target = None
         self.spell.cast(caster=self.parent.holder, target=target)

@@ -49,3 +49,9 @@ class ItemTypes(Enum):
         return {ItemTypes.POTION, ItemTypes.SCROLL}
     def is_consumable(item: Item) -> bool:
         return item.itemtype in ItemTypes.consumables()
+    
+class DamageTypes(Enum):
+    PHYS = auto()
+    MAGC = auto()
+    
+    TRUE = auto()

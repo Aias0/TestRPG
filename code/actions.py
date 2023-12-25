@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple, List
 
-import random, color, exceptions
+import color, exceptions
 
 if TYPE_CHECKING:
     from engine import Engine
     from sprite import Sprite, Actor
-    from entity import Character, Item, Entity
+    from entity import Item
     from entity_effect import BaseEffect
 
 class Action:
@@ -58,7 +58,18 @@ class PickupAction(Action):
             self.engine.game_map.sprites.remove(items_at_loc[0])
             return
         self.engine.message_log.add_message(result.args[0], color.impossible)
-    
+
+class DropItem(Action):
+    def __init__(self, sprite: Actor, item: Item | List[Item]):
+        super().__init__(sprite)
+        if not isinstance(item, List):
+            item = [item]
+        self.items = item
+        
+    def perform(self) -> None:
+        for item in self.items:
+            self.sprite.entity.drop_inventory(item)
+
 class EffectAction(Action):
     def __init__(
         self, sprite: Sprite, effect: BaseEffect, target_xy: Optional[Tuple[int, int]] = None
@@ -76,12 +87,12 @@ class EffectAction(Action):
     
     def perform(self) -> None:
         """ Invoke the effect ability, this action will be given to provide context."""
-        self.effect.activate()
+        self.effect.activate(self)
 
 class EscapeAction(Action):
     def perform(self) -> None:
         raise SystemExit()
-    
+
 class WaitAction(Action):
     def perform(self) -> None:
         pass
@@ -122,28 +133,19 @@ class MeleeAction(ActionWithDirection):
         else:
             attack_color = color.enemy_atk
         
-        dodge_chance = target.entity.dodge_chance
-        if target.entity.DEX < self.sprite.entity.DEX - 2:
-            dodge_chance /= 2
-        elif target.entity.DEX > self.sprite.entity.DEX + 2:
-            dodge_chance *= 2
-
-        damage = self.sprite.entity.phys_atk * (1 - target.entity.phys_negation) - target.entity.phys_defense
-        rand = random.random()+self.sprite.entity.LCK/100
-        if rand < dodge_chance/2:
-            print(f'{attack_desc} but misses.')
-            return
-        elif rand < dodge_chance:
-            damage //= 2
-        damage_taken = target.entity.take_damage(damage)
-        if damage_taken > 0:
+        damage_taken = target.entity.take_damage(self.sprite.entity.phys_atk, attacker=self.sprite.entity)
+        if damage_taken is None:
+            self.engine.message_log.add_message(
+                f'{attack_desc} but misses.', attack_color
+            )
+        elif damage_taken > 0:
             self.engine.message_log.add_message(
                 f'{attack_desc} for {damage_taken} hit points.', attack_color
-                )
+            )
         else:
             self.engine.message_log.add_message(
                 f'{attack_desc} but does no damage.', attack_color
-                )
+            )
         
 
 class MovementAction(ActionWithDirection):

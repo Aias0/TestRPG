@@ -46,7 +46,7 @@ def main() -> None:
         items_per_room_range=max_items_per_room,
         engine=engine
     )
-    
+    engine.player.parent = engine.game_map
     engine.update_fov()
     
     engine.message_log.add_message(
