@@ -8,7 +8,7 @@ import textwrap, math, time
 
 import pyperclip
 
-
+import render_functions
 
 from actions import (
     Action,
@@ -100,6 +100,7 @@ class EventHandler(tcod.event.EventDispatch[Action]):
     def on_render(self, console: tcod.console.Console) -> None:
         self.engine.render(console)
 
+
 class MenuCollectionEventHandler(EventHandler):
     def __init__(self, engine: Engine, submenu: int = 0) -> None:
         super().__init__(engine)
@@ -153,8 +154,7 @@ class MenuCollectionEventHandler(EventHandler):
         hp_string = f'HP: {self.engine.player.entity.hp}/{self.engine.player.entity.max_hp}'
         console.print(x=console.width-len(hp_string)-len(mp_string)-len(sp_string)-4, y=0, string=hp_string, fg=color.ui_text_color)
         
-        console.print(x=console.width-len(hp_string)-len(mp_string)-len(sp_string)-5, y=0, string='┤', fg=color.ui_color)
-        
+        console.print(x=console.width-len(hp_string)-len(mp_string)-len(sp_string)-5, y=0, string='┤', fg=color.ui_color)        
             
 class SubMenuEventHandler(EventHandler):
     parent: MenuCollectionEventHandler
@@ -291,7 +291,6 @@ class StatusMenuEventHandler(SubMenuEventHandler):
         self.display_latest_message(menu_console)
         menu_console.blit(console, dest_x=0, dest_y=1)
 
-
 class EquipmentEventHandler(SubMenuEventHandler):
     def __init__(self, engine, title: str):
         super().__init__(engine, title)
@@ -410,7 +409,6 @@ class EquipEventHandler(EventHandler):
                 if self.selected_item != -1:
                     self.engine.player.entity.equip(self.items_for_slot[self.selected_item], self.slot)
         
-    
 class InventoryEventHandler(SubMenuEventHandler):
     def __init__(self, engine: Engine, title: str):
         super().__init__(engine, title)
@@ -576,8 +574,8 @@ class DropAmountEventHandler(EventHandler):
             case tcod.event.KeySym.RETURN:
                 self.engine.event_handler = self.parent
                 return DropItem(self.engine.player, self.stack[:self.amount])
-        
-        
+
+  
 class MenuListEventHandler(EventHandler):
     def __init__(self, engine: Engine, menu_items):
         super().__init__(engine)
@@ -738,43 +736,110 @@ class MultiPickupHandler(MenuListEventHandler):
                 pickup(self.selected_items)
                 self.engine.event_handler = MainGameEventHandler(self.engine)
 
+class SelectTileHandler(EventHandler):
+    """Handles asking the user for an tile on the map."""
+    def __init__(self, engine: Engine) -> None:
+        """Sets the cursor to the player when this handler is constructed."""
+        super().__init__(engine)
+        player = self.engine.player
+        engine.mouse_location = player.x, player.y
+        
+    def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
+        """Check for key movement or confirmation keys."""
+        match event.sym:
+            case tcod.event.KeySym(sym) if sym in MOVE_KEY:
+                modifier = 1 # Holding modifier keys will speed up key movement.
+                if event.mod & (tcod.event.KMOD_LSHIFT | tcod.event.KMOD_RSHIFT):
+                    modifier *= 5
+                if event.mod & (tcod.event.KMOD_LCTRL | tcod.event.KMOD_RCTRL):
+                    modifier *= 5
+                if event.mod & (tcod.event.KMOD_LALT | tcod.event.KMOD_RALT):
+                    modifier *= 5
+                    
+                x, y = self.engine.mouse_location
+                dx, dy = MOVE_KEY[sym]
+                x += dx * modifier
+                y += dy * modifier
+                # Clamp the cursor index to the map size.
+                x = max(0, min(x, self.engine.game_map.width - 1))
+                y = max(0, min(y, self.engine.game_map.height - 1))
+                self.engine.mouse_location = x, y
+                return None
+            
+            case tcod.event.KeySym.RETURN:
+                return self.on_tile_selected(*self.engine.mouse_location)
+            
+            
+        return super().ev_keydown(event)
+    
+    def ev_mousebuttondown(self, event: tcod.event.MouseButtonDown) -> Optional[Action]:
+        """ Left click confirms a selection. """
+        if self.engine.game_map.in_bounds(*event.tile):
+            if event.button == 1:
+                return self.on_tile_selected(*event.tile)
+            
+        return super().ev_mousebuttondown(event)
+    
+    def on_tile_selected(self, x: int, y: int) -> Optional[Action]:
+        """ Called when an index is selected. """
+        return NotImplementedError()
+    
+class LookHandler(SelectTileHandler):
+    """ Lets the player look around using the keyboard. """
+    
+    def on_render(self, console: tcod.console.Console) -> None:
+        super().on_render(console)
+        
+        console.draw_semigraphics
+    
+    def on_tile_selected(self, x: int, y: int) ->None:
+        """ Return to main handler. """
+        self.engine.event_handler = MainGameEventHandler(self.engine)
 
 class MainGameEventHandler(EventHandler):
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
         action: Optional[Action] = None
         
-        key = event.sym
-        
         player = self.engine.player
+        key = event.sym
+        match event.sym:
+            case tcod.event.KeySym.ESCAPE:
+                self.engine.event_handler = PauseMenuEventHandler(self.engine)
+            
+            case tcod.event.KeySym(sym) if sym in MOVE_KEY:
+                dx, dy = MOVE_KEY[sym]
+                action = BumpAction(player, dx, dy)
+            
+            case tcod.event.KeySym(sym) if sym in WAIT_KEY:
+                action = WaitAction(player)
+            
+            case tcod.event.KeySym.v:
+                self.engine.event_handler = HistoryViewer(self.engine)
         
-        if key in MOVE_KEY:
-            dx, dy = MOVE_KEY[key]
-            action = BumpAction(player, dx, dy)
+            case tcod.event.KeySym.g:
+                action = PickupAction(player)
             
-        elif key in WAIT_KEY:
-            action = WaitAction(player)
+            case tcod.event.KeySym.m:
+                self.engine.event_handler = MenuCollectionEventHandler(self.engine)
+
+            case tcod.event.KeySym.i:
+                self.engine.event_handler = MenuCollectionEventHandler(self.engine, 2)
+                
+            case tcod.event.KeySym.TAB:
+                self.engine.event_handler = MenuCollectionEventHandler(self.engine, 1)
             
-        elif key == tcod.event.KeySym.ESCAPE:
-            self.engine.event_handler = PauseMenuEventHandler(self.engine)
+            case tcod.event.KeySym.BACKSLASH if SETTINGS['dev_console']:
+                self.engine.event_handler = DevConsole(self.engine)
+                
+            case tcod.event.KeySym.l:
+                self.engine.event_handler = LookHandler(self.engine)
+                
+            case tcod.event.KeySym.o:
+                render_functions.render_circle(self.console)
             
-        elif key == tcod.event.KeySym.v:
-            self.engine.event_handler = HistoryViewer(self.engine)
-        
-        elif key == tcod.event.KeySym.g:
-            action = PickupAction(player)
-            
-        elif key == tcod.event.KeySym.m:
-            self.engine.event_handler = MenuCollectionEventHandler(self.engine)
-            
-        elif key == tcod.event.KeySym.i:
-            self.engine.event_handler = MenuCollectionEventHandler(self.engine, 2)
-            
-        elif key == tcod.event.KeySym.BACKSLASH and SETTINGS['dev_console']:
-            self.engine.event_handler = DevConsole(self.engine)
-            
-        elif key in CURSOR_Y_KEYS:
-            if self.engine.hover_depth + CURSOR_Y_KEYS[key] in range(self.engine.hover_range):
-                self.engine.hover_depth += CURSOR_Y_KEYS[key]
+            case tcod.event.KeyDown(key) if key in CURSOR_Y_KEYS:
+                if self.engine.hover_depth + CURSOR_Y_KEYS[key] in range(self.engine.hover_range):
+                    self.engine.hover_depth += CURSOR_Y_KEYS[key]
             
         return action
 

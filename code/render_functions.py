@@ -1,7 +1,10 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple, List
 
 import color
+
+from bitmap import BitMap
+import numpy as np
 
 if TYPE_CHECKING:
     from tcod.console import Console
@@ -63,3 +66,56 @@ def render_resource_bar(
     console.print(
         x=x+1, y=y, string=f'{resource.upper()}: {current_val}/{maximum_val}', fg=color.bar_text
     )
+
+def circle(x: int, y: int, radius: int) -> List[Tuple[int, int]]:
+    #(x-x1)**2 + (y+y1)**2 = radius
+    #y=\pm\sqrt{1-\left(x-3\right)^{2}}+4
+    points: List[Tuple[int, int]]= []
+    
+    xx = radius
+    yy = 0
+    
+    points.append((xx+x, yy+y))
+    
+    if radius > 0:
+        points.append((xx+x, -yy+y))
+        points.append((yy+x, xx+y))
+        points.append((-yy+x, xx+y))
+    
+    P = 1 - radius
+    while xx > y:
+        
+        yy += 1
+        
+        if P <= 0:
+            P = P + 2 * yy + 1
+        else:
+            xx -= 1
+            P = P + 2 * yy - 2 * xx + 1
+            
+        if xx < yy:
+            break
+        
+        points.append((xx+x, yy+y))
+        points.append((-xx+x, yy+y))
+        points.append((xx+x, -yy+y))
+        points.append((-x+xx, -y+yy))
+        
+        if xx != yy:
+            points.append((yy+x, xx+y))
+            points.append((-yy+x, xx+y))
+            points.append((yy+x, -xx+y))
+            points.append((-yy+x, -xx+y))
+            
+    return points
+
+s = circle(10, 10, 5)
+print(s)
+map_print = [[' ' for _ in range(30)] for _ in range(30)]
+
+for point in s:
+    print(point)
+    map_print[point[0]][point[1]] = '*'
+    
+for r in map_print:
+    print(r)

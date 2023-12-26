@@ -1,4 +1,11 @@
-import random
+import turtle
 
+tt = turtle.Turtle()
+
+radius = 50
+#Loop to draw a spiral circle
 for i in range(100):
-    print(random.choices(['right', 'left', 'ambidextrous'], [90, 10, 1]))
+    tt.circle(radius + i, 45)
+
+# Finish by turtle.done() command
+turtle.done()
