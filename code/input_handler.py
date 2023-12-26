@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING, Dict, List
+from typing import Optional, TYPE_CHECKING, Dict, List, Callable, Tuple
 
 import tcod
 from tcod import libtcodpy
@@ -7,6 +7,7 @@ from tcod import libtcodpy
 import textwrap, math, time
 
 import pyperclip
+from actions import Action
 
 import render_functions
 
@@ -743,7 +744,7 @@ class SelectTileHandler(EventHandler):
         super().__init__(engine)
         player = self.engine.player
         engine.mouse_location = player.x, player.y
-        
+    
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
         """Check for key movement or confirmation keys."""
         match event.sym:
@@ -769,6 +770,9 @@ class SelectTileHandler(EventHandler):
             case tcod.event.KeySym.RETURN:
                 return self.on_tile_selected(*self.engine.mouse_location)
             
+            case tcod.event.KeySym.ESCAPE:
+                self.engine.event_handler = MainGameEventHandler(self.engine)
+            
             
         return super().ev_keydown(event)
     
@@ -789,12 +793,29 @@ class LookHandler(SelectTileHandler):
     
     def on_render(self, console: tcod.console.Console) -> None:
         super().on_render(console)
+        render_functions.circle(console, '*', *self.engine.mouse_location, 3)
         
-        console.draw_semigraphics
     
     def on_tile_selected(self, x: int, y: int) ->None:
         """ Return to main handler. """
         self.engine.event_handler = MainGameEventHandler(self.engine)
+        
+class RangedAttackHandler(SelectTileHandler):
+    """Handles targeting enemies at range. Only the enemies selected will be affected."""
+    
+    def __init__(self, engine: Engine, callback: Callable[[Tuple[int, int], Optional[Action]]], radius: int = 1, ) -> None:
+        super().__init__(engine)
+        
+        self.callback = callback
+        self.radius = radius
+    
+    def on_render(self, console: tcod.console.Console) -> None:
+        super().on_render(console)
+        render_functions.circle(console, '*', *self.engine.mouse_location, self.radius)
+        
+    
+    def on_tile_selected(self, x: int, y: int) -> Action | None:
+        return self.callback((x, y))
 
 class MainGameEventHandler(EventHandler):
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:

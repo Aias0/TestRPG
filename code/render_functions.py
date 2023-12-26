@@ -1,9 +1,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Tuple, List
 
-import color
+import color, math
 
-from bitmap import BitMap
 import numpy as np
 
 if TYPE_CHECKING:
@@ -67,55 +66,30 @@ def render_resource_bar(
         x=x+1, y=y, string=f'{resource.upper()}: {current_val}/{maximum_val}', fg=color.bar_text
     )
 
-def circle(x: int, y: int, radius: int) -> List[Tuple[int, int]]:
-    #(x-x1)**2 + (y+y1)**2 = radius
-    #y=\pm\sqrt{1-\left(x-3\right)^{2}}+4
+def circle(console: Console, char: str, x: int, y: int, radius: int) -> List[Tuple[int, int]]:
     points: List[Tuple[int, int]]= []
+    if radius == 1:
+        points = [(x-1, y), (x, y-1), (x, y+1), (x+1, y)]
+        for i in points:
+            console.print(*i, string=char, fg=color.ui_color)
+        return points
     
-    xx = radius
-    yy = 0
-    
-    points.append((xx+x, yy+y))
-    
-    if radius > 0:
-        points.append((xx+x, -yy+y))
-        points.append((yy+x, xx+y))
-        points.append((-yy+x, xx+y))
-    
-    P = 1 - radius
-    while xx > y:
-        
-        yy += 1
-        
-        if P <= 0:
-            P = P + 2 * yy + 1
-        else:
-            xx -= 1
-            P = P + 2 * yy - 2 * xx + 1
-            
-        if xx < yy:
-            break
-        
-        points.append((xx+x, yy+y))
-        points.append((-xx+x, yy+y))
-        points.append((xx+x, -yy+y))
-        points.append((-x+xx, -y+yy))
-        
-        if xx != yy:
-            points.append((yy+x, xx+y))
-            points.append((-yy+x, xx+y))
-            points.append((yy+x, -xx+y))
-            points.append((-yy+x, -xx+y))
-            
+    # draw the circle
+    for angle in range(0, 180, 5):
+        xx = radius * math.sin(math.radians(angle)) + y
+        yy = radius * math.cos(math.radians(angle)) + x
+        console.print(x=int(round(xx)), y=int(round(yy)), string=char, fg=color.ui_color)
+        console.print(x=int(round(x-xx-x)), y=int(round(yy)), string=char, fg=color.ui_color)
+ 
     return points
 
-s = circle(10, 10, 5)
-print(s)
-map_print = [[' ' for _ in range(30)] for _ in range(30)]
 
-for point in s:
-    print(point)
-    map_print[point[0]][point[1]] = '*'
-    
-for r in map_print:
-    print(r)
+if __name__ == '__main__':
+    s = circle(10, 10, 5)
+    map_print = [[' ' for _ in range(16)] for _ in range(16)]
+
+    for point in s:
+        map_print[point[1]][point[0]] = '*'
+
+    for r in map_print:
+        print(' '.join(r))
