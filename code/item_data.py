@@ -23,7 +23,7 @@ chest_plate = Item(
 lightning_bolt_scroll = Item(
     'Lightning Bolt Scroll', 200, 1, itemtype=ItemTypes.SCROLL, effect=ScrollEffect(magic.LightningBolt()), rarity=5
 )
-
+# Lightning_Bolt_Scroll
 fire_ball_scroll = Item(
     'Fire Ball Scroll', 400, 1, itemtype=ItemTypes.SCROLL, effect=ScrollEffect(magic.FireBall()), rarity=2
 )

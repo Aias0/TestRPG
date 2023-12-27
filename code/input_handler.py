@@ -866,22 +866,30 @@ class RangedAttackHandler(SelectTileHandler):
         
         self.points: List[Tuple[int, int]] | None = None
         self.prev_time: float | None = None
-        self.attack
+        
+        self.delay = delay
+        self.points_on_map = []
     
     def on_render(self, console: tcod.console.Console) -> None:
         super().on_render(console)
         render_functions.draw_circle(console, '*', *self.engine.mouse_location, self.radius)
         if not self.attack_sent:
             return
-        
+        for point in self.points_on_map:
+            console.print(*point, '*', [255, 255, 255])
+
         if self.prev_time is None:
             self.prev_time = time.time()
-            console.print(*self.points.pop(0), '*', [255, 255, 255])
-        elif time.time() - self.prev_time:
-            console.print(*self.points.pop(0), '*', [255, 255, 255])
-        
+            self.points_on_map.append(self.points.pop(0))
+            console.print(*self.points_on_map[0], '*', [255, 255, 255])
+        elif time.time() - self.prev_time >= self.delay:
+            self.points_on_map.append(self.points.pop(0))
+            console.print(*self.points_on_map[-1], '*', [255, 255, 255])
+            self.prev_time = time.time()
+            
         if not self.points:
             self.engine.event_handler = MainGameEventHandler(self.engine)
+            self.engine.event_handler.on_render(console)
             self.handle_action(self.on_tile_selected(*self.engine.mouse_location))
         
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
