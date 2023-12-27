@@ -48,11 +48,9 @@ def main() -> None:
     )
     engine.player.parent = engine.game_map
     engine.update_fov()
-    
     engine.message_log.add_message(
         "Hello and welcome, adventurer, to yet another dungeon!", color.welcome_text
     )
-    
     with tcod.context.new_terminal(
         screen_width,
         screen_height,
@@ -61,6 +59,7 @@ def main() -> None:
         vsync=True,
     ) as context:
         root_console = tcod.console.Console(screen_width, screen_height, order='F')
+        engine.console = root_console
         while True:
             root_console.clear()
             engine.event_handler.on_render(console=root_console)

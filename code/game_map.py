@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable, TYPE_CHECKING, Optional, Iterator
+from typing import Iterable, TYPE_CHECKING, Optional, Iterator, List
 
 import numpy as np # type: ignore
 from tcod.console import Console
@@ -61,6 +61,13 @@ class GameMap:
                 return actor
         
         return None
+    
+    def get_actors_in_range(self, x: int, y: int, radius: int) -> List[Actor]:
+        actors_in_range: List[Actor] = []
+        for actor in self.actors:
+            if actor.distance(x, y) <= radius:
+                actors_in_range.append(actor)
+        return actors_in_range
         
     def in_bounds(self, x: int, y:int) -> bool:
         """Return True if x and y are inside of the bounds of this map."""

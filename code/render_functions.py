@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Tuple, List
 
-import color, math
+import color, math, time
 
 import numpy as np
 
@@ -66,30 +66,65 @@ def render_resource_bar(
         x=x+1, y=y, string=f'{resource.upper()}: {current_val}/{maximum_val}', fg=color.bar_text
     )
 
-def circle(console: Console, char: str, x: int, y: int, radius: int) -> List[Tuple[int, int]]:
+def draw_circle(console: Console, char: str, x: int, y: int, radius: int) -> List[Tuple[int, int]]:
     points: List[Tuple[int, int]]= []
     if radius == 1:
         points = [(x-1, y), (x, y-1), (x, y+1), (x+1, y)]
         for i in points:
-            console.print(*i, string=char, fg=color.ui_color)
+            if i[1] < 42:
+                console.print(*i, string=char, fg=color.ui_color)
         return points
     
     # draw the circle
     for angle in range(0, 180, 5):
-        xx = radius * math.sin(math.radians(angle)) + y
-        yy = radius * math.cos(math.radians(angle)) + x
-        console.print(x=int(round(xx)), y=int(round(yy)), string=char, fg=color.ui_color)
-        console.print(x=int(round(x-xx-x)), y=int(round(yy)), string=char, fg=color.ui_color)
+        xx = radius * math.sin(math.radians(angle)) + x
+        yy = radius * math.cos(math.radians(angle)) + y
+        if yy < 42:
+            console.print(x=int(round(xx)+.5), y=int(round(yy)+.5), string=char, fg=color.ui_color)
+            console.print(x=int(round(x-(xx-x))+.5), y=int(round(yy)+.5), string=char, fg=color.ui_color)
  
     return points
 
+def draw_line(
+    console: Console, char: str, start_coord: tuple[int, int], end_coord: tuple[int, int], color: Tuple[int, int, int], print_start: bool = True, delay: float = 0
+) -> List[Tuple[int, int]]:
+    points = line(start_coord, end_coord, print_start)
+    
+    for x, y in points:
+        console.print(x=x, y=y, string=char, fg=color)
+        
+def line(
+    start_coord: tuple[int, int], end_coord: tuple[int, int], start: bool = True,
+) -> None:
+    x1, y1 = start_coord
+    x2, y2 = end_coord
+    x, y = x1, y1
+    dx = abs(x2 - x1)
+    dy = abs(y2 - y1)
+    gradient = dy/float(dx)
+    
+    if gradient > 1:
+        dx, dy = dy, dx
+        x, y = y, x
+        x1, y1 = y1, x1
+        x2, y2 = y2, x2
+        
+    p = 2*dy - dx
+    # Initialize the plotting points
+    points: List[Tuple[int, int]] = []
+    if start:
+        points.append((x, y))
 
-if __name__ == '__main__':
-    s = circle(10, 10, 5)
-    map_print = [[' ' for _ in range(16)] for _ in range(16)]
+    for k in range(2, dx + 2):
+        if p > 0:
+            y = y + 1 if y < y2 else y - 1
+            p = p + 2 * (dy - dx)
+        else:
+            p = p + 2 * dy
 
-    for point in s:
-        map_print[point[1]][point[0]] = '*'
+        x = x + 1 if x < x2 else x - 1
 
-    for r in map_print:
-        print(' '.join(r))
+        points.append((x, y))
+    
+    return points
+    

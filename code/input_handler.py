@@ -27,10 +27,13 @@ from message_log import MessageLog
 
 from config import SETTINGS
 
+from magic import Spell
+
 if TYPE_CHECKING:
     from engine import Engine
     from entity import Item
     from sprite import Sprite, Actor
+    from magic import AOESpell
     
 KEY_ACTION = {
     'move_up': (0, -1),
@@ -101,7 +104,6 @@ class EventHandler(tcod.event.EventDispatch[Action]):
     def on_render(self, console: tcod.console.Console) -> None:
         self.engine.render(console)
 
-
 class MenuCollectionEventHandler(EventHandler):
     def __init__(self, engine: Engine, submenu: int = 0) -> None:
         super().__init__(engine)
@@ -155,7 +157,7 @@ class MenuCollectionEventHandler(EventHandler):
         hp_string = f'HP: {self.engine.player.entity.hp}/{self.engine.player.entity.max_hp}'
         console.print(x=console.width-len(hp_string)-len(mp_string)-len(sp_string)-4, y=0, string=hp_string, fg=color.ui_text_color)
         
-        console.print(x=console.width-len(hp_string)-len(mp_string)-len(sp_string)-5, y=0, string='┤', fg=color.ui_color)        
+        console.print(x=console.width-len(hp_string)-len(mp_string)-len(sp_string)-5, y=0, string='┤', fg=color.ui_color)
             
 class SubMenuEventHandler(EventHandler):
     parent: MenuCollectionEventHandler
@@ -793,26 +795,102 @@ class LookHandler(SelectTileHandler):
     
     def on_render(self, console: tcod.console.Console) -> None:
         super().on_render(console)
-        render_functions.circle(console, '*', *self.engine.mouse_location, 3)
+        render_functions.draw_circle(console, '*', *self.engine.mouse_location, 5)
         
-    
     def on_tile_selected(self, x: int, y: int) ->None:
         """ Return to main handler. """
         self.engine.event_handler = MainGameEventHandler(self.engine)
         
-class RangedAttackHandler(SelectTileHandler):
-    """Handles targeting enemies at range. Only the enemies selected will be affected."""
-    
-    def __init__(self, engine: Engine, callback: Callable[[Tuple[int, int], Optional[Action]]], radius: int = 1, ) -> None:
+class InspectHandler(SelectTileHandler):
+    def __init__(self, engine: Engine):
         super().__init__(engine)
-        
-        self.callback = callback
-        self.radius = radius
+        self.show_info = False
+        self.entity = None
     
     def on_render(self, console: tcod.console.Console) -> None:
         super().on_render(console)
-        render_functions.circle(console, '*', *self.engine.mouse_location, self.radius)
+        if not self.show_info:
+            render_functions.draw_circle(console, '*', *self.engine.mouse_location, 1)
+            return
         
+        display_console = tcod.console.Console(25, 10)
+        display_console.draw_frame(0, 0, display_console.width, display_console.height, fg=color.ui_color)
+        
+        display_console.print(1, 1, string=f'Name: {self.entity.name}')
+        display_console.print(1, 2, string=f'Race: {self.entity.race.name}')
+        display_console.print(1, 3, string=f'Job: {self.entity.job.name}')
+        display_console.print(1, 4, string=f'Level: {self.entity.level}')
+        
+        display_console.print(1, 6, string=f'HP: {self.entity.hp}/{self.entity.max_hp}')
+        display_console.print(1, 7, string=f'MP: {self.entity.mp}/{self.entity.max_mp}')
+        display_console.print(1, 8, string=f'SP: {self.entity.sp}/{self.entity.max_sp}')
+        
+        display_console.blit(console, 5, 5)
+
+    def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
+        if not self.show_info:
+            super().ev_keydown(event)
+            return
+        
+        match event.sym:
+            case tcod.event.KeySym.ESCAPE:
+                self.engine.event_handler = MainGameEventHandler(self.engine)
+
+    def on_tile_selected(self, x: int, y: int) ->None:
+        """ Return to main handler. """
+        actor = self.engine.game_map.get_actor_at_location(x, y)
+        if actor:
+            self.entity = actor.entity
+            self.show_info = True
+        else:
+            self.engine.event_handler = MainGameEventHandler(self.engine)
+        
+class RangedAttackHandler(SelectTileHandler):
+    """Handles targeting enemies at range. Only the enemies selected will be affected."""
+    
+    
+    def __init__(self, engine: Engine, attack: Spell, callback: Callable[[Tuple[int, int], Optional[Action]]], delay: float = .5) -> None:
+        super().__init__(engine)
+        
+        self.attack = attack
+        self.callback = callback
+        
+        self.radius = 1
+        if hasattr(self.attack, 'radius'):
+            attack: AOESpell
+            self.radius = attack.radius
+
+        self.attack_sent = False
+        
+        self.engine.wait = False
+        
+        self.points: List[Tuple[int, int]] | None = None
+        self.prev_time: float | None = None
+        self.attack
+    
+    def on_render(self, console: tcod.console.Console) -> None:
+        super().on_render(console)
+        render_functions.draw_circle(console, '*', *self.engine.mouse_location, self.radius)
+        if not self.attack_sent:
+            return
+        
+        if self.prev_time is None:
+            self.prev_time = time.time()
+            console.print(*self.points.pop(0), '*', [255, 255, 255])
+        elif time.time() - self.prev_time:
+            console.print(*self.points.pop(0), '*', [255, 255, 255])
+        
+        if not self.points:
+            self.engine.event_handler = MainGameEventHandler(self.engine)
+            self.handle_action(self.on_tile_selected(*self.engine.mouse_location))
+        
+    def ev_keydown(self, event: tcod.event.KeyDown) -> None:
+        match event.sym:
+            case tcod.event.KeySym.RETURN:
+                self.points = render_functions.line((self.engine.player.x, self.engine.player.y), self.engine.mouse_location, False)
+                self.attack_sent = True
+            case _:
+                super().ev_keydown(event)
     
     def on_tile_selected(self, x: int, y: int) -> Action | None:
         return self.callback((x, y))
@@ -849,14 +927,17 @@ class MainGameEventHandler(EventHandler):
             case tcod.event.KeySym.TAB:
                 self.engine.event_handler = MenuCollectionEventHandler(self.engine, 1)
             
-            case tcod.event.KeySym.BACKSLASH if SETTINGS['dev_console']:
+            case tcod.event.KeySym.BACKSLASH if SETTINGS['dev_mode']:
                 self.engine.event_handler = DevConsole(self.engine)
                 
-            case tcod.event.KeySym.l:
-                self.engine.event_handler = LookHandler(self.engine)
-                
             case tcod.event.KeySym.o:
-                render_functions.render_circle(self.console)
+                self.engine.event_handler = Tester(self.engine)
+                
+            case tcod.event.KeySym.l:
+                if SETTINGS['dev_mode']:
+                    self.engine.event_handler = InspectHandler(self.engine)
+                else:
+                    self.engine.event_handler = LookHandler(self.engine)
             
             case tcod.event.KeyDown(key) if key in CURSOR_Y_KEYS:
                 if self.engine.hover_depth + CURSOR_Y_KEYS[key] in range(self.engine.hover_range):
@@ -864,6 +945,17 @@ class MainGameEventHandler(EventHandler):
             
         return action
 
+class Tester(EventHandler):
+    def on_render(self, console: tcod.console.Console):
+        super().on_render(console)
+        render_functions.draw_line(console, '*', (self.engine.player.x, self.engine.player.y), (0, 0), (255, 0, 0))
+        #time.sleep(100)
+        
+    def ev_keydown(self, event: tcod.event.KeyDown):
+        match event.sym:
+            case tcod.event.KeySym.ESCAPE:
+                self.engine.event_handler = MainGameEventHandler(self.engine)
+        
 
 class GameOverEventHandler(EventHandler):
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:

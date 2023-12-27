@@ -80,17 +80,16 @@ class Entity():
     def __repr__(self):
         return self.__str__()
     
-    def similar(self, other):
+    def similar(self, other) -> bool:
         if isinstance(other, self.__class__):
             for i, pair in enumerate(zip([_[1] for _ in vars(self).items() if _[0] != 'parent'], [_[1] for _ in vars(other).items() if _[0] != 'parent'])):
-                #print(list(self.__dict__.keys())[i])
-                #print(pair)
                 if hasattr(pair[0], 'similar') and not pair[0].similar(pair[1]):
                     return False
-                elif pair[0] != pair[1]:
+                elif not hasattr(pair[0], 'similar') and pair[0] != pair[1]:
                     return False
                 
             return True
+        return False
 
         
 class Item(Entity):
@@ -674,6 +673,8 @@ class Character(Entity):
                     break
             else:
                 inv_as_stacks.append([item])
+                #print(vars(item))
+                #print()
                 
         return inv_as_stacks
 
@@ -912,7 +913,7 @@ class Corpse(Item):
                 #print(pair)
                 if hasattr(pair[0], 'similar') and not pair[0].similar(pair[1]):
                     return False
-                elif pair[0] != pair[1]:
+                elif not hasattr(pair[0], 'similar') and pair[0] != pair[1]:
                     return False
                 
             return True

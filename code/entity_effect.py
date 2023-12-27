@@ -5,6 +5,9 @@ import actions, color
 
 from exceptions import Impossible
 
+from input_handler import RangedAttackHandler
+from magic import AOESpell
+
 if TYPE_CHECKING:
     from entity import Entity, Item, Character
     from magic import Spell
@@ -49,17 +52,17 @@ class BaseEffect():
     def activate(self, action: actions.EffectAction) -> None:
         """Invoke this items ability."""
         raise Impossible(f'{self.parent} effect has no action.')
-    
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            for pair in zip([_[1] for _ in vars(self).items() if _[0] != 'parent'], [_[1] for _ in vars(other).items() if _[0] != 'parent']):
-                if pair[0] != pair[1]:
-                    return False
-                
-            return True
 
-    def __hash__(self):
-            return hash(vars(self).values())
+        
+    def similar(self, other):
+        if isinstance(other, self.__class__):
+            for i, pair in enumerate(zip([_[1] for _ in vars(self).items() if _[0] != 'parent'], [_[1] for _ in vars(other).items() if _[0] != 'parent'])):
+                if hasattr(pair[0], 'similar') and not pair[0].similar(pair[1]):
+                    return False
+                elif not hasattr(pair[0], 'similar') and pair[0] != pair[1]:
+                    return False
+            return True
+        return False
         
 
 
@@ -179,10 +182,20 @@ class ScrollEffect(ItemEffect):
         
         self.spell = spell
         
+    def get_action(self) -> actions.Action | None:
+        self.parent.engine.message_log.add_message(
+            "Select a target location.", color.needs_target
+        )
+        self.parent.engine.event_handler = RangedAttackHandler(
+            self.parent.engine,
+            self.spell,
+            callback=lambda xy: actions.EffectAction(self.parent.holder.parent, self, xy),
+        )
+        return None
+        
     def activate(self, action: actions.EffectAction) -> None:
-        # Ask Character for target.
-        target = None
-        self.spell.cast(caster=self.parent.holder, target=target)
+        target_xy = action.target_xy
+        self.spell.cast(caster=self.parent.holder, target=target_xy, scroll_cast=True)
         self.consume()
         
     

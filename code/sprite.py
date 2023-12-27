@@ -97,7 +97,7 @@ class Sprite():
                 print(pair)
                 if hasattr(pair[0], 'similar') and not pair[0].similar(pair[1]):
                     return False
-                elif pair[0] != pair[1]:
+                elif not hasattr(pair[0], 'similar') and pair[0] != pair[1]:
                     return False
                 
             return True

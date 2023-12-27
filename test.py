@@ -1,18 +1,30 @@
-import math
 
-width, height = 11, 11
-a, b = 5, 5
-r = 2
 
-map_ = [['.' for x in range(width)] for y in range(height)]
-
-# draw the circle
-for angle in range(0, 180, 5):
-    x = r * math.sin(math.radians(angle)) + a
-    y = r * math.cos(math.radians(angle)) + b
-    map_[int(round(y)+.5)][int(round(x)+.5)] = '#'
-    map_[int(round(y)+.5)][int(round(a-(x-a))+.5)] = '#'
+def draw_line(start_coord: tuple[int, int], end_coord: tuple[int, int]) -> None:
+    x1, y1 = start_coord
+    x2, y2 = end_coord
+    x, y = x1, y1
+    dx = abs(x2 - x1)
+    dy = abs(y2 - y1)
+    gradient = dy/float(dx)
     
-# print the map
-for line in map_:
-    print(' '.join(line))
+    if gradient > 1:
+        dx, dy = dy, dx
+        x, y = y, x
+        x1, y1 = y1, x1
+        x2, y2 = y2, x2
+        
+    p = 2*dy - dx
+    # Initialize the plotting points
+    points = [(x, y)]
+
+    for k in range(2, dx + 2):
+        if p > 0:
+            y = y + 1 if y < y2 else y - 1
+            p = p + 2 * (dy - dx)
+        else:
+            p = p + 2 * dy
+
+        x = x + 1 if x < x2 else x - 1
+
+        points.append((x, y))

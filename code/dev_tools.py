@@ -8,6 +8,9 @@ import item_data
 
 import copy
 
+from item_data import ITEMS
+from input_handler import SelectTileHandler
+
 if TYPE_CHECKING:
     from engine import Engine
 
@@ -67,6 +70,35 @@ def dev_command(command: str, engine: Engine) -> str:
                 return f'{cmd}: {str(getattr(engine.player.entity, cmd))}'
             except AttributeError:
                 return f'player.entity.{cmd} does not exist.'
+            
+        case ['player', 'add', cmd]:
+            cmd = cmd.replace('_', ' ')
+            item = [item for item in ITEMS if item.name == cmd]
+            if not item:
+                return f'Item with name: {cmd} does not exist.'
+            from spritegen import entity_to_sprite
+            item = copy.deepcopy(item[0])
+            item.parent = entity_to_sprite(item)
+            item.parent.parent = engine.game_map
+            
+            engine.player.entity.add_inventory(item, True)
+            return f'{cmd} added to inventory.'
+        case ['player', 'add', cmd, amount]:
+            cmd = cmd.replace('_', ' ')
+            item = [item for item in ITEMS if item.name == cmd]
+            if not item:
+                return f'Item with name: {cmd} does not exist.'
+            from spritegen import entity_to_sprite
+            item = item[0]
+            item.parent = entity_to_sprite(item)
+            item.parent.parent = engine.game_map
+            for i in range(int(amount)):
+                engine.player.entity.add_inventory(copy.deepcopy(item), True)
+            return f'{cmd}x{amount} added to inventory.'
+        
+        case ['getinfo']:
+            engine.event_handler = SelectTileHandler(engine)
+            
         
         case ['cls']:
             engine.message_log.messages = []
@@ -86,7 +118,7 @@ def dev_command(command: str, engine: Engine) -> str:
                 return 'test inventory equip added.'
         
         case ['help']:
-            return ', '.join(['invincible', 'wallhacks', 'god', 'revealmap', 'hidemap', 'seeall', 'allseeing', 'enemyai', 'print player _', 'cls'])
+            return ', '.join(['invincible', 'wallhacks', 'god', 'revealmap', 'hidemap', 'seeall', 'allseeing', 'enemyai', 'print player _', 'player add _', 'cls'])
         case _:
             return f'command not found: {command}'
         
