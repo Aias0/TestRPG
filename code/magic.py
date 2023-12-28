@@ -11,13 +11,32 @@ if TYPE_CHECKING:
     from sprite import Actor
 
 class Spell():
-    def __init__(self, name: str, cost: int, damage: int, range: int, activation_time: int) -> None:
+    def __init__(self, name: str, cost: int, damage: int, range: int, activation_time: int, color: Tuple[int, int, int]) -> None:
         """ `activation_time` turns needed to cast spell. 0 is instant. """
         self.name = name
         self.cost = cost
         self.damage = damage
         self.range = range
         self.activation_time = activation_time
+        self.color = color
+        
+    def check_cast_conditions(self, caster: Character, target: Optional[Tuple[int, int]], scroll_cast: bool = False):
+        cost = self.cost
+        if scroll_cast:
+            cost = int(self.cost*.75)
+        if target is None:
+            raise Impossible(f'{self.name} not cast. Has no target.')
+        if caster.parent.distance(*target) > self.range:
+            raise Impossible(f'{self.name} not cast. Target out of range.')
+        if not caster.engine.game_map.visible[target]:
+            raise Impossible("You cannot target an area that you cannot see.")
+        
+        target_actor = caster.engine.game_map.get_actor_at_location(*target)
+        if target_actor is None:
+            raise Impossible(f'{self.name} not cast. No actor at location.')
+        
+        if caster.mp - cost < 0:
+            raise Impossible(f'Not enough mana to cast. [{cost}>{caster.mp}]')
         
     def cast(self, caster: Character, target: Optional[Tuple[int, int]], scroll_cast: bool = False) -> None:
         raise NotImplementedError()
@@ -33,47 +52,19 @@ class Spell():
         return False
 
 class AOESpell(Spell):
-    def __init__(self, name: str, cost: int, damage: int, range: int, radius: int, activation_time: int) -> None:
+    def __init__(self, name: str, cost: int, damage: int, range: int, radius: int, activation_time: int, color: Tuple[int, int, int]) -> None:
         """ `activation_time` turns needed to cast spell. 0 is instant. """
         super().__init__(
             name = name,
             cost = cost,
             damage = damage,
             range = range,
-            activation_time = activation_time
+            activation_time = activation_time,
+            color=color
         )
         self.radius = radius
     
-class LightningBolt(Spell):
-    def __init__(self) -> None:
-        super().__init__(name='Lightning Bolt', cost=5, damage=18, range=15, activation_time=0)
-        
-    def cast(self, caster: Character, target: Optional[Tuple[int, int]], scroll_cast: bool = False) -> None:
-        if scroll_cast:
-            self.cost = int(self.cost*.75)
-        if target is None:
-            raise Impossible(f'{self.name} not cast. Has no target.')
-        if caster.parent.distance(*target) > self.range:
-            raise Impossible(f'{self.name} not cast. Target out of range.')
-        if not caster.engine.game_map.visible[target]:
-            raise Impossible("You cannot target an area that you cannot see.")
-        
-        target_actor = caster.engine.game_map.get_actor_at_location(*target)
-        if target_actor is None:
-            raise Impossible(f'{self.name} not cast. No actor at location.')
-        
-        if caster.mp - self.cost < 0:
-            raise Impossible(f'Not enough mana to cast. [{self.cost}>{caster.mp}]')
-        caster.mp-=self.cost
-        
-        damage_taken = target_actor.entity.take_damage(self.damage, DamageTypes.MAGC, caster)
-        caster.engine.message_log.add_message(f"A lighting bolt strikes the {target_actor.name} with a loud thunder, for {damage_taken} damage!")
-        
-class FireBall(AOESpell):
-    def __init__(self) -> None:
-        super().__init__(name='Fire Ball', cost=10, damage=18, range=15, radius= 3, activation_time=0)
-        
-    def cast(self, caster: Character, target: Optional[Tuple[int, int]], scroll_cast: bool = False) -> None:
+    def check_cast_conditions(self, caster: Character, target: Tuple[int, int] | None, scroll_cast: bool = False):
         if scroll_cast:
             self.cost = int(self.cost*.75)
         if target is None:
@@ -89,6 +80,28 @@ class FireBall(AOESpell):
         
         if caster.mp - self.cost < 0:
             raise Impossible(f'Not enough mana to cast. [{self.cost}>{caster.mp}]')
+    
+class LightningBolt(Spell):
+    def __init__(self) -> None:
+        super().__init__(name='Lightning Bolt', cost=5, damage=18, range=15, activation_time=0, color=[0, 0, 255])
+        
+    def cast(self, caster: Character, target: Optional[Tuple[int, int]], scroll_cast: bool = False) -> None:
+        self.check_cast_conditions(caster=caster, target=target, scroll_cast=scroll_cast)
+        target_actor = caster.engine.game_map.get_actor_at_location(*target)
+        
+        caster.mp-=self.cost
+        
+        damage_taken = target_actor.entity.take_damage(self.damage, DamageTypes.MAGC, caster)
+        caster.engine.message_log.add_message(f"A lighting bolt strikes the {target_actor.name} with a loud thunder, for {damage_taken} damage!")
+        
+class FireBall(AOESpell):
+    def __init__(self) -> None:
+        super().__init__(name='Fire Ball', cost=10, damage=18, range=15, radius= 3, activation_time=0, color=[255, 0, 0])
+        
+    def cast(self, caster: Character, target: Optional[Tuple[int, int]], scroll_cast: bool = False) -> None:
+        self.check_cast_conditions(caster=caster, target=target, scroll_cast=scroll_cast)
+        target_actors = caster.engine.game_map.get_actors_in_range(*target, self.radius)
+        
         caster.mp -= self.cost
         
         for actor in target_actors:

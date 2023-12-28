@@ -5,6 +5,8 @@ import color, math, time
 
 import numpy as np
 
+import bresenham
+
 if TYPE_CHECKING:
     from tcod.console import Console
     from engine import Engine
@@ -66,13 +68,16 @@ def render_resource_bar(
         x=x+1, y=y, string=f'{resource.upper()}: {current_val}/{maximum_val}', fg=color.bar_text
     )
 
-def draw_circle(console: Console, char: str, x: int, y: int, radius: int) -> List[Tuple[int, int]]:
+def draw_circle(console: Console, char: str, x: int, y: int, radius: int, fg: Tuple[int, int, int] | None = None) -> List[Tuple[int, int]]:
     points: List[Tuple[int, int]]= []
+    if not fg:
+        fg = color.ui_color
+    
     if radius == 1:
         points = [(x-1, y), (x, y-1), (x, y+1), (x+1, y)]
         for i in points:
             if i[1] < 42:
-                console.print(*i, string=char, fg=color.ui_color)
+                console.print(*i, string=char, fg=fg)
         return points
     
     # draw the circle
@@ -80,44 +85,22 @@ def draw_circle(console: Console, char: str, x: int, y: int, radius: int) -> Lis
         xx = radius * math.sin(math.radians(angle)) + x
         yy = radius * math.cos(math.radians(angle)) + y
         if yy < 42:
-            console.print(x=int(round(xx)+.5), y=int(round(yy)+.5), string=char, fg=color.ui_color)
-            console.print(x=int(round(x-(xx-x))+.5), y=int(round(yy)+.5), string=char, fg=color.ui_color)
+            console.print(x=int(round(xx)+.5), y=int(round(yy)+.5), string=char, fg=fg)
+            console.print(x=int(round(x-(xx-x))+.5), y=int(round(yy)+.5), string=char, fg=fg)
  
     return points
 
 def draw_line(
     console: Console, char: str, start_coord: tuple[int, int], end_coord: tuple[int, int], color: Tuple[int, int, int], print_start: bool = True, delay: float = 0
 ) -> List[Tuple[int, int]]:
-    points = line(start_coord, end_coord, print_start)
+    points = line(start_coord, end_coord)
     
-    for x, y in points:
-        console.print(x=x, y=y, string=char, fg=color)
+    for i, point in enumerate(points):
+        if not print_start and i == 0:
+            continue
+        console.print(*point, string=char, fg=color)
         
 def line(
-    start_coord: tuple[int, int], end_coord: tuple[int, int], start: bool = True,
+    start_coord: tuple[int, int], end_coord: tuple[int, int],
 ) -> None:
-    x1, y1 = start_coord
-    x2, y2 = end_coord
-    points: List[Tuple[int, int]] = []
-    
-    m_new = 2 * (y2 - y1)
-    slope_error_new = m_new - (x2 - x1)
-  
-    y = y1
-    for x in range(x1, x2+1):
-  
-        print("(", x, ",", y, ")\n")
-  
-        # Add slope to increment angle formed
-        slope_error_new = slope_error_new + m_new
-  
-        # Slope error reached limit, time to
-        # increment y and update slope error.
-        if (slope_error_new >= 0):
-            y = y+1
-            slope_error_new = slope_error_new - 2 * (x2 - x1)
-
-        points.append((x, y))
-    
-    return points
-    
+    return list(bresenham.bresenham(*start_coord, *end_coord))

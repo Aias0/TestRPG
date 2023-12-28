@@ -188,7 +188,7 @@ class ScrollEffect(ItemEffect):
         )
         self.parent.engine.event_handler = RangedAttackHandler(
             self.parent.engine,
-            self.spell,
+            self,
             callback=lambda xy: actions.EffectAction(self.parent.holder.parent, self, xy),
         )
         return None

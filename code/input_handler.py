@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from entity import Item
     from sprite import Sprite, Actor
     from magic import AOESpell
+    from entity_effect import BaseEffect
     
 KEY_ACTION = {
     'move_up': (0, -1),
@@ -70,7 +71,7 @@ CURSOR_Y_KEYS = {
 class EventHandler(tcod.event.EventDispatch[Action]):
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
-        self.engine.wait = True
+        self.engine.wait = False
     
     def handle_events(self, event: tcod.event.Event) -> None:
         self.handle_action(self.dispatch(event))
@@ -849,10 +850,11 @@ class RangedAttackHandler(SelectTileHandler):
     """Handles targeting enemies at range. Only the enemies selected will be affected."""
     
     
-    def __init__(self, engine: Engine, attack: Spell, callback: Callable[[Tuple[int, int], Optional[Action]]], delay: float = .5) -> None:
+    def __init__(self, engine: Engine, effect: BaseEffect, callback: Callable[[Tuple[int, int], Optional[Action]]], delay: float = .5) -> None:
         super().__init__(engine)
         
-        self.attack = attack
+        self.effect = effect
+        self.attack = effect.spell
         self.callback = callback
         
         self.radius = 1
@@ -873,29 +875,31 @@ class RangedAttackHandler(SelectTileHandler):
     def on_render(self, console: tcod.console.Console) -> None:
         super().on_render(console)
         if not self.attack_sent:
-            render_functions.draw_circle(console, '*', *self.engine.mouse_location, self.radius)
+            render_functions.draw_circle(console, '*', *self.engine.mouse_location, self.radius, fg=self.attack.color)
             return
         for point in self.points_on_map:
-            console.print(*point, '*', [255, 255, 255])
+            console.print(*point, '*', fg=self.attack.color)
 
         if self.prev_time is None:
             self.prev_time = time.time()
             self.points_on_map.append(self.points.pop(0))
-            console.print(*self.points_on_map[0], '*', [255, 255, 255])
+            console.print(*self.points_on_map[0], '*', fg=self.attack.color)
         elif time.time() - self.prev_time >= self.delay:
             self.points_on_map.append(self.points.pop(0))
-            console.print(*self.points_on_map[-1], '*', [255, 255, 255])
+            console.print(*self.points_on_map[-1], '*', fg=self.attack.color)
             self.prev_time = time.time()
             
-        if len(self.points):
-            self.engine.event_handler = MainGameEventHandler(self.engine)
-            self.engine.event_handler.on_render(console)
+        if not self.points:
             self.handle_action(self.on_tile_selected(*self.engine.mouse_location))
+            self.engine.event_handler = MainGameEventHandler(self.engine)
+            self.engine.wait = False
+            self.engine.event_handler.on_render(console)
         
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
         match event.sym:
             case tcod.event.KeySym.RETURN:
-                self.points = render_functions.line((self.engine.player.x, self.engine.player.y), self.engine.mouse_location, False)
+                self.attack.check_cast_conditions(self.engine.player.entity, self.engine.mouse_location, True)
+                self.points = render_functions.line((self.engine.player.x, self.engine.player.y), self.engine.mouse_location)[1:]
                 self.attack_sent = True
             case _:
                 super().ev_keydown(event)
@@ -956,7 +960,7 @@ class MainGameEventHandler(EventHandler):
 class Tester(EventHandler):
     def on_render(self, console: tcod.console.Console):
         super().on_render(console)
-        render_functions.draw_line(console, '*', (self.engine.player.x, self.engine.player.y), (0, 0), (255, 0, 0))
+        render_functions.draw_line(console, '*', (self.engine.player.x, self.engine.player.y), self.engine.mouse_location, (255, 0, 0))
         
     def ev_keydown(self, event: tcod.event.KeyDown):
         match event.sym:
