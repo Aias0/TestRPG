@@ -46,7 +46,7 @@ class AOESpell(Spell):
     
 class LightningBolt(Spell):
     def __init__(self) -> None:
-        super().__init__(name='Lightning Bolt', cost=5, damage=18, range=6, activation_time=0)
+        super().__init__(name='Lightning Bolt', cost=5, damage=18, range=15, activation_time=0)
         
     def cast(self, caster: Character, target: Optional[Tuple[int, int]], scroll_cast: bool = False) -> None:
         if scroll_cast:
@@ -71,7 +71,7 @@ class LightningBolt(Spell):
         
 class FireBall(AOESpell):
     def __init__(self) -> None:
-        super().__init__(name='Fire Ball', cost=10, damage=18, range=8, radius= 3, activation_time=0)
+        super().__init__(name='Fire Ball', cost=10, damage=18, range=15, radius= 3, activation_time=0)
         
     def cast(self, caster: Character, target: Optional[Tuple[int, int]], scroll_cast: bool = False) -> None:
         if scroll_cast:

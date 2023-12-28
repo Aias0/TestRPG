@@ -872,8 +872,8 @@ class RangedAttackHandler(SelectTileHandler):
     
     def on_render(self, console: tcod.console.Console) -> None:
         super().on_render(console)
-        render_functions.draw_circle(console, '*', *self.engine.mouse_location, self.radius)
         if not self.attack_sent:
+            render_functions.draw_circle(console, '*', *self.engine.mouse_location, self.radius)
             return
         for point in self.points_on_map:
             console.print(*point, '*', [255, 255, 255])
@@ -887,7 +887,7 @@ class RangedAttackHandler(SelectTileHandler):
             console.print(*self.points_on_map[-1], '*', [255, 255, 255])
             self.prev_time = time.time()
             
-        if not self.points:
+        if len(self.points):
             self.engine.event_handler = MainGameEventHandler(self.engine)
             self.engine.event_handler.on_render(console)
             self.handle_action(self.on_tile_selected(*self.engine.mouse_location))
@@ -957,7 +957,6 @@ class Tester(EventHandler):
     def on_render(self, console: tcod.console.Console):
         super().on_render(console)
         render_functions.draw_line(console, '*', (self.engine.player.x, self.engine.player.y), (0, 0), (255, 0, 0))
-        #time.sleep(100)
         
     def ev_keydown(self, event: tcod.event.KeyDown):
         match event.sym:
