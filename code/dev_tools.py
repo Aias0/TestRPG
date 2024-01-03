@@ -6,7 +6,7 @@ from entity import Item
 
 import item_data
 
-import copy
+import copy, os, sys
 
 from item_data import ITEMS
 from input_handler import SelectTileHandler
@@ -96,6 +96,14 @@ def dev_command(command: str, engine: Engine) -> str:
                 engine.player.entity.add_inventory(copy.deepcopy(item), True)
             return f'{cmd}x{amount} added to inventory.'
         
+        case ['player', 'set', attr, value]:
+            from config import tryeval
+            try:
+                setattr(engine.player.entity, attr, tryeval(value))
+                return f'{attr}: {value}'
+            except AttributeError:
+                return f'player.entity.{attr} does not exist.'
+        
         case ['getinfo']:
             engine.event_handler = SelectTileHandler(engine)
             
@@ -116,9 +124,43 @@ def dev_command(command: str, engine: Engine) -> str:
             for i in range(5):
                 engine.player.entity.add_inventory(copy.deepcopy(item_data.sword), True)
                 return 'test inventory equip added.'
+            
+        case ['heal']:
+            engine.player.entity.hp = engine.player.entity.max_hp
+            return 'player healed'
+        case ['heal', cmd]:
+            engine.player.entity.hp = int(cmd)
+            return f'{engine.player.name} healed for {cmd}'
+        
+        case ['revive']:
+            engine.player.entity.resurrect(1)
+            return f' returned {engine.player.name} to life.'
+        
+        case ['restart']:
+            os.execl(sys.executable, sys.executable, * sys.argv)
+            
         
         case ['help']:
-            return ', '.join(['invincible', 'wallhacks', 'god', 'revealmap', 'hidemap', 'seeall', 'allseeing', 'enemyai', 'print player _', 'player add _', 'cls'])
+            return ', '.join([
+                'invincible',
+                'wallhacks',
+                'god',
+                'revealmap',
+                'hidemap',
+                'seeall',
+                'allseeing',
+                'enemyai',
+                'print player _',
+                'player add _',
+                'cls',
+                'biginv',
+                'multiinv',
+                'equipinv',
+                'heal',
+                'heal _',
+                'revive',
+                'restart'
+            ])
         case _:
             return f'command not found: {command}'
         

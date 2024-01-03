@@ -2,16 +2,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List, Optional, Dict, Tuple
 
 from render_order import RenderOrder
-from input_handler import GameOverEventHandler
+from input_handler import GameOverEventHandler, MainGameEventHandler
 
-from game_types import ItemTypes
+from game_types import ItemTypes, ItemSubTypes
 
-from entity_effect import ItemEffect, CharacterEffect
+from entity_effect import ItemEffect, CharacterEffect, CorpseEffect, DOTEffect
 
 from races import RACES_PLURAL
-import re, color, exceptions, random
 
-from game_types import DamageTypes
+import re, color, exceptions, random, copy
+
+from game_types import DamageTypes, ElementTypes, MaterialTypes
 
 if TYPE_CHECKING:
     from sprite import Sprite, Actor
@@ -24,11 +25,11 @@ if TYPE_CHECKING:
 class Entity():
     parent: Sprite
     
-    def __init__(self, name:str, value:int, description:str = None) -> None:
+    def __init__(self, name:str, value:int, description:str = None, tags: set[str] = set(), materials: List[MaterialTypes] | None = None) -> None:
         self.name = name
         if description:
             self.description = description
-            
+        
         # Auto gen item description if one doesn't exist.
         elif isinstance(self, Item):
             attr_desc = {'CON': 'Constitution', 'STR': 'Strength', 'END': 'Endurance', 'DEX': 'Dexterity', 'FOC': 'Focus', 'INT': 'Intelligence', 'WIL': "Will", 'WGT': 'Weight', 'LCK': 'Luck'}
@@ -64,6 +65,9 @@ class Entity():
             self.description = 'This should\'t happen.'
         self.value = value
         
+        self.tags = tags
+        self.materials = materials
+        
         from spritegen import entity_to_sprite
         self.parent = entity_to_sprite(self)
         
@@ -74,6 +78,9 @@ class Entity():
     @property
     def engine(self) -> Engine:
         return self.gamemap.engine
+        
+    def update(self) -> None:
+        raise NotImplementedError()
         
     def __str__(self) -> str:
         return f'{self.name}'
@@ -104,18 +111,26 @@ class Item(Entity):
         char: str = None,
         color: Tuple[int, int, int] = None,
         itemtype: ItemTypes = ItemTypes.MISCELLANEOUS,
+        itemsubtypes: ItemSubTypes | [ItemSubTypes] | None = None,
         description: str = None,
         effect: ItemEffect = ItemEffect(),
         equippable: Optional[Dict[str, bool]] = None,
         rarity: int = 10,
+        edible: bool = False,
+        tags: set[str] = set(),
+        materials: List[MaterialTypes] = [MaterialTypes.NON_BIOLOGICAL],
     ) -> None:
         
         self.weight = weight
         self.default_char = char
         self.default_color = color
         self.itemtype = itemtype
+        self.itemsubtypes = itemsubtypes
+        if not isinstance(self.itemsubtypes, list) and self.itemsubtypes is not None:
+            self.itemsubtypes: List[ItemSubTypes] | None = [self.itemsubtypes]
         self.equipped = False
         self.rarity = rarity
+        self.edible = edible
         
         if not equippable:
             if self.itemtype == ItemTypes.HEAD_ARMOR:
@@ -140,7 +155,7 @@ class Item(Entity):
         self.effect = effect
         self.effect.parent = self
         
-        super().__init__(name=name, description=description, value=value)
+        super().__init__(name=name, description=description, value=value, tags=tags, materials=materials)
         
     @property
     def char(self) -> str:
@@ -154,7 +169,7 @@ class Item(Entity):
             return '['
         elif ItemTypes.is_weapon(self):
             return '/'
-        elif ItemTypes.is_consumable(self):
+        elif ItemTypes.is_useable(self):
             return '◦'
         else:
             return '?'
@@ -167,7 +182,7 @@ class Item(Entity):
             return 0, 191, 255
         elif ItemTypes.is_armor(self):
             return 139, 69, 19
-        elif ItemTypes.is_consumable(self):
+        elif ItemTypes.is_useable(self):
             return 127, 0, 255
         else:
             return 0, 0, 0
@@ -202,6 +217,8 @@ class Character(Entity):
         xp_given: int = 100,
         titles: list = [],
         dominant_hand: str = None,
+        tags: set[str] = set(),
+        materials: List[MaterialTypes] = [MaterialTypes.BIOLOGICAL],
         
     ) -> None:
         self.effects: List[CharacterEffect] = []
@@ -248,7 +265,7 @@ class Character(Entity):
         
         self.invincible = False
         
-        super().__init__(name=name, description=description, value=0)
+        super().__init__(name=name, description=description, value=0, tags=tags, materials=materials)
         self.update_stats()
         
     
@@ -441,16 +458,16 @@ class Character(Entity):
     
     # Defense/Resistance
     @property
-    def phys_defense(self) -> int:
+    def phys_defense(self) -> float:
         return self.base_phys_defense + self.phys_defense_intrinsic_bonus + self.phys_defense_extrinsic_bonus
     @property
-    def phys_defense_intrinsic_bonus(self) -> int:
+    def phys_defense_intrinsic_bonus(self) -> float:
         total = 0
         for effect in self.effects:
             total += effect.phys_defense_bonus
         return total
     @property
-    def phys_defense_extrinsic_bonus(self) -> int:
+    def phys_defense_extrinsic_bonus(self) -> float:
         total = 0
         for item in self.inventory:
             if item.effect.needs_equipped and not item.equipped:
@@ -459,7 +476,7 @@ class Character(Entity):
         return total
         
     @property
-    def phys_negation(self) -> float:
+    def phys_negation(self) -> int:
         return self.base_phys_negation + self.phys_negation_intrinsic_bonus + self.phys_negation_extrinsic_bonus
     @property
     def phys_negation_intrinsic_bonus(self) -> int:
@@ -468,7 +485,7 @@ class Character(Entity):
             total += effect.phys_negation_bonus
         return total
     @property
-    def phys_negation_extrinsic_bonus(self) -> float:
+    def phys_negation_extrinsic_bonus(self) -> int:
         total = 0
         for item in self.inventory:
             if item.effect.needs_equipped and not item.equipped:
@@ -505,16 +522,16 @@ class Character(Entity):
     
     
     @property
-    def magc_defense(self) -> int:
+    def magc_defense(self) -> float:
         return self.base_magc_defense + self.magc_defense_intrinsic_bonus + self.magc_negation_extrinsic_bonus
     @property
-    def magc_defense_intrinsic_bonus(self) -> int:
+    def magc_defense_intrinsic_bonus(self) -> float:
         total = 0
         for effect in self.effects:
             total += effect.magc_defense_bonus
         return total
     @property
-    def magc_defense_extrinsic_bonus(self) -> int:
+    def magc_defense_extrinsic_bonus(self) -> float:
         total = 0
         for item in self.inventory:
             if item.effect.needs_equipped and not item.equipped:
@@ -523,7 +540,7 @@ class Character(Entity):
         return total
     
     @property
-    def magc_negation(self) -> float:
+    def magc_negation(self) -> int:
         return self.base_magc_negation + self.magc_negation_intrinsic_bonus + self.magc_negation_extrinsic_bonus
     @property
     def magc_negation_intrinsic_bonus(self) -> int:
@@ -532,7 +549,7 @@ class Character(Entity):
             total += effect.magc_negation_bonus
         return total
     @property
-    def magc_negation_extrinsic_bonus(self) -> float:
+    def magc_negation_extrinsic_bonus(self) -> int:
         total = 0
         for item in self.inventory:
             if item.effect.needs_equipped and not item.equipped:
@@ -617,12 +634,36 @@ class Character(Entity):
         self.base_magc_atk = self.INT
         
         #Resistance Stats
-        self.base_phys_defense = int(self.CON/3)
+        self.base_phys_defense = self.CON/100
         self.base_phys_negation = 0
-        self.base_magc_defense = int(self.FOC/3)
+        self.base_magc_defense = self.FOC/100
         self.base_magc_negation = 0
         
         self.base_dodge_chance = self.DEX *.01 + self.LCK *.001
+        
+    def update(self) -> None:
+        for effect in self.effects:
+            if not effect.automatic:
+                continue
+            
+            try:
+                effect.activate(effect.get_action())
+            except exceptions.Impossible:
+                pass
+            
+            self.update_stats()
+        
+    def add_effect(self, effect: CharacterEffect) -> bool:
+        """ Returns `True` if effect was applied. `False` if not. """
+        if not effect.stackable and [_ for _ in self.effects if _.similar(effect)]:
+            return False
+        effect.parent = self
+        self.effects.append(effect)
+        return True
+        
+    def remove_effect(self, effect: CharacterEffect) -> None:
+        effect.parent = None
+        self.effects.remove(effect)
     
     # XP/Level
     @property
@@ -816,7 +857,7 @@ class Character(Entity):
                 value=self.corpse_value,
                 weight=self.weight,
                 description=f"Remains of {self.name}. Has a faint oder.",
-                dead_character=self
+                dead_character=self,
             )
             self.parent.entity.parent = self.parent
             self.parent.char="%"
@@ -832,48 +873,79 @@ class Character(Entity):
         
         self.engine.message_log.add_message(death_message, death_message_color)
         
-    def heal(self, amount: int) -> int:
-        if self.hp == self.max_hp:
+    def resurrect(self, health_percent: float = .5):
+        if self.engine.player is self.parent:
+            self.parent.char="@"
+            self.parent.color=(255, 255, 255)
+            self.parent.ai = None
+            
+            health_percent *= self.max_hp
+            self.hp = health_percent
+            
+            self.engine.event_handler = MainGameEventHandler(self.engine)
+        else:
+            pass
+        
+    def heal(self, amount: int, type_str: str = 'hp') -> int:
+        type_max = getattr(self, f'max_{type_str}', None)
+        type = getattr(self, type_str, None)
+        
+        if type is None or type_max is None:
+            raise AttributeError()
+        
+        heal_effectiveness = 1
+        if type == 'hp':
+            heal_effectiveness = self.race.heal_effectiveness
+        
+        if type == type_max:
             return 0
 
-        new_hp_value = self.hp + int(amount*self.race.heal_effectiveness)
+        new_type_value = type + int(amount*heal_effectiveness)
 
-        if new_hp_value > self.max_hp:
-            new_hp_value = self.max_hp
+        if new_type_value > type_max:
+            new_type_value = type_max
 
-        amount_recovered = new_hp_value - self.hp
+        amount_recovered = new_type_value - type
 
-        self.hp = new_hp_value
+        setattr(self, type_str, new_type_value)
 
         return amount_recovered
 
     
     def take_damage(
-        self, amount: int, damage_type: DamageTypes = DamageTypes.PHYS, attacker: Optional[Character] = None, dodgeable: bool = True
+        self, amount: int, damage_type: DamageTypes = DamageTypes.PHYS, element_type: ElementTypes | None = None, attacker: Optional[Character] = None, dodgeable: bool = True
         ) -> int:
         if self.invincible:
             return 0
         
         type_to_var = {
-            DamageTypes.PHYS: {'atk': self.phys_atk, 'neg': self.phys_negation, 'def': self.phys_defense},
-            DamageTypes.MAGC: {'atk': self.magc_atk, 'neg': self.magc_negation, 'def': self.magc_defense},
+            DamageTypes.PHYS: {'neg': self.phys_negation, 'def': self.phys_defense},
+            DamageTypes.MAGC: {'neg': self.magc_negation, 'def': self.magc_defense},
+            DamageTypes.TRUE: {'neg': 0, 'def': 0},
         }
         
-        dodge_chance = 0
+        damage_after_def = int(amount * (1 - type_to_var[damage_type]['def']))
+        damage_after_neg = damage_after_def - type_to_var[damage_type]['neg']
+        if damage_after_neg > 1 or damage_after_neg < -self.level*5:
+            damage = max(damage_after_neg, 0)
+        else:
+            damage = 1
+        
+        
         if dodgeable:
             dodge_chance = self.dodge_chance
             if attacker:
+                rand = random.random() - attacker.LCK/100 + self.LCK/100
                 if dodge_chance < attacker.DEX-2:
                     dodge_chance /= 2
                 elif dodge_chance < attacker.DEX+2:
                     dodge_chance *= 2
-        
-        damage = amount * (1 - type_to_var[damage_type]['neg']) - type_to_var[damage_type]['def']
-        rand = random.random() + attacker.LCK/100 - self.LCK/100
-        if rand < dodge_chance/2:
-            return None
-        elif rand < dodge_chance:
-            damage //= 2
+            else:
+                rand = random.random() + self.LCK/100
+                if rand < dodge_chance/2:
+                    return None
+                elif rand < dodge_chance:
+                    damage //= 2
             
         self.hp -= damage
         return damage
@@ -888,9 +960,17 @@ class Corpse(Item):
         char: str = '%',
         color: Tuple[int, int, int] = None,
         description: str = None,
-        effect: ItemEffect = ItemEffect(),
+        effect: CorpseEffect | None = None,
         rarity: int = 10,
+        material: List[MaterialTypes] = [MaterialTypes.BIOLOGICAL],
     ) -> None:
+        if effect is None:
+            from corpse_data import EFFECTS
+            if dead_character.race.name in EFFECTS.keys():
+                effect = CorpseEffect(copy.deepcopy(EFFECTS[dead_character.race.name]))
+            else:
+                effect = CorpseEffect([DOTEffect(1, DamageTypes.PHYS, ElementTypes.POISON, duration=5)])
+        
         super().__init__(
             name=name,
             value=value,
@@ -901,10 +981,17 @@ class Corpse(Item):
             description=description,
             effect=effect,
             equippable = {},
-            rarity=rarity
+            rarity=rarity,
+            edible=True,
+            materials=material
         )
+        self.effect = effect
+        self.effect.parent = self
         
         self.dead_character = dead_character
+        
+    def update(self) -> None:
+        pass
         
     def similar(self, other):
         if isinstance(other, self.__class__):

@@ -11,6 +11,11 @@ import item_data
 
 from mapgen import generate_dungeon_floor
 
+tileset_file = SETTINGS['tileset_file']
+def refresh_tileset() -> None:
+    global tileset_file
+    tileset_file = SETTINGS['tileset_file']
+
 def main() -> None:
     screen_width = SETTINGS['screen_width']
     screen_height = SETTINGS['screen_height']
@@ -25,7 +30,6 @@ def main() -> None:
     max_enemies_per_room = (0, 2)
     max_items_per_room = (0, 2)
     
-    tileset_file = SETTINGS['tileset_file']
     tileset = tcod.tileset.load_tilesheet(
         tileset_file, 16, 16, tcod.tileset.CHARMAP_CP437
     )
@@ -59,7 +63,6 @@ def main() -> None:
         vsync=True,
     ) as context:
         root_console = tcod.console.Console(screen_width, screen_height, order='F')
-        engine.console = root_console
         while True:
             root_console.clear()
             engine.event_handler.on_render(console=root_console)

@@ -152,9 +152,10 @@ def generate_dungeon_floor(
             for x, y, in tunnel_between(rooms[-1].center, new_room.center):
                 dungeon.tiles[x, y] = tile_types.floor
 
+        sprites: List[Sprite] = gen_items(item_num=items_per_room_range)
         if not new_room.safe:
-            sprites: List[Sprite] = gen_enemies(enemy_num=enemies_per_room_range) + gen_items(item_num=items_per_room_range)
-            place_sprites(new_room, dungeon, sprites)
+            sprites.extend(gen_enemies(enemy_num=enemies_per_room_range))
+        place_sprites(new_room, dungeon, sprites)
         
         # Finally, append the new room to the list.
         rooms.append(new_room)

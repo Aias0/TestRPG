@@ -4,26 +4,49 @@ from typing import TYPE_CHECKING, Tuple, Optional
 import color
 
 from exceptions import Impossible
-from game_types import DamageTypes
+from game_types import DamageTypes, MagicFocusTypes, GameTypeNames, ElementTypes
 
 if TYPE_CHECKING:
     from entity import Character
     from sprite import Actor
 
 class Spell():
-    def __init__(self, name: str, cost: int, damage: int, range: int, activation_time: int, color: Tuple[int, int, int]) -> None:
-        """ `activation_time` turns needed to cast spell. 0 is instant. """
+    def __init__(self, name: str, cost: int, damage: int, range: int, activation_time: int, color: Tuple[int, int, int], req_focus_type: MagicFocusTypes | None = None) -> None:
+        """ `activation_time` turns needed to cast spell. 0 is instant."""
         self.name = name
         self.cost = cost
         self.damage = damage
         self.range = range
         self.activation_time = activation_time
         self.color = color
+        self.req_focus_type = req_focus_type
+        
+        self.damage_mult = 1
         
     def check_cast_conditions(self, caster: Character, target: Optional[Tuple[int, int]], scroll_cast: bool = False):
         cost = self.cost
         if scroll_cast:
             cost = int(self.cost*.75)
+        else:
+            if self.req_focus_type and not [item for item in caster.equipment.values() if self.req_focus_type in item.itemsubtypes]:
+                raise Impossible(f'{self.name} not cast. {caster.name} does not have correct focus[{GameTypeNames.magicfocustypes_to_name[self.req_focus_type]}].')
+            elif any(map(lambda x: isinstance(x, MagicFocusTypes), caster.equipment[caster.dominant_hand].itemsubtypes)):
+                if MagicFocusTypes.EFFICIENCY in caster.equipment[caster.dominant_hand].itemsubtypes:
+                    cost = int(self.cost*.75)
+                    self.damage_mult = .75
+                if MagicFocusTypes.POWER in caster.equipment[caster.dominant_hand].itemsubtypes:
+                    cost = int(self.cost*1.25)
+                    self.damage_mult = 1.25
+            else:
+                for item in caster.equipment.values():
+                    if any(map(lambda x: isinstance(x, MagicFocusTypes), item.itemsubtypes)):
+                        if MagicFocusTypes.EFFICIENCY in caster.equipment[caster.dominant_hand].itemsubtypes:
+                            cost = int(self.cost*.75)
+                        if MagicFocusTypes.POWER in caster.equipment[caster.dominant_hand].itemsubtypes:
+                            cost = int(self.cost*1.25)
+                        break
+                
+            
         if target is None:
             raise Impossible(f'{self.name} not cast. Has no target.')
         if caster.parent.distance(*target) > self.range:
@@ -65,14 +88,27 @@ class AOESpell(Spell):
         self.radius = radius
     
     def check_cast_conditions(self, caster: Character, target: Tuple[int, int] | None, scroll_cast: bool = False):
+        cost = self.cost
         if scroll_cast:
-            self.cost = int(self.cost*.75)
-        if target is None:
-            raise Impossible(f'{self.name} not cast. Has no target.')
-        if caster.parent.distance(*target) > self.range:
-            raise Impossible(f'{self.name} not cast. Target out of range.')
-        if not caster.engine.game_map.visible[target]:
-            raise Impossible("You cannot target an area that you cannot see.")
+            cost = int(self.cost*.75)
+        else:
+            if self.req_focus_type and not [item for item in caster.equipment.values() if self.req_focus_type in item.itemsubtypes]:
+                raise Impossible(f'{self.name} not cast. {caster.name} does not have correct focus[{GameTypeNames.magicfocustypes_to_name[self.req_focus_type]}].')
+            elif any(map(lambda x: isinstance(x, MagicFocusTypes), caster.equipment[caster.dominant_hand].itemsubtypes)):
+                if MagicFocusTypes.EFFICIENCY in caster.equipment[caster.dominant_hand].itemsubtypes:
+                    cost = int(self.cost*.75)
+                    self.damage_mult = .75
+                if MagicFocusTypes.POWER in caster.equipment[caster.dominant_hand].itemsubtypes:
+                    cost = int(self.cost*1.25)
+                    self.damage_mult = 1.25
+            else:
+                for item in caster.equipment.values():
+                    if any(map(lambda x: isinstance(x, MagicFocusTypes), item.itemsubtypes)):
+                        if MagicFocusTypes.EFFICIENCY in caster.equipment[caster.dominant_hand].itemsubtypes:
+                            cost = int(self.cost*.75)
+                        if MagicFocusTypes.POWER in caster.equipment[caster.dominant_hand].itemsubtypes:
+                            cost = int(self.cost*1.25)
+                        break
         
         target_actors = caster.engine.game_map.get_actors_in_range(*target, self.radius)
         if not target_actors:
@@ -91,8 +127,11 @@ class LightningBolt(Spell):
         
         caster.mp-=self.cost
         
-        damage_taken = target_actor.entity.take_damage(self.damage, DamageTypes.MAGC, caster)
-        caster.engine.message_log.add_message(f"A lighting bolt strikes the {target_actor.name} with a loud thunder, for {damage_taken} damage!")
+        damage_taken = target_actor.entity.take_damage(int(self.damage*self.damage_mult), DamageTypes.MAGC, ElementTypes.LIGHTNING, caster)
+        if damage_taken is None:
+                caster.engine.message_log.add_message(f"{target_actor.name.capitalize()} dodges the lighting bolt!")
+        else:
+            caster.engine.message_log.add_message(f"A lighting bolt strikes the {target_actor.name} with a loud thunder, for {damage_taken} damage!")
         
 class FireBall(AOESpell):
     def __init__(self) -> None:
@@ -100,10 +139,13 @@ class FireBall(AOESpell):
         
     def cast(self, caster: Character, target: Optional[Tuple[int, int]], scroll_cast: bool = False) -> None:
         self.check_cast_conditions(caster=caster, target=target, scroll_cast=scroll_cast)
-        target_actors = caster.engine.game_map.get_actors_in_range(*target, self.radius)
+        target_actors: list[Actor] = caster.engine.game_map.get_actors_in_range(*target, self.radius)
         
         caster.mp -= self.cost
         
         for actor in target_actors:
-            damage_taken = actor.entity.take_damage(self.damage, DamageTypes.MAGC, caster)
-            caster.engine.message_log.add_message(f"A fire ball strikes the {actor.name} with a roaring blast, for {damage_taken} damage!")
+            damage_taken = actor.entity.take_damage(int(self.damage*self.damage_mult), DamageTypes.MAGC, ElementTypes.FIRE, caster)
+            if damage_taken is None:
+                caster.engine.message_log.add_message(f"{actor.name.capitalize()} dodges the fire ball!")
+            else:
+                caster.engine.message_log.add_message(f"A fire ball strikes the {actor.name} with a roaring blast, for {damage_taken} damage!")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
-import actions, color
+import actions, color, random, game_types, sys
 
 from exceptions import Impossible
 
@@ -9,7 +9,7 @@ from input_handler import RangedAttackHandler
 from magic import AOESpell
 
 if TYPE_CHECKING:
-    from entity import Entity, Item, Character
+    from entity import Entity, Item, Character, Corpse
     from magic import Spell
 
 _bonus_dict = {'CON': 0, 'STR': 0, 'END': 0, 'DEX': 0, 'FOC': 0, 'INT': 0, 'WIL': 0, 'WGT': 0, 'LCK': 0}
@@ -17,6 +17,7 @@ class BaseEffect():
     parent: Entity
     def __init__(
         self,
+        name: str = None,
         phys_atk_bonus: int = 0,
         magc_atk_bonus: int = 0,
         phys_defense_bonus: int = 0,
@@ -25,7 +26,10 @@ class BaseEffect():
         magc_negation_bonus: int = 0,
         dodge_chance_bonus: int = 0,
         attribute_bonuses: dict[str, int] = {},
+        stackable: bool = True
     ) -> None:
+        
+        self.name = name
         
         self.phys_atk_bonus = phys_atk_bonus
         self.magc_atk_bonus = magc_atk_bonus
@@ -37,22 +41,22 @@ class BaseEffect():
         
         self.attribute_bonuses = _bonus_dict | attribute_bonuses
         
+        self.stackable = stackable
+        
     def get_effect(self) -> None:
         """Try to return the effect for this item."""
         raise Impossible(f'{self.parent} effect has no effect.')
     
-    def get_action(self) -> None:
+    def get_action(self) -> actions.Action | None:
         """Try to return the action for this item."""
-        from entity import Item, Character
-        if isinstance(self.parent, Item):
+        if self.parent.__class__.__name__ == 'Item':
             return actions.EffectAction(self.parent.holder.parent, self)
-        elif isinstance(self.parent, Character):
+        elif self.parent.__class__.__name__ == 'Character':
             return actions.EffectAction(self.parent.parent, self)
     
-    def activate(self, action: actions.EffectAction) -> None:
+    def activate(self, action: actions.EffectAction | None) -> None:
         """Invoke this items ability."""
-        raise Impossible(f'{self.parent} effect has no action.')
-
+        raise Impossible(f'{self} effect has no action.')
         
     def similar(self, other):
         if isinstance(other, self.__class__):
@@ -70,6 +74,7 @@ class ItemEffect(BaseEffect):
     parent: Item
     def __init__(
         self,
+        name: str = None,
         phys_atk_bonus: int = 0,
         magc_atk_bonus: int = 0,
         phys_defense_bonus: int = 0,
@@ -80,18 +85,21 @@ class ItemEffect(BaseEffect):
         attribute_bonuses: dict[str, int] = {},
         needs_equipped: bool = True,
         consumable: bool = False,
+        stackable: bool = True
         
     ):
 
         super().__init__(
-            phys_atk_bonus = phys_atk_bonus,
-            magc_atk_bonus = magc_atk_bonus,
-            phys_defense_bonus = phys_defense_bonus,
-            phys_negation_bonus = phys_negation_bonus,
-            magc_defense_bonus = magc_defense_bonus,
-            magc_negation_bonus = magc_negation_bonus,
-            dodge_chance_bonus = dodge_chance_bonus,
-            attribute_bonuses = attribute_bonuses,
+            name=name,
+            phys_atk_bonus=phys_atk_bonus,
+            magc_atk_bonus=magc_atk_bonus,
+            phys_defense_bonus=phys_defense_bonus,
+            phys_negation_bonus=phys_negation_bonus,
+            magc_defense_bonus=magc_defense_bonus,
+            magc_negation_bonus=magc_negation_bonus,
+            dodge_chance_bonus=dodge_chance_bonus,
+            attribute_bonuses=attribute_bonuses,
+            stackable=stackable,
         )
         self.needs_equipped = needs_equipped # True means that bonus will only be applied if item is equipped
         
@@ -100,11 +108,15 @@ class ItemEffect(BaseEffect):
     def consume(self) -> None:
         """Remove the consumed item from its containing inventory."""
         self.parent.holder.inventory.remove(self.parent)
+        
+    def eat(self, action: actions.EffectAction) -> None:
+        raise Impossible(f'{self.parent} is not edible.')
     
 class CharacterEffect(BaseEffect):
     parent: Character
     def __init__(
         self,
+        name: str = None,
         phys_atk_bonus: int = 0,
         magc_atk_bonus: int = 0,
         phys_defense_bonus: int = 0,
@@ -113,29 +125,37 @@ class CharacterEffect(BaseEffect):
         magc_negation_bonus: int = 0,
         dodge_chance_bonus: int = 0,
         attribute_bonuses: dict[str, int] = {},
-        time: int = 60,
+        stackable: bool = True,
+        duration: int = 60,
+        automatic: bool = True,
     ) -> None:
-        self.time = time
-        
+        """ `duration` of -1 is indicates a infinite time."""
+        self.duration = duration
+        self.automatic = automatic
+        self.current_turn = 0
         
         super().__init__(
-            phys_atk_bonus = phys_atk_bonus,
-            magc_atk_bonus = magc_atk_bonus,
-            phys_defense_bonus = phys_defense_bonus,
-            phys_negation_bonus = phys_negation_bonus,
-            magc_defense_bonus = magc_defense_bonus,
-            magc_negation_bonus = magc_negation_bonus,
-            dodge_chance_bonus = dodge_chance_bonus,
-            attribute_bonuses = attribute_bonuses,
+            name=name,
+            phys_atk_bonus=phys_atk_bonus,
+            magc_atk_bonus=magc_atk_bonus,
+            phys_defense_bonus=phys_defense_bonus,
+            phys_negation_bonus=phys_negation_bonus,
+            magc_defense_bonus=magc_defense_bonus,
+            magc_negation_bonus=magc_negation_bonus,
+            dodge_chance_bonus=dodge_chance_bonus,
+            attribute_bonuses=attribute_bonuses,
+            stackable=stackable,
         )
         
     def remove(self) -> None:
         """ Remove effect from character. """
-        self.parent.effects.remove(self)
+        self.parent.remove_effect(self)
+#getattr(self, func_name, None)
 
 class HealingEffect(ItemEffect):
-    def __init__(self, amount: int, consumable: bool = True):
+    def __init__(self, amount: int | list, type: str = 'hp', consumable: bool = True, name: str = None, stackable: bool = True):
         super().__init__(
+            name=name,
             phys_atk_bonus=0,
             magc_atk_bonus=0,
             phys_defense_bonus=0,
@@ -144,30 +164,45 @@ class HealingEffect(ItemEffect):
             magc_negation_bonus=0,
             dodge_chance_bonus=0,
             attribute_bonuses={},
+            stackable=stackable,
             needs_equipped=False,
             consumable=consumable
             )
         
         self.amount = amount
+        self.type = type
     
-    def activate(self, action: actions.EffectAction) -> None:
-        amount_recovered = self.parent.holder.heal(self.amount)
+    def activate(self, action: actions.EffectAction | None) -> None:
+        if isinstance(self.amount, list):
+            if self.parent.holder.LCK > 15:
+                self.amount = max(random.randrange(*self.amount), random.randrange(*self.amount))
+            elif self.parent.holder.LCK < 5:
+                self.amount = min(random.randrange(*self.amount), random.randrange(*self.amount))
+            else:
+                self.amount = random.randrange(*self.amount)
+        
+        amount_recovered = self.parent.holder.heal(self.amount, self.type)
+        
         you_or_enemy = {True: 'You', False: self.parent.name}
         s = {False: ['s', 'ed'], True: ['',]*2}
+        type_fullname = {'hp': 'health', 'mp': 'mana', 'sp': 'stamina'}
+        
         is_player = self.parent.holder == self.parent.holder.parent.parent.engine.player.entity
         if amount_recovered > 0:
             self.parent.holder.parent.parent.engine.message_log.add_message(
-                f'{you_or_enemy[is_player]} consume{s[is_player][0]} the {self.parent.name}, and recover{s[is_player][1]} {amount_recovered} HP!',
+                f'{you_or_enemy[is_player]} consume{s[is_player][0]} the {self.parent.name}, and recover{s[is_player][1]} {amount_recovered} {self.type.upper()}!',
                 color.health_recovered,
             )
         elif is_player:
-            raise Impossible('Your health is already full.')
+            raise Impossible(f'Your {type_fullname[self.type]} is already full.')
         
-        self.consume()
+        if self.consumable:
+            self.consume()
         
 class ScrollEffect(ItemEffect):
-    def __init__(self, spell: Spell, consumable: bool = True):
+    def __init__(self, spell: Spell, consumable: bool = True, name: str = None, stackable: bool = True):
         super().__init__(
+            name=name,
             phys_atk_bonus=0,
             magc_atk_bonus=0,
             phys_defense_bonus=0,
@@ -176,8 +211,9 @@ class ScrollEffect(ItemEffect):
             magc_negation_bonus=0,
             dodge_chance_bonus=0,
             attribute_bonuses={},
+            stackable=stackable,
             needs_equipped=False,
-            consumable=consumable
+            consumable=consumable,
             )
         
         self.spell = spell
@@ -196,6 +232,82 @@ class ScrollEffect(ItemEffect):
     def activate(self, action: actions.EffectAction) -> None:
         target_xy = action.target_xy
         self.spell.cast(caster=self.parent.holder, target=target_xy, scroll_cast=True)
-        self.consume()
         
+        if self.consumable:
+            self.consume()
+        
+class CorpseEffect(ItemEffect):
+    parent: Corpse
+    def __init__(self, effects: list[CharacterEffect | DOTEffect | HealingEffect], name: str = None, stackable: bool = True):
+        super().__init__(
+            name=name,
+            phys_atk_bonus=0,
+            magc_atk_bonus=0,
+            phys_defense_bonus=0,
+            phys_negation_bonus=0,
+            magc_defense_bonus=0,
+            magc_negation_bonus=0,
+            dodge_chance_bonus=0,
+            attribute_bonuses={},
+            stackable=stackable,
+            needs_equipped=False,
+            consumable=True
+        )
+        
+        self.effects = effects
     
+    def eat(self, action: actions.EffectAction | None):
+        for effect in self.effects:
+            if isinstance(effect, CharacterEffect):
+                self.parent.holder.add_effect(effect)
+            if isinstance(effect, HealingEffect):
+                effect.activate(effect.get_action())
+        self.consume()
+            
+class DOTEffect(CharacterEffect):
+    def __init__(
+        self,
+        damage: int,
+        damage_type: game_types.DamageTypes,
+        element_type: game_types.ElementTypes,
+        name: str = None,
+        phys_atk_bonus: int = 0,
+        magc_atk_bonus: int = 0,
+        phys_defense_bonus: int = 0,
+        phys_negation_bonus: int = 0,
+        magc_defense_bonus: int = 0,
+        magc_negation_bonus: int = 0,
+        dodge_chance_bonus: int = 0,
+        attribute_bonuses: dict[str, int] = {},
+        stackable: bool = True,
+        duration: int = 60
+    ) -> None:
+        
+        super().__init__(
+            name=name,
+            phys_atk_bonus=phys_atk_bonus,
+            magc_atk_bonus=magc_atk_bonus,
+            phys_defense_bonus=phys_defense_bonus,
+            phys_negation_bonus=phys_negation_bonus,
+            magc_defense_bonus=magc_defense_bonus,
+            magc_negation_bonus=magc_negation_bonus,
+            dodge_chance_bonus=dodge_chance_bonus,
+            attribute_bonuses=attribute_bonuses,
+            stackable=stackable,
+            duration=duration
+        )
+        self.damage = damage
+        self.damage_type = damage_type
+        self.element_type = element_type
+        
+    def activate(self, action: actions.EffectAction | None) -> None:
+        if self.current_turn >= self.duration:
+            self.remove()
+        else:
+            damage_taken = self.parent.take_damage(self.damage, self.damage_type, self.element_type, dodgeable=False)
+            self.parent.engine.message_log.add_message(
+                f'{self.parent.name} took {damage_taken} points of {game_types.GameTypeNames.damagetype_to_name[self.damage_type]} {game_types.GameTypeNames.elementtype_to_name[self.element_type]} damage.',
+                color.enemy_atk
+            )
+            
+            self.current_turn += 1

@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from engine import Engine
     from sprite import Sprite, Actor
     from entity import Item
-    from entity_effect import BaseEffect
+    from entity_effect import BaseEffect, ItemEffect
 
 class Action:
     def __init__(self, sprite: Actor) -> None:
@@ -88,6 +88,27 @@ class EffectAction(Action):
     def perform(self) -> None:
         """ Invoke the effect ability, this action will be given to provide context."""
         self.effect.activate(self)
+        
+class EatAction(EffectAction):
+    def __init__(
+        self, sprite: Sprite, effect: ItemEffect
+    ) -> None:
+        super().__init__(sprite, effect, None)
+    
+    def perform(self) -> None:
+        """ Invoke the effect ability, this action will be given to provide context."""
+        self.effect: ItemEffect
+        from entity_effect import CorpseEffect
+        
+        if isinstance(self.effect, CorpseEffect):
+            if self.sprite.entity.race.name == self.effect.parent.dead_character.race.name:
+                self.sprite.entity.tags.add('cannibal')
+            if self.effect.parent.dead_character.INT > 7:
+                self.sprite.entity.tags.add('sophant eater')
+        
+        self.effect.eat(self)
+        
+        self.engine.message_log.add_message(f'{self.sprite.name} ate {self.effect.parent.name}.')
 
 class EscapeAction(Action):
     def perform(self) -> None:

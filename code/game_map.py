@@ -52,7 +52,7 @@ class GameMap:
                 and sprite.y == location_y
             ):
                 return sprite
-        
+
         return None
     
     def get_actor_at_location(self, x: int, y: int) -> Optional[Actor]:

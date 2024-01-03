@@ -1,3 +1,5 @@
+from config import SETTINGS
+
 white = (0xFF, 0xFF, 0xFF)
 black = (0x0, 0x0, 0x0)
 red = (0xFF, 0x0, 0x0)
@@ -20,19 +22,26 @@ health_recovered = (0x0, 0xFF, 0x0)
 
 bar_text = white
 hp_bar_filled = (0xC2, 0x8, 0x8)
-hp_bar_empty = (0x64, 0x8, 0x8)
+hp_bar_empty = (0x5A, 0x8, 0x8)
 
 mp_bar_filled = (0x8, 0x8, 0xC2)
-mp_bar_empty = (0x8, 0x8, 0x64)
+mp_bar_empty = (0x8, 0x8, 0x5A)
 
 sp_bar_filled = (0x8, 0xC2, 0x8)
-sp_bar_empty = (0x8, 0x64, 0x8)
+sp_bar_empty = (0x8, 0x5A, 0x8)
 
-ui_color = (0xFF, 0xFF, 0xFF)
-ui_text_color = (0xFF, 0xFF, 0x0)
-ui_cursor_text_color = (0xFF, 0x9B, 0x0)
-ui_selected_text_color = (0x0, 0x64, 0xFF)
+ui_color = SETTINGS['ui_color']
+ui_text_color = SETTINGS['ui_text_color']
+ui_cursor_text_color = SETTINGS['ui_cursor_text_color']
+ui_selected_text_color = SETTINGS['ui_selected_text_color']
 
 
 menu_title = (255, 255, 63)
 menu_text = white
+
+def refresh_color() -> None:
+    global ui_color, ui_text_color, ui_cursor_text_color, ui_selected_text_color
+    ui_color = SETTINGS['ui_color']
+    ui_text_color = SETTINGS['ui_text_color']
+    ui_cursor_text_color = SETTINGS['ui_cursor_text_color']
+    ui_selected_text_color = SETTINGS['ui_selected_text_color']

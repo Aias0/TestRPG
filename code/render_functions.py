@@ -100,7 +100,14 @@ def draw_line(
             continue
         console.print(*point, string=char, fg=color)
         
-def line(
-    start_coord: tuple[int, int], end_coord: tuple[int, int],
-) -> None:
+def line(start_coord: tuple[int, int], end_coord: tuple[int, int]) -> None:
     return list(bresenham.bresenham(*start_coord, *end_coord))
+
+def draw_reticle(console: Console, x: int, y: int, fg: Tuple[int, int, int] | None = None) -> None:
+    if fg is None:
+        fg = color.ui_color
+    
+    console.print(x=x, y=y-1, string='│', fg=fg)
+    console.print(x=x-1, y=y+1, string='/', fg=fg)
+    console.print(x=x+1, y=y+1, string='\\', fg=fg)
+    

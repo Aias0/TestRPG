@@ -40,9 +40,8 @@ class Engine:
     def handle_npc_turns(self) -> None:
         for sprite in self.game_map.sprites - {self.player} - {sprite for sprite in self.game_map.sprites if not isinstance(sprite, Actor)}:
             sprite: Actor
-            if not self.ai_on:
-                continue
-            if sprite.ai:
+            sprite.entity.update()
+            if sprite.ai and self.ai_on:
                 try:
                     sprite.ai.perform()
                 except exceptions.Impossible:
@@ -64,11 +63,15 @@ class Engine:
     def render(self, console: Console) -> None:
         self.game_map.render(console)
         
-        console.draw_rect(x=1, y=43, width=console.width-2, height=1, ch=ord('─'), fg=color.ui_color)
-        console.print(x=0, y=43, string='╟', fg=color.ui_color)
-        console.print(x=console.width-1, y=43, string='╢', fg=color.ui_color)
-        console.print(x=2, y=43, string=f'┤{"".join([" "]*len(self.player.entity.name))}├', fg=color.ui_color)
-        console.print(x=3, y=43, string=f'{self.player.entity.name}', fg=color.ui_text_color)
+        console.draw_rect(x=0, y=43, width=console.width, height=1, ch=ord('─'), fg=color.ui_color)
+        #console.print(x=0, y=43, string='╟', fg=color.ui_color)
+        #console.print(x=console.width-1, y=43, string='╢', fg=color.ui_color)
+        console.print(x=1, y=43, string=f'┤{"".join([" "]*len(self.player.entity.name))}├', fg=color.ui_color)
+        console.print(x=2, y=43, string=f'{self.player.entity.name}', fg=color.ui_text_color)
+        
+        level_border = f'┤{"".join([" "]*(self.player.entity.level+3))}├'
+        console.print(x=19-len(level_border), y=43, string=level_border, fg=color.ui_color)
+        console.print(x=20-len(level_border), y=43, string=f'Lv:{self.player.entity.level}', fg=color.ui_text_color)
         
         self.message_log.render(console=console, x=21, y=45, width=38, height=5)
         console.print(x=20, y=43, string='┬', fg=color.ui_color)
