@@ -14,6 +14,9 @@ import color
 
 from sprite import Actor
 
+import lzma
+import pickle
+
 if TYPE_CHECKING:
     from game_map import GameMap
     from input_handler import EventHandler
@@ -113,3 +116,10 @@ class Engine:
             self.hover_depth = 0
         render_names_at_mouse_location(console=console, x=21, y=44, engine=self)
         self.old_hover_range = self.hover_range
+        
+    def save_as(self, filename: str) -> None:
+        """ Save this instance as a compressed file. """
+        save_data = lzma.compress(pickle.dumps(self))
+        import os
+        with open(f'{os.getcwd()}/data/user_data/{filename}', 'wb') as f:
+            f.write(save_data)

@@ -82,7 +82,19 @@ FAVORITES: Dict[tcod.event.KeySym, list[Item] | CharacterEffect | Spell | None] 
     tcod.event.KeySym.N0: None,
 }
 
-class EventHandler(tcod.event.EventDispatch[Action]):
+class BaseEventHandler(tcod.event.EventDispatch[Action]):
+    def handle_events(self, event: tcod.event.Event):
+        """Handle an event and return the next active event handler."""
+        state = self.dispatch(event)
+        if isinstance(state, BaseEventHandler):
+            return state
+        assert not isinstance(state, Action), f"{self!r} can not handle actions."
+        return self
+    
+    def ev_quit(self, event: tcod.event.Quit) -> Optional[Action]:
+        raise SystemExit()
+
+class EventHandler(BaseEventHandler):
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
         self.engine.wait = True
@@ -116,9 +128,6 @@ class EventHandler(tcod.event.EventDispatch[Action]):
     def ev_mousemotion(self, event: tcod.event.MouseMotion) -> None:
         if self.engine.game_map.in_bounds(event.tile.x, event.tile.y):
             self.engine.mouse_location = event.tile.x, event.tile.y
-    
-    def ev_quit(self, event: tcod.event.Quit) -> Optional[Action]:
-        raise SystemExit()
     
     def on_render(self, console: tcod.console.Console) -> None:
         self.engine.render(console)
@@ -669,7 +678,7 @@ class SpellbookMenuHandler(SubMenuEventHandler):
                 FAVORITES[sym] = spell
 
 class SettingsMenuHandler(MenuCollectionEventHandler):
-    def __init__(self, engine: Engine):
+    def __init__(self, engine: Engine, main_menu: bool = False):
         super().__init__(engine)
         self.menus: list[SubMenuEventHandler] = [
             SubSettingsHandler(engine, 'Graphics'),
@@ -681,6 +690,8 @@ class SettingsMenuHandler(MenuCollectionEventHandler):
         self.selected_menu = 0
         
         self.longest_menu_name_len = max([len(menu.title) for menu in self.menus])
+        
+        self.main_menu = main_menu
         
         self.engine.wait = False
         self.engine.event_handler = self.menus[self.selected_menu]
@@ -745,7 +756,6 @@ class SubSettingsHandler(SubMenuEventHandler):
         menu_console.blit(console, self.parent.longest_menu_name_len+3, 0)
         
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
-        super().ev_keydown(event)
         match event.sym:
             case tcod.event.KeySym.UP:
                 self.selected_setting = max(self.selected_setting-1, -1)
@@ -760,6 +770,11 @@ class SubSettingsHandler(SubMenuEventHandler):
                 self.engine.event_handler = SettingsTextInputHandler(
                     self.engine, x=self.parent.longest_menu_name_len+9+len(list(self.settings_section.keys())[self.selected_setting]), y=4+self.selected_setting*3, width=50, parent=self
                 )
+                
+            case tcod.event.KeySym.ESCAPE if self.parent.main_menu:
+                from setup_game import MainMenu
+                self.engine.event_handler = MainMenu(self.engine)
+        super().ev_keydown(event)
                 
             
 class MenuListEventHandler(EventHandler):
@@ -1293,7 +1308,7 @@ class MainGameEventHandler(EventHandler):
         inventory_stacks = self.engine.player.entity.inventory_as_stacks
         for stack in inventory_stacks:
             for key, fav in FAVORITES.items():
-                if fav and stack[0] in fav:
+                if fav and isinstance(fav, list) and stack[0] in fav:
                     FAVORITES[key] = stack
         return super().on_render(console)
     
