@@ -1,0 +1,3 @@
+- Fix player sprite memory(sprites never leave memory)
+
+- In favorites handler move numbers to bottom
