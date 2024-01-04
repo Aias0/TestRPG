@@ -139,6 +139,13 @@ def dev_command(command: str, engine: Engine) -> str:
         case ['restart']:
             os.execl(sys.executable, sys.executable, * sys.argv)
             
+        case ['turncount']:
+            return f'{engine.turn_count}'
+        
+        case['keenmind']:
+            return keenmind(engine)
+        case['keenmind', cmd]:
+            return keenmind(engine, onoff_bool[cmd])
         
         case ['help']:
             return ', '.join([
@@ -189,4 +196,13 @@ def enemyai(engine: Engine, state: Optional[bool] = None):
     else:
         engine.ai_on = not engine.ai_on
     return f'Enemy ai: {onoff[engine.ai_on]}'
-    
+def keenmind(engine: Engine, state: bool | None = None):
+    if state:
+        engine.player.entity.tags.add('keen mind')
+    elif not state:
+        engine.player.entity.tags.remove('keen mind')
+    elif 'keen mind' in engine.player.entity.tags:
+        engine.player.entity.tags.remove('keen mind')
+    else:
+        engine.player.entity.tags.add('keen mind')
+    return f'Keen Mind: {"keen mind" in engine.player.entity.tags}'

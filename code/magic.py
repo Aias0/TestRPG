@@ -32,13 +32,14 @@ class Spell():
         if scroll_cast:
             cost = int(self.cost*.75)
         else:
+            equip_in_dom_hand_itemtypes = caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes
             if self.req_focus_type and not [item for item in caster.equipment.values() if self.req_focus_type in item.itemsubtypes]:
                 raise Impossible(f'{self.name} not cast. {caster.name} does not have correct focus[{GameTypeNames.magicfocustypes_to_name[self.req_focus_type]}].')
-            elif any(map(lambda x: isinstance(x, MagicFocusTypes), caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes)):
-                if MagicFocusTypes.EFFICIENCY in caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes:
+            elif equip_in_dom_hand_itemtypes and any(map(lambda x: isinstance(x, MagicFocusTypes), equip_in_dom_hand_itemtypes)):
+                if MagicFocusTypes.EFFICIENCY in equip_in_dom_hand_itemtypes:
                     cost = int(self.cost*.75)
                     self.damage_mult = .75
-                if MagicFocusTypes.POWER in caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes:
+                if MagicFocusTypes.POWER in equip_in_dom_hand_itemtypes:
                     cost = int(self.cost*1.25)
                     self.damage_mult = 1.25
             else:
@@ -46,9 +47,9 @@ class Spell():
                     if item is None:
                         continue
                     if item.itemsubtypes and any(map(lambda x: isinstance(x, MagicFocusTypes), item.itemsubtypes)):
-                        if MagicFocusTypes.EFFICIENCY in caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes:
+                        if equip_in_dom_hand_itemtypes and MagicFocusTypes.EFFICIENCY in equip_in_dom_hand_itemtypes:
                             cost = int(self.cost*.75)
-                        if MagicFocusTypes.POWER in caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes:
+                        if equip_in_dom_hand_itemtypes and  MagicFocusTypes.POWER in equip_in_dom_hand_itemtypes:
                             cost = int(self.cost*1.25)
                         break
             
@@ -121,21 +122,22 @@ class AOESpell(Spell):
         if scroll_cast:
             cost = int(self.cost*.75)
         else:
+            equip_in_dom_hand_itemtypes = caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes
             if self.req_focus_type and not [item for item in caster.equipment.values() if self.req_focus_type in item.itemsubtypes]:
                 raise Impossible(f'{self.name} not cast. {caster.name} does not have correct focus[{GameTypeNames.magicfocustypes_to_name[self.req_focus_type]}].')
-            elif any(map(lambda x: isinstance(x, MagicFocusTypes), caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes)):
-                if MagicFocusTypes.EFFICIENCY in caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes:
+            elif any(map(lambda x: isinstance(x, MagicFocusTypes), equip_in_dom_hand_itemtypes)):
+                if MagicFocusTypes.EFFICIENCY in equip_in_dom_hand_itemtypes:
                     cost = int(self.cost*.75)
                     self.damage_mult = .75
-                if MagicFocusTypes.POWER in caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes:
+                if MagicFocusTypes.POWER in equip_in_dom_hand_itemtypes:
                     cost = int(self.cost*1.25)
                     self.damage_mult = 1.25
             else:
                 for item in caster.equipment.values():
                     if any(map(lambda x: isinstance(x, MagicFocusTypes), item.itemsubtypes)):
-                        if MagicFocusTypes.EFFICIENCY in caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes:
+                        if equip_in_dom_hand_itemtypes and MagicFocusTypes.EFFICIENCY in equip_in_dom_hand_itemtypes:
                             cost = int(self.cost*.75)
-                        if MagicFocusTypes.POWER in caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes:
+                        if equip_in_dom_hand_itemtypes and MagicFocusTypes.POWER in equip_in_dom_hand_itemtypes:
                             cost = int(self.cost*1.25)
                         break
         

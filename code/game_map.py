@@ -20,6 +20,8 @@ class GameMap:
         self.tiles = np.full((width, height), fill_value=tile_types.wall, order='F')
         self.sprites = set(sprites)
         
+        self.remembered_sprites: list[list[str | tuple | int | int | Sprite]] = []
+        
         self.visible = np.full(
             (width, height), fill_value=False, order='F'
         ) # Tiles the player can currently see
@@ -92,8 +94,34 @@ class GameMap:
         )
         
         for sprite in sprites_sorted_for_rendering:
+            
+            if self.remembered_sprites:
+                _,_,_,_,sprites_remembered = zip(*self.remembered_sprites)
+            else:
+                sprites_remembered: list[Sprite] = []
+            sprites_remembered: list[Sprite]
+            
             # Only print sprite that are in the FOV
             if self.visible[sprite.x, sprite.y] or self.engine.wallhacks:
                 console.print(
                     x=sprite.x, y=sprite.y, string=sprite.char, fg=sprite.color
                 )
+                
+                #Remember sprites seen
+                #if sprite has already been then reset memory counter
+                if not sprite in sprites_remembered and sprite != self.engine.player:
+                    self.remembered_sprites.append([sprite.char, sprite.x, sprite.y, self.engine.turn_count, sprite])
+                elif sprite != self.engine.player:
+                    self.remembered_sprites[sprites_remembered.index(sprite)] = [sprite.char, sprite.x, sprite.y, self.engine.turn_count, sprite]
+                    
+            elif sprite in sprites_remembered:
+                remembered_sprite = self.remembered_sprites[sprites_remembered.index(sprite)]
+                console.print(
+                    x=remembered_sprite[1], y=remembered_sprite[2], string=remembered_sprite[0], fg=sprite.color
+                )
+                if self.remembered_sprites[sprites_remembered.index(sprite)][3] == self.engine.turn_count-1:
+                    self.remembered_sprites[sprites_remembered.index(sprite)][3] += 1
+                
+        for remembered_sprite in self.remembered_sprites:
+            if not 'keen mind' in self.engine.player.entity.tags and self.engine.turn_count-remembered_sprite[3] > self.engine.player.entity.INT//2:
+                self.remembered_sprites.remove(remembered_sprite)

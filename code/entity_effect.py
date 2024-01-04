@@ -5,7 +5,7 @@ import actions, color, random, game_types, sys
 
 from exceptions import Impossible
 
-from input_handler import RangedAttackHandler
+from input_handler import RangedAttackHandler, FAVORITES
 from magic import AOESpell
 
 if TYPE_CHECKING:
@@ -107,6 +107,17 @@ class ItemEffect(BaseEffect):
 
     def consume(self) -> None:
         """Remove the consumed item from its containing inventory."""
+        global FAVORITES
+        favorite_key = None
+        for key, item in FAVORITES.items():
+            if isinstance(item, list) and self.parent in item:
+                favorite_key = key
+                break
+
+        if favorite_key:
+            FAVORITES[key].remove(self.parent)
+            if not FAVORITES[key]:
+                FAVORITES[key] = None
         self.parent.holder.inventory.remove(self.parent)
         
     def eat(self, action: actions.EffectAction) -> None:
