@@ -4,9 +4,12 @@ from typing import Optional, TYPE_CHECKING, Dict, List, Callable, Tuple
 import tcod
 from tcod import libtcodpy
 
+import numpy as np
+
 import textwrap, math, time, configparser
 
 import pyperclip
+from tcod.console import Console
 import actions
 
 import render_functions
@@ -941,7 +944,7 @@ class FavoriteHandler(MenuListEventHandler):
             ),
             4
         )
-        menu_console.draw_frame(0, 1, menu_console.width, menu_console.height-1, fg=color.ui_color)
+        menu_console.draw_frame(0, 0, menu_console.width, menu_console.height-1, fg=color.ui_color)
         
         item_x = 1
         prev_name = None
@@ -961,12 +964,12 @@ class FavoriteHandler(MenuListEventHandler):
             elif hasattr(item, 'name'):
                 title = item.name
             
-            menu_console.print(x=item_x, y=2, string=title, fg=color_choice)
+            menu_console.print(x=item_x, y=1, string=title, fg=color_choice)
             
             if i != len(self.menu_items)-1:
-                menu_console.print(x=item_x+len(title), y=1, string='┬', fg=color.ui_color)
-                menu_console.print(x=item_x+len(title), y=2, string='│', fg=color.ui_color)
-                menu_console.print(x=item_x+len(title), y=3, string='┴', fg=color.ui_color)
+                menu_console.print(x=item_x+len(title), y=0, string='┬', fg=color.ui_color)
+                menu_console.print(x=item_x+len(title), y=1, string='│', fg=color.ui_color)
+                menu_console.print(x=item_x+len(title), y=2, string='┴', fg=color.ui_color)
             
             # Drawing numbers and surrounding graphics sugar
             slot_num = i+1
@@ -974,29 +977,34 @@ class FavoriteHandler(MenuListEventHandler):
                 slot_num = 0
             if len(title) == 1:
                 if i == 0:
-                    menu_console.print(x=item_x-1, y=0, string='┌', fg=color.ui_color)
-                    menu_console.print(x=item_x-1, y=1, string='├', fg=color.ui_color)
+                    menu_console.print(x=item_x-1, y=2, string='├', fg=color.ui_color)
+                    menu_console.print(x=item_x-1, y=3, string='└', fg=color.ui_color)
                 else:
                     if prev_name and len(prev_name) == 1:
-                        menu_console.print(x=item_x-1, y=0, string='┬', fg=color.ui_color)
+                        menu_console.print(x=item_x-1, y=3, string='┴', fg=color.ui_color)
                     else:
-                        menu_console.print(x=item_x-1, y=0, string='┌', fg=color.ui_color)
-                    menu_console.print(x=item_x-1, y=1, string='┼', fg=color.ui_color)
-                menu_console.print(x=item_x, y=0, string=f'{slot_num}', fg=color_choice)
+                        menu_console.print(x=item_x-1, y=3, string='└', fg=color.ui_color)
+                    menu_console.print(x=item_x-1, y=2, string='┼', fg=color.ui_color)
+                menu_console.print(x=item_x, y=3, string=f'{slot_num}', fg=color_choice)
                 if i == len(self.menu_items)-1:
-                    menu_console.print(x=item_x+len(title), y=0, string='┐', fg=color.ui_color)
-                    menu_console.print(x=item_x+len(title), y=1, string='┤', fg=color.ui_color)
+                    menu_console.print(x=item_x+len(title), y=2, string='┤', fg=color.ui_color)
+                    menu_console.print(x=item_x+len(title), y=3, string='┘', fg=color.ui_color)
                 else:
-                    if prev_name and len(prev_name) == 1:
-                        menu_console.print(x=item_x+len(title), y=0, string='┬', fg=color.ui_color)
-                    else:
-                        menu_console.print(x=item_x+len(title), y=0, string='┐', fg=color.ui_color)
-                    menu_console.print(x=item_x+len(title), y=1, string='┼', fg=color.ui_color)
+                    menu_console.print(x=item_x+len(title), y=3, string='┘', fg=color.ui_color)
+                    menu_console.print(x=item_x+len(title), y=2, string='┼', fg=color.ui_color)
             else:
-                menu_console.print_box(x=item_x-1, y=0, width=len(title)+1, height=1, string=f'   ┐', fg=color.ui_color, alignment=libtcodpy.CENTER)
-                menu_console.print_box(x=item_x-1, y=0, width=len(title)+1, height=1, string=f'  {slot_num}', fg=color_choice, alignment=libtcodpy.CENTER)
-                menu_console.print_box(x=item_x-1, y=0, width=len(title)+1, height=1, string=f'┌', fg=color.ui_color, alignment=libtcodpy.CENTER)
-                menu_console.print_box(x=item_x-1, y=1, width=len(title)+1, height=1, string='─┴─┴', fg=color.ui_color, alignment=libtcodpy.CENTER)
+                menu_console.print_box(x=item_x-1, y=2, width=len(title)+1, height=1, string='─┬─┬', fg=color.ui_color, alignment=libtcodpy.CENTER)
+                menu_console.print_box(x=item_x-1, y=3, width=len(title)+1, height=1, string=f'   ┘', fg=color.ui_color, alignment=libtcodpy.CENTER)
+                menu_console.print_box(x=item_x-1, y=3, width=len(title)+1, height=1, string=f'  {slot_num}', fg=color_choice, alignment=libtcodpy.CENTER)
+                menu_console.print_box(x=item_x-1, y=3, width=len(title)+1, height=1, string=f'└', fg=color.ui_color, alignment=libtcodpy.CENTER)
+                for i in range(item_x, item_x-1+len(title)+1):
+                    if not menu_console.rgba[3, i][0] == ord(' '):
+                        continue
+                    menu_console.rgba[3, i] = (
+                        ord(" "),
+                        (0,)*4,
+                        (0,)*4,
+                    )
                 
             item_x += len(title)+1
             prev_name = title
@@ -1032,13 +1040,14 @@ class FavoriteHandler(MenuListEventHandler):
                     return
                 
                 if isinstance(thing, list) and all(isinstance(t, Item) for t in thing):
+                    self.engine.event_handler = self.parent
                     return thing[0].effect.get_action()
                 elif isinstance(thing, CharacterEffect):
+                    self.engine.event_handler = self.parent
                     return thing.get_action()
                 elif isinstance(thing, Spell):
+                    self.engine.event_handler = self.parent
                     return thing.get_action(self.engine)
-                
-                self.engine.event_handler = self.parent
             
             case tcod.event.KeySym.RETURN:
                 from entity import Item
@@ -1050,13 +1059,14 @@ class FavoriteHandler(MenuListEventHandler):
                     return
                 
                 if isinstance(thing, list) and all(isinstance(t, Item) for t in thing):
+                    self.engine.event_handler = self.parent
                     return thing[0].effect.get_action()
                 elif isinstance(thing, CharacterEffect):
+                    self.engine.event_handler = self.parent
                     return thing.get_action()
                 elif isinstance(thing, Spell):
+                    self.engine.event_handler = self.parent
                     return thing.get_action(self.engine)
-                
-                self.engine.event_handler = self.parent
         
 
 class SelectTileHandler(EventHandler):
@@ -1176,9 +1186,11 @@ class RangedAttackHandler(SelectTileHandler):
     def __init__(self, engine: Engine, callback: Callable[[Tuple[int, int], Optional[Action]]], effect: BaseEffect | None = None, spell: Spell | None = None, delay: float = .5) -> None:
         super().__init__(engine)
         
-        if effect:
+        self.effect = effect
+        self.spell = spell
+        if self.effect:
             self.attack = effect.spell
-        elif spell:
+        elif self.spell:
             self.attack = spell
         
         self.callback = callback
@@ -1230,8 +1242,10 @@ class RangedAttackHandler(SelectTileHandler):
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
         match event.sym:
             case tcod.event.KeySym.RETURN:
+                from entity_effect import ScrollEffect
+                scroll_cast = isinstance(self.effect, ScrollEffect)
                 try:
-                    self.attack.check_cast_conditions(self.engine.player.entity, self.engine.mouse_location, True)
+                    self.attack.check_cast_conditions(self.engine.player.entity, self.engine.mouse_location, scroll_cast)
                 except exceptions.Impossible as exc:
                     self.engine.message_log.add_message(exc.args[0], color.impossible)
                     return
@@ -1274,6 +1288,15 @@ class ExplosionHandler(EventHandler):
         
 
 class MainGameEventHandler(EventHandler):
+    def on_render(self, console: Console) -> None:
+        # Update favorites
+        inventory_stacks = self.engine.player.entity.inventory_as_stacks
+        for stack in inventory_stacks:
+            for key, fav in FAVORITES.items():
+                if fav and stack[0] in fav:
+                    FAVORITES[key] = stack
+        return super().on_render(console)
+    
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
         global FAVORITES
         action: Optional[Action] = None
@@ -1446,6 +1469,7 @@ class TextInputHandler(EventHandler):
             
     def on_render(self, console: tcod.console.Console):
         self.parent.on_render(console) # Draw the main state as the background.
+        self.engine.wait = False
         if self.width is None:
             self.width = console.width - 41
             
@@ -1511,6 +1535,7 @@ class SettingsTextInputHandler(TextInputHandler):
 class BorderedTextInputHandler(TextInputHandler):
     def on_render(self, console: tcod.console.Console):
         self.parent.on_render(console) # Draw the main state as the background.
+        self.engine.wait = False
         if self.width is None:
             self.width = console.width - 41
             

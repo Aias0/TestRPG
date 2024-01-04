@@ -1,3 +1,7 @@
-- Fix player sprite memory(sprites never leave memory)
+-[FIXED]Fix player sprite memory(sprites never leave memory)
 
-- In favorites handler move numbers to bottom
+-[DONE]In favorites handler move numbers to bottom
+
+-[FIXED]If player picks up item in favorites bar it doesn't update the number in favorites.
+
+-[FIX]Crash when player targets and kills themselves with a spell
