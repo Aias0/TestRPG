@@ -9,6 +9,8 @@ from engine import Engine
 import sprite_data
 import item_data
 
+from magic import SPELLS
+
 from mapgen import generate_dungeon_floor
 
 tileset_file = SETTINGS['tileset_file']
@@ -37,6 +39,7 @@ def main() -> None:
     player = copy.deepcopy(sprite_data.player)
     player.entity.equip(copy.deepcopy(item_data.sword), silent=True)
     player.entity.add_inventory(copy.deepcopy(item_data.health_potion), silent=True)
+    player.entity.spell_book.append(copy.deepcopy(SPELLS[2]))
     
     engine = Engine(player=player)
     

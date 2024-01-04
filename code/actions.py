@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from sprite import Sprite, Actor
     from entity import Item
     from entity_effect import BaseEffect, ItemEffect
+    from magic import Spell
 
 class Action:
     def __init__(self, sprite: Actor) -> None:
@@ -109,6 +110,19 @@ class EatAction(EffectAction):
         self.effect.eat(self)
         
         self.engine.message_log.add_message(f'{self.sprite.name} ate {self.effect.parent.name}.')
+        
+class MagicAction(Action):
+    def __init__(
+        self, sprite: Sprite, spell: Spell, target_xy: Optional[Tuple[int, int]] = None
+    ) -> None:
+        super().__init__(sprite)
+        self.spell = spell
+        if not target_xy:
+            target_xy = sprite.x, sprite.y
+        self.target_xy = target_xy
+    
+    def perform(self) -> None:
+        self.spell.cast(self.sprite.entity, self.target_xy)
 
 class EscapeAction(Action):
     def perform(self) -> None:

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from entity import Character
     from engine import Engine
     from game_map import GameMap
+    from magic import Spell
 
 class Entity():
     parent: Sprite
@@ -219,6 +220,7 @@ class Character(Entity):
         dominant_hand: str = None,
         tags: set[str] = set(),
         materials: List[MaterialTypes] = [MaterialTypes.BIOLOGICAL],
+        spell_book: List[Spell] = [],
         
     ) -> None:
         self.effects: List[CharacterEffect] = []
@@ -246,6 +248,8 @@ class Character(Entity):
         self.dominant_hand = dominant_hand
         if self.dominant_hand is None:
             self.dominant_hand = random.choices(['right', 'left', 'ambidextrous'], [90, 10, 1])[0]
+            
+        self.spell_book = spell_book
         
         # Attr Guide: 1: Ant | 10: Average Human | 100: Dragon
         # Visible Attributes

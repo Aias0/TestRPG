@@ -37,6 +37,8 @@ class Engine:
         self.omniscient = False
         self.ai_on = True
         
+        self.turn_count = 0
+        
     def handle_npc_turns(self) -> None:
         for sprite in self.game_map.sprites - {self.player} - {sprite for sprite in self.game_map.sprites if not isinstance(sprite, Actor)}:
             sprite: Actor

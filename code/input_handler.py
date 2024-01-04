@@ -27,14 +27,12 @@ from message_log import MessageLog
 
 from config import SETTINGS, refresh_settings
 
-from magic import Spell
-
 if TYPE_CHECKING:
     from engine import Engine
     from entity import Item
     from sprite import Sprite, Actor
-    from magic import AOESpell
-    from entity_effect import BaseEffect
+    from magic import AOESpell, Spell
+    from entity_effect import BaseEffect, CharacterEffect
     
 KEY_ACTION = {
     'move_up': (0, -1),
@@ -68,6 +66,19 @@ CURSOR_Y_KEYS = {
     tcod.event.KeySym.DOWN: 1,
 }
 
+FAVORITES: Dict[tcod.event.KeySym, Item | CharacterEffect | Spell | None] = {
+    tcod.event.KeySym.N1: None,
+    tcod.event.KeySym.N2: None,
+    tcod.event.KeySym.N3: None,
+    tcod.event.KeySym.N4: None,
+    tcod.event.KeySym.N5: None,
+    tcod.event.KeySym.N6: None,
+    tcod.event.KeySym.N7: None,
+    tcod.event.KeySym.N8: None,
+    tcod.event.KeySym.N9: None,
+    tcod.event.KeySym.N0: None,
+}
+
 class EventHandler(tcod.event.EventDispatch[Action]):
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
@@ -96,6 +107,7 @@ class EventHandler(tcod.event.EventDispatch[Action]):
         
         self.engine.player.entity.update()
         
+        self.engine.turn_count += 1
         return True
             
     def ev_mousemotion(self, event: tcod.event.MouseMotion) -> None:
@@ -116,8 +128,9 @@ class MenuCollectionEventHandler(EventHandler):
             EquipmentEventHandler(engine, 'Equipment'),
             InventoryEventHandler(engine, 'Inventory'),
             SubMenuEventHandler(engine, 'Abilities'),
-            SubMenuEventHandler(engine, 'Spellbook')
         ]
+        if engine.player.entity.spell_book:
+            self.menus.append(SpellbookMenuHandler(engine, 'Spellbook'))
         for menu in self.menus:
             menu.parent = self
         self.selected_menu = submenu
@@ -188,14 +201,14 @@ class SubMenuEventHandler(EventHandler):
         menu_console.blit(console, dest_x=0, dest_y=1)
         
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
-        key = event.sym
-        if key == tcod.event.KeySym.ESCAPE:
-            self.engine.event_handler = MainGameEventHandler(self.engine)
-        
-        elif key in range(49, 49+len(self.parent.menus)):
-            i = key - 49
-            self.parent.selected_menu = i
-            self.engine.event_handler = self.parent.menus[i]
+        match event.sym:
+            case tcod.event.KeySym.ESCAPE:
+                self.engine.event_handler = MainGameEventHandler(self.engine)
+
+            case tcod.event.KeySym(sym) if sym in range(49, 49+len(self.parent.menus)) and not tcod.event.get_keyboard_state()[tcod.event.KeySym.f.scancode]:
+                i = sym - 49
+                self.parent.selected_menu = i
+                self.engine.event_handler = self.parent.menus[i]
             
         #elif key in [tcod.event.KeySym.d, tcod.event.KeySym.RIGHT]:
         #    if self.parent.selected_menu + 1 < len(self.parent.menus):
@@ -585,6 +598,60 @@ class DropAmountEventHandler(EventHandler):
                 self.engine.event_handler = self.parent
                 return DropItem(self.engine.player, self.stack[:self.amount])
 
+class AbilitiesMenuHandler(SubMenuEventHandler):
+    pass
+
+class SpellbookMenuHandler(SubMenuEventHandler):
+    def __init__(self, engine: Engine, title: str):
+        super().__init__(engine, title)
+
+        self.selected_spell = -1
+
+    def on_render(self, console: tcod.console.Console) -> None:
+        self.parent.on_render(console)
+        menu_console = tcod.console.Console(console.width, console.height-1)
+        
+        y = 4
+        for i, spell in enumerate(self.engine.player.entity.spell_book):
+            single_aoe = '•'
+            if hasattr(spell, 'radius'):
+                single_aoe = '○'
+            text_color = color.ui_text_color
+            if i == self.selected_spell:
+                text_color = color.ui_cursor_text_color
+            favorite = ''
+            if [i for i in FAVORITES.values() if i == spell]:
+                favorite = '(F)'
+                
+            
+            menu_console.print(x=5, y=y, string=f'{single_aoe} - {spell.name}{favorite}       [{spell.cost}]', fg=text_color)
+            y+=1
+        
+        self.display_latest_message(menu_console)
+        menu_console.blit(console, dest_x=0, dest_y=1)
+        
+    def ev_keydown(self, event: tcod.event.KeyDown) -> None:
+        super().ev_keydown(event)
+        
+        match event.sym:
+            case tcod.event.KeySym.DOWN:
+                self.selected_spell = min(self.selected_spell + 1, len(self.engine.player.entity.spell_book))
+            case tcod.event.KeySym.UP:
+                self.selected_spell = max(self.selected_spell-1, -1)
+            case tcod.event.KeySym.HOME:
+                self.selected_spell = 0
+            case tcod.event.KeySym.END:
+                self.selected_spell = len(self.engine.player.entity.spell_book)-1
+                
+            case tcod.event.KeySym.RETURN:
+                try:
+                    return self.engine.player.entity.spell_book[self.selected_spell].get_action(self.engine)
+                except exceptions.Impossible as exc:
+                    self.engine.message_log.add_message(exc.args[0], color.impossible)
+                    
+            case tcod.event.KeySym(sym) if sym in range(tcod.event.KeySym.N0, tcod.event.KeySym.N9+1) and tcod.event.get_keyboard_state()[tcod.event.KeySym.f.scancode] and self.selected_spell != 1:
+                FAVORITES[sym] = self.engine.player.entity.spell_book[self.selected_spell]
+        
 
 class SettingsMenuHandler(MenuCollectionEventHandler):
     def __init__(self, engine: Engine):
@@ -615,12 +682,12 @@ class SettingsMenuHandler(MenuCollectionEventHandler):
                 title = f'{title} '
             if i == self.selected_menu:
                 title_color = color.ui_cursor_text_color
-                console.print_box(x=0, y=menu_y-1, width=self.longest_menu_name_len+2, height=1, string=f'╘{"".join(["═",]*self.longest_menu_name_len)}╛')
-                console.print_box(x=0, y=menu_y, width=self.longest_menu_name_len+2, height=1, string=f'{"".join([" ",]*(self.longest_menu_name_len+2))}')
-                console.print_box(x=0, y=menu_y+1, width=self.longest_menu_name_len+2, height=1, string=f'╒{"".join(["═",]*self.longest_menu_name_len)}╕')
+                console.print_box(x=0, y=menu_y-1, width=self.longest_menu_name_len+2, height=1, string=f'╘{"".join(["═",]*self.longest_menu_name_len)}╛', fg=color.ui_color)
+                console.print_box(x=0, y=menu_y, width=self.longest_menu_name_len+2, height=1, string=f'{"".join([" ",]*(self.longest_menu_name_len+2))}', fg=color.ui_color)
+                console.print_box(x=0, y=menu_y+1, width=self.longest_menu_name_len+2, height=1, string=f'╒{"".join(["═",]*self.longest_menu_name_len)}╕', fg=color.ui_color)
             else:
-                console.print_box(x=0, y=menu_y-1, width=self.longest_menu_name_len+2, height=1, string=f'├{"".join(["─",]*self.longest_menu_name_len)}┤')
-                console.print_box(x=0, y=menu_y+1, width=self.longest_menu_name_len+2, height=1, string=f'├{"".join(["─",]*self.longest_menu_name_len)}┤')
+                console.print_box(x=0, y=menu_y-1, width=self.longest_menu_name_len+2, height=1, string=f'├{"".join(["─",]*self.longest_menu_name_len)}┤', fg=color.ui_color)
+                console.print_box(x=0, y=menu_y+1, width=self.longest_menu_name_len+2, height=1, string=f'├{"".join(["─",]*self.longest_menu_name_len)}┤', fg=color.ui_color)
                 title_color = color.ui_text_color
             
             console.print_box(x=1,y=menu_y, width=self.longest_menu_name_len+1, height=1, string=title, fg=title_color, alignment=libtcodpy.CENTER)
@@ -639,7 +706,7 @@ class SubSettingsHandler(SubMenuEventHandler):
         
     @property
     def returned_text(self) -> str:
-        return 'This shouldn\'t happen'
+        return 'This shouldn\'t happen.'
     @returned_text.setter
     def returned_text(self, value) -> None:
         self.parser.set(self.title.lower(), list(self.settings_section.keys())[self.selected_setting], value)
@@ -658,7 +725,7 @@ class SubSettingsHandler(SubMenuEventHandler):
             else:
                 title_color = color.ui_text_color
             menu_console.print(x=4, y=y, string=f'{title.replace("_", " ").title()}: {value}', fg=title_color)
-            y+=2
+            y+=3
         
         menu_console.blit(console, self.parent.longest_menu_name_len+3, 0)
         
@@ -669,10 +736,14 @@ class SubSettingsHandler(SubMenuEventHandler):
                 self.selected_setting = max(self.selected_setting-1, -1)
             case tcod.event.KeySym.DOWN:
                 self.selected_setting = min(self.selected_setting+1, len(self.settings_section.keys())-1)
+            case tcod.event.KeySym.HOME:
+                self.selected_setting = 0
+            case tcod.event.KeySym.END:
+                self.selected_setting = len(self.settings_section.keys())-1
                 
             case tcod.event.KeySym.RETURN if self.selected_setting != -1:
                 self.engine.event_handler = SettingsTextInputHandler(
-                    self.engine, x=self.parent.longest_menu_name_len+9+len(list(self.settings_section.keys())[self.selected_setting]), y=4+self.selected_setting*2, width=50, parent=self
+                    self.engine, x=self.parent.longest_menu_name_len+9+len(list(self.settings_section.keys())[self.selected_setting]), y=4+self.selected_setting*3, width=50, parent=self
                 )
                 
             
@@ -947,18 +1018,19 @@ class InspectHandler(SelectTileHandler):
 class RangedAttackHandler(SelectTileHandler):
     """Handles targeting enemies at range. Only the enemies selected will be affected."""
     
-    
-    def __init__(self, engine: Engine, effect: BaseEffect, callback: Callable[[Tuple[int, int], Optional[Action]]], delay: float = .5) -> None:
+    def __init__(self, engine: Engine, callback: Callable[[Tuple[int, int], Optional[Action]]], effect: BaseEffect | None = None, spell: Spell | None = None, delay: float = .5) -> None:
         super().__init__(engine)
         
-        self.effect = effect
-        self.attack = effect.spell
+        if effect:
+            self.attack = effect.spell
+        elif spell:
+            self.attack = spell
+        
         self.callback = callback
         
         self.explosion_radius = 1
         self.radius = 1
         if hasattr(self.attack, 'radius'):
-            self.attack: AOESpell
             self.radius = self.attack.radius
 
         self.attack_sent = False
@@ -1062,6 +1134,20 @@ class MainGameEventHandler(EventHandler):
             
             case tcod.event.KeySym(sym) if sym in WAIT_KEY:
                 action = WaitAction(player)
+                
+            case tcod.event.KeySym(sym) if sym in FAVORITES:
+                from entity import Item
+                from entity_effect import CharacterEffect
+                from magic import Spell
+                
+                thing = FAVORITES[sym]
+                if isinstance(thing, Item):
+                    return thing.effect.get_action()
+                elif isinstance(thing, CharacterEffect):
+                    return thing.get_action()
+                elif isinstance(thing, Spell):
+                    return thing.get_action(self.engine)
+                
             
             case tcod.event.KeySym.v:
                 self.engine.event_handler = HistoryViewer(self.engine)
