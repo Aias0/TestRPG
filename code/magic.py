@@ -32,7 +32,9 @@ class Spell():
         if scroll_cast:
             cost = int(self.cost*.75)
         else:
-            equip_in_dom_hand_itemtypes = caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes
+            equip_in_dom_hand_itemtypes = None
+            if caster.equipment[f'{caster.dominant_hand.capitalize()} Hand']:
+                equip_in_dom_hand_itemtypes = caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes
             if self.req_focus_type and not [item for item in caster.equipment.values() if self.req_focus_type in item.itemsubtypes]:
                 raise Impossible(f'{self.name} not cast. {caster.name} does not have correct focus[{GameTypeNames.magicfocustypes_to_name[self.req_focus_type]}].')
             elif equip_in_dom_hand_itemtypes and any(map(lambda x: isinstance(x, MagicFocusTypes), equip_in_dom_hand_itemtypes)):

@@ -56,7 +56,7 @@ class BaseEffect():
     
     def activate(self, action: actions.EffectAction | None) -> None:
         """Invoke this items ability."""
-        raise Impossible(f'{self} effect has no action.')
+        raise Impossible(f'{self.parent} effect has no action.')
         
     def similar(self, other):
         if isinstance(other, self.__class__):
