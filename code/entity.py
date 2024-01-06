@@ -8,8 +8,6 @@ from game_types import ItemTypes, ItemSubTypes
 
 from entity_effect import ItemEffect, CharacterEffect, CorpseEffect, DOTEffect
 
-from races import RACES_PLURAL
-
 import re, color, exceptions, random, copy
 
 from game_types import DamageTypes, ElementTypes, MaterialTypes
@@ -61,6 +59,7 @@ class Entity():
         
         # Auto gen character description if one doesn't exist.
         elif type(self) == Character:
+            from races import RACES_PLURAL
             self.description = f'A level {self.level} {RACES_PLURAL[self.race.name]} {re.sub(r"^(.)", lambda match: match.group(1).lower(), self.job.name)} named {self.name}.'
         else:
             self.description = 'This should\'t happen.'
@@ -265,6 +264,7 @@ class Character(Entity):
         self.base_LCK = base_LCK # luck(LCK) -> effects chance
         
         self.equipment: Dict[str, Optional[Item]] = {'Head': None, 'Chest': None, 'Gloves': None,  'Legs': None, 'Boots': None, 'Amulet': None, 'Right Ring': None, 'Left Ring': None, 'Right Hand': None, 'Left Hand': None}
+        print(self.job.starting_equipment)
         self.equip(self.job.starting_equipment, silent=True)
         
         self.invincible = False
@@ -840,6 +840,7 @@ class Character(Entity):
     
         
     def die(self) -> None:
+        self.dead_sprite = copy.deepcopy(self.parent)
         if self.engine.player is self.parent:
             death_message = 'You died!'
             death_message_color = color.player_die
@@ -878,10 +879,11 @@ class Character(Entity):
         self.engine.message_log.add_message(death_message, death_message_color)
         
     def resurrect(self, health_percent: float = .5):
+        from ai import HostileEnemy
         if self.engine.player is self.parent:
-            self.parent.char="@"
-            self.parent.color=(255, 255, 255)
-            self.parent.ai = None
+            self.parent.char=self.dead_sprite.char
+            self.parent.color=self.dead_sprite.color
+            self.parent.ai = HostileEnemy
             
             health_percent *= self.max_hp
             self.hp = health_percent

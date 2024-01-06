@@ -1,6 +1,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, List, Tuple
 
+import item_data
+
+import copy
+
 if TYPE_CHECKING:
     from entity import Character, Item
 
@@ -20,14 +24,28 @@ class BaseJob():
 
 class Mage(BaseJob):
     def __init__(self) -> None:
-        super().__init__(name='Mage', default_color=[0, 0, 255], rarity= 5)
+        super().__init__(
+            name='Mage',
+            default_color=[0, 0, 255],
+            rarity=5,
+            starting_equipment = list(map(copy.deepcopy, [item_data.staff, item_data.robes]))
+        )
 
 class Rouge(BaseJob):
     def __init__(self) -> None:
-        super().__init__(name='Rouge', default_color=[0, 255, 0])
+        super().__init__(
+            name='Rouge',
+            default_color=[0, 255, 0],
+            starting_equipment = list(map(copy.deepcopy, [item_data.dagger, item_data.leather_jerkin]))
+        )
 
 class Fighter(BaseJob):
     def __init__(self) -> None:
-        super().__init__(name='Fighter', default_color=[255, 0, 0], rarity= 15)
+        super().__init__(
+            name='Fighter',
+            default_color=[255, 0, 0],
+            rarity= 15,
+            starting_equipment = list(map(copy.deepcopy, [item_data.sword, item_data.chest_plate]))
+        )
         
 JOBS: List[BaseJob] = [Mage(), Rouge(), Fighter()]

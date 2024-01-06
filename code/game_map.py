@@ -108,7 +108,7 @@ class GameMap:
                 )
                 
                 #Remember sprites seen
-                #if sprite has already been then reset memory counter
+                #if sprite has already been then update it's last seen turn
                 if not sprite in sprites_remembered and sprite != self.engine.player:
                     self.remembered_sprites.append([sprite.char, sprite.x, sprite.y, self.engine.turn_count, sprite])
                 elif sprite != self.engine.player:
@@ -122,5 +122,5 @@ class GameMap:
         
         for remembered_sprite in self.remembered_sprites:
             #print(self.engine.turn_count, remembered_sprite[3], self.engine.player.entity.INT//2)
-            if not 'keen mind' in self.engine.player.entity.tags and self.engine.turn_count-remembered_sprite[3] > self.engine.player.entity.INT//2:
+            if not 'keen mind' in self.engine.player.entity.tags and self.engine.turn_count-remembered_sprite[3] > self.engine.player.entity.INT:
                 self.remembered_sprites.remove(remembered_sprite)

@@ -111,3 +111,11 @@ def draw_reticle(console: Console, x: int, y: int, fg: Tuple[int, int, int] | No
     console.print(x=x-1, y=y+1, string='/', fg=fg)
     console.print(x=x+1, y=y+1, string='\\', fg=fg)
     
+    
+def draw_border_detail(console: Console, chars: str = '╔╗╚╝') -> None:
+    chars = list(chars)
+    console.print(x=0, y=0, string=chars[0], fg=color.ui_color)
+    console.print(x=0, y=console.height-1, string=chars[2], fg=color.ui_color)
+    console.print(x=console.width-1, y=0, string=chars[1], fg=color.ui_color)
+    console.print(x=console.width-1, y=console.height-1, string=chars[3], fg=color.ui_color)
+    

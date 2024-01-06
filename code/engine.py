@@ -20,6 +20,19 @@ import pickle
 if TYPE_CHECKING:
     from game_map import GameMap
     from input_handler import EventHandler
+    
+class MainMenuEngine:
+    def __init__(self):
+        from setup_game import MainMenu
+        self.event_handler: EventHandler = MainMenu(self)
+        self.message_log = MessageLog()
+        self.mouse_location = (0, 0)
+        self.wait = False
+        self.input_log = []
+        
+    def render(self, console: Console) -> None:
+        pass
+    
 
 class Engine:
     game_map: GameMap

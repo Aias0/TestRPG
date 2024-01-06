@@ -6,7 +6,6 @@ from config import SETTINGS
 import color
 import exceptions
 import input_handler
-import setup_game
 
 
 tileset_file = SETTINGS['tileset_file']
@@ -19,7 +18,7 @@ def save_game(handler: input_handler.EventHandler, filename: str) -> None:
     if isinstance(handler, input_handler.EventHandler):
         handler.engine.save_as(filename)
         print('Game Saved')
-
+        
 def main() -> None:
     screen_width = SETTINGS['screen_width']
     screen_height = SETTINGS['screen_height']
@@ -27,8 +26,8 @@ def main() -> None:
     tileset = tcod.tileset.load_tilesheet(
         tileset_file, 16, 16, tcod.tileset.CHARMAP_CP437
     )
-
-    handler: input_handler.BaseEventHandler = setup_game.MainMenu()
+    from engine import MainMenuEngine
+    handler = MainMenuEngine().event_handler
     with tcod.context.new_terminal(
         screen_width,
         screen_height,
@@ -39,8 +38,8 @@ def main() -> None:
         root_console = tcod.console.Console(screen_width, screen_height, order='F')
         try:
             while True:
-                if hasattr(handler, 'engine'):
-                    handler = handler.engine.event_handler
+                handler = handler.engine.event_handler
+                
                 root_console.clear()
                 handler.on_render(console=root_console)
                 context.present(root_console)
@@ -54,18 +53,24 @@ def main() -> None:
                         for event in tcod.event.get():
                             context.convert_event(event)
                             handler.handle_events(event)
+                except exceptions.ExitToMainMenu:
+                    if not isinstance(handler.engine, MainMenuEngine):
+                        save_game(handler, 'savegame.sav')
+                    handler = MainMenuEngine().event_handler
                 except Exception: # Handle exceptions in game.
                     traceback.print_exc() # Print error to stderr
                     # Then print to the message log.
-                    handler: input_handler.EventHandler
                     handler.engine.message_log.add_message(traceback.format_exc(), color.error)
         except exceptions.QuitWithoutSaving:
             raise
+        
         except SystemExit: # Save and Quit
-            save_game(handler, 'savegame.sav')
+            if not isinstance(handler.engine, MainMenuEngine):
+                save_game(handler, 'savegame.sav')
             raise
         except BaseException: # Save on any other unexpected exception.
-            save_game(handler, 'savegame.sav')
+            if not isinstance(handler.engine, MainMenuEngine):
+                save_game(handler, 'savegame.sav')
             raise
 if __name__ == '__main__':
     main()

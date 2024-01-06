@@ -3,6 +3,9 @@ class Impossible(Exception):
 
     The reason is given as the exception message.
     """
+    
+class ExitToMainMenu(Exception):
+    """Can be raised to go back to main menu."""
 
 class QuitWithoutSaving(SystemExit):
     """Can be raised to exit the game without automatically saving."""

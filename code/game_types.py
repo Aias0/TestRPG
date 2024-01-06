@@ -16,6 +16,8 @@ class ItemTypes(Enum):
     SCROLL = auto()
     
     SWORD = auto()
+    DAGGER = auto()
+    
     SHIELD = auto()
     
     STAFF = auto()
@@ -27,10 +29,11 @@ class ItemTypes(Enum):
     HAND_ARMOR = auto()
     
     RING = auto()
+    AMULET = auto()
     
     @staticmethod
     def weapons() -> set:
-        return {ItemTypes.SWORD, ItemTypes.STAFF}
+        return {ItemTypes.SWORD, ItemTypes.STAFF, ItemTypes.DAGGER}
     def is_weapon(item: Item) -> bool:
         return item.itemtype in ItemTypes.weapons()
     
@@ -42,7 +45,7 @@ class ItemTypes(Enum):
     
     @staticmethod
     def accessories() -> set:
-        return {ItemTypes.RING}
+        return {ItemTypes.RING, ItemTypes.AMULET}
     def is_accessory(item: Item) -> bool:
         return item.itemtype in ItemTypes.accessories()
     
@@ -54,6 +57,12 @@ class ItemTypes(Enum):
     
 class ItemSubTypes(Enum):
     SHORT_SWORD = auto()
+    
+    HEAVY_ARMOR = auto()
+    MEDIUM_ARMOR = auto()
+    LIGHT_ARMOR = auto()
+    
+    CLOTHING = auto()
 
 class MagicFocusTypes(Enum):
     BALANCE = auto()

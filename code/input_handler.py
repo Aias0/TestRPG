@@ -126,17 +126,75 @@ class EventHandler(BaseEventHandler):
         return True
             
     def ev_mousemotion(self, event: tcod.event.MouseMotion) -> None:
-        if self.engine.game_map.in_bounds(event.tile.x, event.tile.y):
-            self.engine.mouse_location = event.tile.x, event.tile.y
+        self.engine.mouse_location = event.tile.x, event.tile.y
     
     def on_render(self, console: tcod.console.Console) -> None:
         self.engine.render(console)
+        
+    def change_handler(self, new_handler):
+        self.engine.event_handler = new_handler
+
+class YNPopUp(EventHandler):
+    def __init__(self, engine: Engine, title: str, parent: EventHandler, x: int | None = None, y: int | None = None):
+        super().__init__(engine)
+        self.x = x
+        self.y = y
+        self.title = title
+        self.parent = parent
+        
+        self.selected_index = 0
+        
+    def on_render(self, console: tcod.console.Console):
+        self.parent.on_render(console)
+        
+        popup_console = tcod.console.Console(7, 6)
+        popup_console.draw_frame(0, 0, popup_console.width, popup_console.height)
+        render_functions.draw_border_detail(popup_console)
+        
+        yes_color = color.ui_text_color
+        no_color = color.ui_text_color
+        if self.selected_index == 0:
+            yes_color = color.ui_cursor_text_color
+        else:
+            no_color = color.ui_cursor_text_color
+
+        popup_console.print(x=2, y=2, string='Yes', fg=yes_color)
+        popup_console.print(x=2, y=3, string='No', fg=no_color)
+        
+        if self.x is None:
+            self.x = console.width//2-popup_console.width//2
+        if self.y is None:
+            self.y = console.height//2-popup_console.height//2
+        popup_console.blit(console, dest_x=self.x, dest_y=self.y)
+        
+    def ev_keydown(self, event: tcod.event.KeyDown):
+        match event.sym:
+            case tcod.event.KeySym.DOWN | tcod.event.KeySym.s:
+                self.selected_index = min(self.selected_index+1, 1)
+            case tcod.event.KeySym.UP | tcod.event.KeySym.w:
+                self.selected_index = max(self.selected_index-1, 0)
+            
+            case tcod.event.KeySym.RETURN:
+                if self.selected_index == 0:
+                    self.return_result(True)
+                else:
+                    self.return_result(False)
+                    
+            case tcod.event.KeySym.y:
+                self.return_result(True)
+            case tcod.event.KeySym.n:
+                self.return_result(False)
+    
+    def return_result(self, result: bool):
+        self.parent.popup_result(result)
+        self.change_handler(self.parent)
+                
 
 class MenuCollectionEventHandler(EventHandler):
     def __init__(self, engine: Engine, submenu: int = 0) -> None:
         super().__init__(engine)
         self.menus: list[SubMenuEventHandler] = [
-            StatusMenuEventHandler(engine, '@'),
+            StatusMenuEventHandler(engine, engine.player.char),
             EquipmentEventHandler(engine, 'Equipment'),
             InventoryEventHandler(engine, 'Inventory'),
             SubMenuEventHandler(engine, 'Abilities'),
@@ -677,9 +735,11 @@ class SpellbookMenuHandler(SubMenuEventHandler):
                     FAVORITES = [list(FAVORITES.keys())[list(FAVORITES.values()).index(spell)]] = None
                 FAVORITES[sym] = spell
 
+
+
 class SettingsMenuHandler(MenuCollectionEventHandler):
     def __init__(self, engine: Engine, main_menu: bool = False):
-        super().__init__(engine)
+        self.engine = engine
         self.menus: list[SubMenuEventHandler] = [
             SubSettingsHandler(engine, 'Graphics'),
             SubSettingsHandler(engine, 'Controls'),
@@ -730,12 +790,8 @@ class SubSettingsHandler(SubMenuEventHandler):
         
         self.settings_section = self.parser[self.title.lower()]
         
-    @property
-    def returned_text(self) -> str:
-        return 'This shouldn\'t happen.'
-    @returned_text.setter
-    def returned_text(self, value) -> None:
-        self.parser.set(self.title.lower(), list(self.settings_section.keys())[self.selected_setting], value)
+    def return_text(self, text) -> None:
+        self.parser.set(self.title.lower(), list(self.settings_section.keys())[self.selected_setting], text)
         with open('settings.ini', 'w') as file:
             self.parser.write(file)
         refresh_settings()
@@ -773,7 +829,8 @@ class SubSettingsHandler(SubMenuEventHandler):
                 
             case tcod.event.KeySym.ESCAPE if self.parent.main_menu:
                 from setup_game import MainMenu
-                self.engine.event_handler = MainMenu(self.engine)
+                self.change_handler(MainMenu(self.engine))
+                return
         super().ev_keydown(event)
                 
             
@@ -881,13 +938,14 @@ class PauseMenuEventHandler(MenuListEventHandler):
                     case 0: # Resume
                         self.engine.event_handler = MainGameEventHandler(self.engine)
                     case 1: # Save Game
-                        raise NotImplementedError()
+                        from main import save_game
+                        save_game(self, 'savegame.sav')
                     case 2: # Load Game
                         raise NotImplementedError()
                     case 3: # Settings
                         self.engine.event_handler = SettingsMenuHandler(self.engine)
                     case 4: # Exit to Main Menu
-                        raise NotImplementedError()
+                        raise exceptions.ExitToMainMenu()
                     case 5: # Exit
                         raise SystemExit()
                 
@@ -1364,7 +1422,7 @@ class MainGameEventHandler(EventHandler):
                 self.engine.event_handler = DevConsole(self.engine)
                 
             case tcod.event.KeySym.o if SETTINGS['dev_mode']:
-                self.engine.event_handler = Tester(self.engine)
+                self.engine.event_handler = YNPopUp(self.engine)
                 
             case tcod.event.KeySym.l:
                 if SETTINGS['dev_mode']:
@@ -1378,7 +1436,7 @@ class MainGameEventHandler(EventHandler):
             
         return action
 
-class Tester(EventHandler):
+class LineTester(EventHandler):
     def on_render(self, console: tcod.console.Console):
         super().on_render(console)
         render_functions.draw_line(console, '*', (self.engine.player.x, self.engine.player.y), self.engine.mouse_location, (255, 0, 0))
@@ -1540,12 +1598,12 @@ class TextInputHandler(EventHandler):
                     self.text_inputted += pyperclip.paste()
                     
     def use_input(self) -> None:
-        raise NotImplementedError()
+        self.parent.return_text(self.text_inputted)
 
 class SettingsTextInputHandler(TextInputHandler):
     parent: SubSettingsHandler
     def use_input(self):
-        self.parent.returned_text = self.text_inputted
+        self.parent.return_text(self.text_inputted)
 
 class BorderedTextInputHandler(TextInputHandler):
     def on_render(self, console: tcod.console.Console):
