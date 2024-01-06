@@ -111,6 +111,7 @@ def generate_dungeon_floor(
     enemies_per_room_range: int | list,
     items_per_room_range: int | list,
     engine: Engine,
+    floor_level: int,
 ) -> GameMap:
     """ Generate a new dungeon map. """
     if isinstance(max_rooms, int):
@@ -120,9 +121,11 @@ def generate_dungeon_floor(
     max_room_range[1] += 1
     
     player = engine.player
-    dungeon = GameMap(engine, map_width, map_height, sprites=[player])
+    dungeon = GameMap(engine, map_width, map_height, floor_level=floor_level, sprites=[player])
     
     rooms: List[RectangularRoom] = []
+    
+    center_of_last_room = (0, 0)
     
     num_rooms = random.randrange(max_room_range[0], max_room_range[1])
     for r in range(num_rooms):
@@ -147,15 +150,25 @@ def generate_dungeon_floor(
             # The first room, where the player starts.
             player.place(*new_room.center, dungeon)
             new_room.safe = True
+            
+            center_of_first_room = new_room.center
         else: # All rooms after the first.
             # Dig out a tunnel between this room and the previous one.
             for x, y, in tunnel_between(rooms[-1].center, new_room.center):
                 dungeon.tiles[x, y] = tile_types.floor
+                
+            center_of_last_room = new_room.center
 
         sprites: List[Sprite] = gen_items(item_num=items_per_room_range)
         if not new_room.safe:
             sprites.extend(gen_enemies(enemy_num=enemies_per_room_range))
         place_sprites(new_room, dungeon, sprites)
+        
+        dungeon.tiles[center_of_last_room] = tile_types.down_stairs
+        dungeon.down_stairs_location = center_of_last_room
+        
+        dungeon.tiles[center_of_first_room] = tile_types.up_stairs
+        dungeon.up_stairs_location = center_of_first_room
         
         # Finally, append the new room to the list.
         rooms.append(new_room)

@@ -56,3 +56,9 @@ down_stairs = new_tile(
     dark=(ord(">"), (100, 100, 100), tuple(np.subtract(floor_color, (100, 100, 100)))),
     light=(ord(">"), (255, 255, 255), floor_color),
 )
+up_stairs = new_tile(
+    walkable=True,
+    transparent=True,
+    dark=(ord("<"), (100, 100, 100), tuple(np.subtract(floor_color, (100, 100, 100)))),
+    light=(ord("<"), (255, 255, 255), floor_color),
+)

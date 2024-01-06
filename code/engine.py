@@ -20,7 +20,7 @@ import lzma
 import pickle
 
 if TYPE_CHECKING:
-    from game_map import GameMap
+    from game_map import GameMap, GameWorld
     from input_handler import EventHandler
     
 class MainMenuEngine:
@@ -38,6 +38,7 @@ class MainMenuEngine:
 
 class Engine:
     game_map: GameMap
+    game_world: GameWorld
     
     def __init__(self, player: Actor):
         self.event_handler: EventHandler = MainGameEventHandler(self)

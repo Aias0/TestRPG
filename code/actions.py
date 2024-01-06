@@ -131,6 +131,19 @@ class EscapeAction(Action):
 class WaitAction(Action):
     def perform(self) -> None:
         pass
+    
+class TakeStairsAction(Action):
+    def perform(self) -> None:
+        """ Take the stairs, if any exist at sprite location. """
+        if (self.sprite.x, self.sprite.y) == self.engine.game_map.down_stairs_location:
+            self.engine.game_world.generate_floor()
+            self.engine.message_log.add_message(
+                'You descend the staircase.', color.descend
+            )
+        elif (self.sprite.x, self.sprite.y) == self.engine.game_map.up_stairs_location:
+            print('Go up stairs')
+        else:
+            raise exceptions.Impossible('There are no stairs here.')
 
 class ActionWithDirection(Action):
     def __init__(self, sprite: Actor, dx: int, dy: int):

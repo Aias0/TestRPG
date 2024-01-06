@@ -14,6 +14,7 @@ from numpy.typing import NDArray
 
 import traceback
 
+from game_map import GameWorld
 import input_handler
 import render_functions
 
@@ -23,8 +24,6 @@ from magic import SPELLS
 
 from races import RACES
 from jobs import JOBS
-
-from mapgen import generate_dungeon_floor
 
 from config import tryeval
 
@@ -60,17 +59,19 @@ def new_game(player: Actor | None = None) -> Engine:
     
     engine = Engine(player=player)
     
-    engine.game_map = generate_dungeon_floor(
-        max_rooms=max_rooms,
+    engine.game_world = GameWorld(
+        max_room_range=max_rooms,
         room_min_size= room_min_size,
         room_max_size=room_max_size,
         map_width=map_width,
         map_height=map_height,
-        enemies_per_room_range=max_enemies_per_room,
-        items_per_room_range=max_items_per_room,
+        max_enemies_per_room=max_enemies_per_room,
+        max_items_per_room=max_items_per_room,
         engine=engine
     )
-    engine.player.parent = engine.game_map
+    #engine.player.parent = engine.game_map
+    
+    engine.game_world.generate_floor()
     engine.update_fov()
     engine.message_log.add_message(
         "Hello and welcome, adventurer, to yet another dungeon!", color.welcome_text

@@ -23,3 +23,5 @@
 -[TODO:]Add traits
 
 -[TODO:]Work on ageing. Need better death chance calculator. Current version on school Desmos.
+
+-[TODO:]Add doors. Open/Closed/Locked

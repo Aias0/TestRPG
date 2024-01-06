@@ -6,7 +6,7 @@ from tcod import libtcodpy
 
 import numpy as np
 
-import glob, os
+import glob, os, exceptions
 
 import textwrap, math, time, configparser
 
@@ -1490,17 +1490,17 @@ class MainGameEventHandler(EventHandler):
         player = self.engine.player
         key = event.sym
         match event.sym:
-            case tcod.event.KeySym.ESCAPE:
+            case tcod.event.KeySym.ESCAPE if not event.mod:
                 self.engine.event_handler = PauseMenuEventHandler(self.engine)
             
-            case tcod.event.KeySym(sym) if sym in MOVE_KEY:
+            case tcod.event.KeySym(sym) if sym in MOVE_KEY and not event.mod:
                 dx, dy = MOVE_KEY[sym]
                 action = BumpAction(player, dx, dy)
             
-            case tcod.event.KeySym(sym) if sym in WAIT_KEY:
+            case tcod.event.KeySym(sym) if sym in WAIT_KEY and not event.mod:
                 action = WaitAction(player)
                 
-            case tcod.event.KeySym(sym) if sym in FAVORITES:
+            case tcod.event.KeySym(sym) if sym in FAVORITES and not event.mod:
                 from entity import Item
                 from entity_effect import CharacterEffect
                 from magic import Spell
@@ -1512,38 +1512,41 @@ class MainGameEventHandler(EventHandler):
                     return thing.get_action()
                 elif isinstance(thing, Spell):
                     return thing.get_action(self.engine)
+                
+            case tcod.event.KeySym.PERIOD if (event.mod & (tcod.event.KMOD_LSHIFT | tcod.event.KMOD_RSHIFT)):
+                action = actions.TakeStairsAction(player)
             
-            case tcod.event.KeySym.v:
+            case tcod.event.KeySym.v if not event.mod:
                 self.engine.event_handler = HistoryViewer(self.engine)
         
-            case tcod.event.KeySym.g:
+            case tcod.event.KeySym.g if not event.mod:
                 action = PickupAction(player)
             
-            case tcod.event.KeySym.m:
+            case tcod.event.KeySym.m if not event.mod:
                 self.engine.event_handler = MenuCollectionEventHandler(self.engine)
 
-            case tcod.event.KeySym.i:
+            case tcod.event.KeySym.i if not event.mod:
                 self.engine.event_handler = MenuCollectionEventHandler(self.engine, 2)
                 
-            case tcod.event.KeySym.f:
+            case tcod.event.KeySym.f if not event.mod:
                 self.engine.event_handler = FavoriteHandler(self.engine, self)
                 
-            case tcod.event.KeySym.TAB:
+            case tcod.event.KeySym.TAB if not event.mod:
                 self.engine.event_handler = MenuCollectionEventHandler(self.engine, 1)
             
-            case tcod.event.KeySym.BACKSLASH if SETTINGS['dev_mode']:
+            case tcod.event.KeySym.BACKSLASH if SETTINGS['dev_mode'] and not event.mod:
                 self.engine.event_handler = DevConsole(self.engine)
                 
-            case tcod.event.KeySym.o if SETTINGS['dev_mode']:
+            case tcod.event.KeySym.o if SETTINGS['dev_mode'] and not event.mod:
                 self.engine.event_handler = YNPopUp(self.engine)
                 
-            case tcod.event.KeySym.l:
+            case tcod.event.KeySym.l if not event.mod:
                 if SETTINGS['dev_mode']:
                     self.engine.event_handler = InspectHandler(self.engine)
                 else:
                     self.engine.event_handler = LookHandler(self.engine)
             
-            case tcod.event.KeySym(sym) if sym in CURSOR_Y_KEYS:
+            case tcod.event.KeySym(sym) if sym in CURSOR_Y_KEYS and not event.mod:
                 if self.engine.hover_depth + CURSOR_Y_KEYS[key] in range(self.engine.hover_range):
                     self.engine.hover_depth += CURSOR_Y_KEYS[key]
             
@@ -1564,10 +1567,13 @@ class GameOverEventHandler(EventHandler):
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
         match event.sym:
             case tcod.event.KeySym.ESCAPE:
-                raise SystemExit()
+                raise exceptions.QuitWithoutSaving()
 
             case tcod.event.KeySym.BACKSLASH if SETTINGS['dev_mode']:
-                    self.engine.event_handler = DevConsole(self.engine)
+                self.engine.event_handler = DevConsole(self.engine)
+                    
+    def ev_quit(self, event: tcod.event.Quit) -> None:
+        raise exceptions.QuitWithoutSaving()
 
 
 class HistoryViewer(EventHandler):

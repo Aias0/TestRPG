@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 class GameMap:
     def __init__(
-        self, engine: Engine, width: int, height: int, sprites: Iterable[Sprite] = ()
+        self, engine: Engine, width: int, height: int, floor_level: int, sprites: Iterable[Sprite] = ()
     ) -> None:
         self.engine = engine
         self.width, self.height = width, height
@@ -28,6 +28,9 @@ class GameMap:
         self.explored = np.full(
             (width, height), fill_value=False, order='F'
         ) # Tiles the player has seen before
+        
+        self.down_stairs_location = (0, 0)
+        self.up_stairs_location = (0, 0)
     
     @property
     def actors(self) -> Iterator[Actor]:
@@ -124,3 +127,52 @@ class GameMap:
             #print(self.engine.turn_count, remembered_sprite[3], self.engine.player.entity.INT//2)
             if not 'keen mind' in self.engine.player.entity.tags and self.engine.turn_count-remembered_sprite[3] > self.engine.player.entity.INT:
                 self.remembered_sprites.remove(remembered_sprite)
+                
+class GameWorld:
+    """ Holds the settings for the GameMap, and generates new maps when moving down the stairs. """
+    
+    def __init__(
+        self,
+        *,
+        engine: Engine,
+        map_width: int,
+        map_height: int,
+        room_max_size: int,
+        room_min_size: int,
+        max_room_range: list,
+        max_enemies_per_room: list,
+        max_items_per_room: list,
+        current_floor: int = 0,
+        
+    ) -> None:
+        self.engine = engine
+        
+        self.map_width = map_width
+        self.map_height = map_height
+        
+        self.max_room_range = max_room_range
+        self.room_max_size = room_max_size
+        self.room_min_size = room_min_size
+        
+        self.max_enemies_per_room = max_enemies_per_room
+        self.max_items_per_room = max_items_per_room
+        
+        self.current_floor = current_floor
+        
+    def generate_floor(self) -> None:
+        from mapgen import generate_dungeon_floor
+        
+        self.current_floor += 1
+        
+        self.engine.game_map = generate_dungeon_floor(
+            max_rooms= self.max_room_range,
+            room_min_size=self.room_min_size,
+            room_max_size=self.room_max_size,
+            map_width=self.map_width,
+            map_height=self.map_height,
+            enemies_per_room_range=self.max_enemies_per_room,
+            items_per_room_range=self.max_items_per_room,
+            engine=self.engine,
+            floor_level = self.current_floor
+        )
+    
