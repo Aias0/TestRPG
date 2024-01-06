@@ -12,6 +12,8 @@ from render_functions import render_resource_bar, render_names_at_mouse_location
 import numpy as np
 import color
 
+import glob, os
+
 from sprite import Actor
 
 import lzma
@@ -133,6 +135,7 @@ class Engine:
     def save_as(self, filename: str) -> None:
         """ Save this instance as a compressed file. """
         save_data = lzma.compress(pickle.dumps(self))
-        import os
-        with open(f'{os.getcwd()}/data/user_data/{filename}', 'wb') as f:
+
+        list_of_files = glob.glob("data\\user_data\\*.sav")
+        with open(max(list_of_files, key=os.path.getctime), 'wb') as f:
             f.write(save_data)

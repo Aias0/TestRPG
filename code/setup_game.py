@@ -136,8 +136,7 @@ class MainMenu(input_handler.EventHandler):
                 self.change_handler(input_handler.MainGameEventHandler(saved_engine))
             
             case tcod.event.KeySym.l:
-                # TODO: Load choice game.
-                pass
+                self.change_handler(input_handler.LoadHandler(self.engine, self))
             
             case tcod.event.KeySym.s:
                 self.change_handler(input_handler.SettingsMenuHandler(self.engine, True))

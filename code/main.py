@@ -7,11 +7,13 @@ import color
 import exceptions
 import input_handler
 
+import glob
 
 tileset_file = SETTINGS['tileset_file']
 def refresh_tileset() -> None:
     global tileset_file
     tileset_file = SETTINGS['tileset_file']
+
 
 def save_game(handler: input_handler.EventHandler, filename: str) -> None:
     """ If the current event handler has an active Engine then save it. """
@@ -55,7 +57,7 @@ def main() -> None:
                             handler.handle_events(event)
                 except exceptions.ExitToMainMenu:
                     if not isinstance(handler.engine, MainMenuEngine):
-                        save_game(handler, 'savegame.sav')
+                        save_game(handler, f'savegame{abs(hash(handler.engine)) % (10 ** 5)}.sav')
                     handler = MainMenuEngine().event_handler
                 except Exception: # Handle exceptions in game.
                     traceback.print_exc() # Print error to stderr
@@ -66,11 +68,11 @@ def main() -> None:
         
         except SystemExit: # Save and Quit
             if not isinstance(handler.engine, MainMenuEngine):
-                save_game(handler, 'savegame.sav')
+                save_game(handler, f'savegame{abs(hash(handler.engine)) % (10 ** 5)}.sav')
             raise
         except BaseException: # Save on any other unexpected exception.
             if not isinstance(handler.engine, MainMenuEngine):
-                save_game(handler, 'savegame.sav')
+                save_game(handler, f'savegame{abs(hash(handler.engine)) % (10 ** 5)}.sav')
             raise
 if __name__ == '__main__':
     main()

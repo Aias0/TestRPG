@@ -6,6 +6,8 @@ from tcod import libtcodpy
 
 import numpy as np
 
+import glob, os
+
 import textwrap, math, time, configparser
 
 import pyperclip
@@ -134,8 +136,109 @@ class EventHandler(BaseEventHandler):
     def change_handler(self, new_handler):
         self.engine.event_handler = new_handler
 
+class LoadHandler(EventHandler):
+    def __init__(self, engine: Engine, parent: EventHandler) -> None:
+        self.engine = engine
+        self.parent = parent
+        
+        self.selected_index = 0
+        
+        self.saved_games: list[str] = []
+        for file in glob.glob("data\\user_data\\*.sav"):
+            self.saved_games.append(file)
+        print(self.saved_games.sort(key=os.path.getctime))
+        self.saved_games = [sg.replace('data\\user_data\\', '').replace('.sav', '') for sg in self.saved_games.sort(key=os.path.getctime)]
+    
+    def popup_result(self, result) -> None:
+        if not result:
+            return
+        os.remove(f'data\\user_data\\{self.saved_games[self.selected_index]}.sav')
+        self.selected_index = 0
+        
+    def on_render(self, console: tcod.console.Console) -> None:
+        self.saved_games = []
+        for file in glob.glob("data\\user_data\\*.sav"):
+            self.saved_games.append(file)
+        self.saved_games = [sg.replace('data\\user_data\\', '').replace('.sav', '') for sg in self.saved_games.sort(key=os.path.getctime)]
+        
+        saved_games_list_console = tcod.console.Console(25, 48)
+        
+        saved_games_list_console.draw_frame(0, 0, width=saved_games_list_console.width, height=saved_games_list_console.height, fg=color.ui_color)
+        render_functions.draw_border_detail(saved_games_list_console)
+
+        saved_games_list_console.print(x=saved_games_list_console.width//2-len('Select Saved Game')//2, y=2, string='Select Saved Game', fg=color.ui_text_color)
+
+        if not self.saved_games:
+            saved_games_list_console.print(x=1, y=saved_games_list_console.height//2, string='No Saved Games Detected', fg=color.ui_text_color)
+
+        sg_y = 5
+        for i, save_game in enumerate(self.saved_games):
+            text_color = color.ui_text_color
+            if i == self.selected_index:
+                text_color = color.ui_cursor_text_color
+            
+            saved_games_list_console.print(x=2, y=sg_y, string=save_game, fg=text_color)
+            
+            sg_y+=1
+        
+        saved_games_list_console.blit(console, dest_x=5, dest_y=1)
+        
+        saved_game_info_console = tcod.console.Console(24, 30)
+        
+        saved_game_info_console.draw_frame(0, 0, width=saved_game_info_console.width, height=saved_game_info_console.height, fg=color.ui_color)
+        render_functions.draw_border_detail(saved_game_info_console)
+        
+        tileset = tcod.tileset.load_tilesheet(
+            SETTINGS['tileset_file'], 16, 16, tcod.tileset.CHARMAP_CP437
+        )
+        from setup_game import load_game
+        preview_engine = load_game(f'{self.saved_games[self.selected_index]}.sav')
+        
+        tile = tileset.get_tile(ord(preview_engine.player.char))[:, :, 3:]
+        
+        new_tile = np.zeros((10, 10, 3), dtype=np.uint8)
+        for i, row in enumerate(new_tile):
+            for j, col in enumerate(row):
+                for k, a in enumerate(col):
+                    if tile[i, j] == 255:
+                        new_tile[i, j, k] = preview_engine.player.color[k]
+                    else:
+                        new_tile[i, j, k] = 0
+        
+        
+        img = tcod.image.Image.from_array(new_tile)
+        img.blit(saved_game_info_console, x=saved_game_info_console.width//2, y=6, bg_blend=1, scale_x=1, scale_y=1, angle=0)
+        
+        saved_game_info_console.print(x=0, y=10, string=f'╠{"".join(["─"]*(saved_game_info_console.width-2))}╣')
+        
+        y_offset = 12
+        saved_game_info_console.print(x=2, y=y_offset, string=f'Name: {preview_engine.player.name}', fg=color.ui_text_color)
+        saved_game_info_console.print(x=2, y=y_offset+1, string=f'Race: {preview_engine.player.entity.race.name}', fg=color.ui_text_color)
+        saved_game_info_console.print(x=2, y=y_offset+2, string=f'Class: {preview_engine.player.entity.job.name} Lv{preview_engine.player.entity.level}', fg=color.ui_text_color)
+        
+        saved_game_info_console.print(x=2, y=y_offset+4, string=f'Number of Turns: {preview_engine.turn_count}', fg=color.ui_text_color)
+        
+        saved_game_info_console.blit(console, dest_x=console.width-saved_game_info_console.width-5, dest_y=10)
+        
+    def ev_keydown(self, event: tcod.event.KeyDown) -> None:
+        match event.sym:
+            case tcod.event.KeySym.ESCAPE:
+                self.change_handler(self.parent)
+            
+            case tcod.event.KeySym.DOWN | tcod.event.KeySym.s:
+                self.selected_index = min(self.selected_index+1, len(self.saved_games)-1)
+            case tcod.event.KeySym.UP | tcod.event.KeySym.w:
+                self.selected_index = max(self.selected_index-1, 0)
+                
+            case tcod.event.KeySym.BACKSPACE:
+                self.change_handler(YNPopUp(self.engine, self))
+                
+            case tcod.event.KeySym.RETURN if self.saved_games:
+                from setup_game import load_game
+                self.engine = load_game(f'{self.saved_games[self.selected_index]}.sav')
+
 class YNPopUp(EventHandler):
-    def __init__(self, engine: Engine, title: str, parent: EventHandler, x: int | None = None, y: int | None = None):
+    def __init__(self, engine: Engine, parent: EventHandler, title: str | None = None, x: int | None = None, y: int | None = None):
         super().__init__(engine)
         self.x = x
         self.y = y
@@ -188,7 +291,7 @@ class YNPopUp(EventHandler):
     def return_result(self, result: bool):
         self.parent.popup_result(result)
         self.change_handler(self.parent)
-                
+
 
 class MenuCollectionEventHandler(EventHandler):
     def __init__(self, engine: Engine, submenu: int = 0) -> None:

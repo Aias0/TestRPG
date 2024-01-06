@@ -1,1 +1,3 @@
-print(list('1234'))
+test = 'test'
+
+print(hash(test))
