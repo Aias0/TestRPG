@@ -137,6 +137,10 @@ class EventHandler(BaseEventHandler):
         
     def change_handler(self, new_handler):
         self.engine.event_handler = new_handler
+        
+    def message(self, text: str, fg: tuple(int, int, int) = color.white):
+        self.engine.message_log.add_message(text=text, fg=fg)
+
 
 
 class LoadHandler(EventHandler):
@@ -245,6 +249,8 @@ class LoadHandler(EventHandler):
             case tcod.event.KeySym.RETURN if self.saved_games:
                 from setup_game import load_game
                 self.engine = load_game(f'{self.saved_games[self.selected_index]}.sav')
+                self.message('loaded game', color.valid)
+
 
 class YNPopUp(EventHandler):
     def __init__(self, engine: Engine, parent: EventHandler, title: str | None = None, x: int | None = None, y: int | None = None):
@@ -959,6 +965,8 @@ class MenuListEventHandler(EventHandler):
         menu_console = tcod.console.Console(len(max(self.menu_items, key=len))+2, len(self.menu_items)+4)
         
         menu_console.draw_frame(0, 0, menu_console.width, menu_console.height, fg=color.ui_color)
+        render_functions.draw_border_detail(menu_console)
+        
         menu_console.print(x=menu_console.width-2, y=0, string='╥', fg=color.ui_color)
         menu_console.print(x=menu_console.width-2, y=1, string='╚', fg=color.ui_color)
         menu_console.print(x=menu_console.width-1, y=1, string='╡', fg=color.ui_color)
@@ -1022,7 +1030,7 @@ class MenuListEventHandler(EventHandler):
         
 class PauseMenuEventHandler(MenuListEventHandler):
     def __init__(self, engine: Engine):
-        super().__init__(engine, ['Resume', 'Save Game', 'Load Game', 'Settings', 'Exit to Main Menu', 'Exit'])
+        super().__init__(engine, ['Resume', 'Save Game', 'Load Game', 'Settings', 'Exit to Main Menu', 'Save and Exit', 'Exit'])
             
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
         match event.sym:
@@ -1033,33 +1041,31 @@ class PauseMenuEventHandler(MenuListEventHandler):
                 raise SystemExit()
             
             case tcod.event.KeySym.s | tcod.event.KeySym.DOWN:
-                if  len(self.menu_items) > self.selected_index + 1:
-                    self.selected_index +=1
-                else:
-                    self.selected_index = len(self.menu_items)-1
-                    #self.selected_index = 0
+                self.selected_index = min(self.selected_index+1, len(self.menu_items)-1)
             case tcod.event.KeySym.w | tcod.event.KeySym.UP:
-                if  0 <= self.selected_index - 1:
-                    self.selected_index -=1
-                else:
-                    self.selected_index = 0
-                    #self.selected_index = len(self.menu_items)-1
+                self.selected_index = max(self.selected_index-1, 0)
             
             case tcod.event.KeySym.RETURN:
                 match self.selected_index:
                     case 0: # Resume
-                        self.engine.event_handler = MainGameEventHandler(self.engine)
+                        self.change_handler(MainGameEventHandler(self.engine))
                     case 1: # Save Game
-                        from main import save_game
-                        save_game(self, 'savegame.sav')
+                        self.change_handler(BorderedTextInputHandler(self.engine, parent=self))
                     case 2: # Load Game
-                        raise NotImplementedError()
+                        self.change_handler(LoadHandler(self.engine, self))
                     case 3: # Settings
-                        self.engine.event_handler = SettingsMenuHandler(self.engine)
+                        self.change_handler(SettingsMenuHandler(self.engine))
                     case 4: # Exit to Main Menu
                         raise exceptions.ExitToMainMenu()
                     case 5: # Exit
                         raise SystemExit()
+                    case 6: # Exit w/out save
+                        raise exceptions.QuitWithoutSaving()
+        
+    def return_text(self, text):
+        from main import save_game
+        save_game(self, f'{text}.sav')
+        self.message('saved game', color.valid)
                 
 class MultiPickupHandler(MenuListEventHandler):
     def __init__(self, engine: Engine, items: list[Sprite], actor: Actor):
@@ -1549,6 +1555,27 @@ class MainGameEventHandler(EventHandler):
             case tcod.event.KeySym(sym) if sym in CURSOR_Y_KEYS and not event.mod:
                 if self.engine.hover_depth + CURSOR_Y_KEYS[key] in range(self.engine.hover_range):
                     self.engine.hover_depth += CURSOR_Y_KEYS[key]
+            
+            case tcod.event.KeySym.F5: # Quick Save
+                from main import save_game
+                files = glob.glob("data\\user_data\\quicksave*.sav")
+                save_num = 1
+                if files:
+                    os.remove(files[0])
+                    save_num = int(files[0].replace("data\\user_data\\quicksave", '').replace(".sav", ''))+1
+                
+                save_game(self, f'quicksave{save_num}.sav')
+                self.message('quick save', color.valid)
+                print('quick save')
+                
+            case tcod.event.KeySym.F9:
+                from setup_game import load_game
+                
+                files = glob.glob("data\\user_data\\quicksave*.sav")
+                if files:
+                    self.engine = load_game(files[0].replace("data\\user_data\\", ''))
+                    self.message('quick load', color.valid)
+                    print('quick load')
             
         return action
 

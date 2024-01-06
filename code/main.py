@@ -68,7 +68,7 @@ def main() -> None:
         
         except SystemExit: # Save and Quit
             if not isinstance(handler.engine, MainMenuEngine):
-                save_game(handler, f'savegame{abs(hash(handler.engine)) % (10 ** 5)}.sav')
+                save_game(handler, f'exitsave{abs(hash(handler.engine)) % (10 ** 5)}.sav')
             raise
         except BaseException: # Save on any other unexpected exception.
             if not isinstance(handler.engine, MainMenuEngine):

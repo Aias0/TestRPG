@@ -167,8 +167,9 @@ def generate_dungeon_floor(
         dungeon.tiles[center_of_last_room] = tile_types.down_stairs
         dungeon.down_stairs_location = center_of_last_room
         
-        dungeon.tiles[center_of_first_room] = tile_types.up_stairs
-        dungeon.up_stairs_location = center_of_first_room
+        if dungeon.floor_level > 1:
+            dungeon.tiles[center_of_first_room] = tile_types.up_stairs
+            dungeon.up_stairs_location = center_of_first_room
         
         # Finally, append the new room to the list.
         rooms.append(new_room)

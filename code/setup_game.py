@@ -83,6 +83,7 @@ def load_game(filename: str) -> Engine:
     with open(f'data/user_data/{filename}', 'rb') as f:
         engine = pickle.loads(lzma.decompress(f.read()))
     assert isinstance(engine, Engine)
+    engine.event_handler = input_handler.MainGameEventHandler(engine)
     return engine
 
 class MainMenu(input_handler.EventHandler):

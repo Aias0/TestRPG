@@ -20,6 +20,8 @@ class GameMap:
         self.tiles = np.full((width, height), fill_value=tile_types.wall, order='F')
         self.sprites = set(sprites)
         
+        self.floor_level = floor_level
+        
         self.remembered_sprites: list[list[str | tuple | int | int | Sprite]] = []
         
         self.visible = np.full(
