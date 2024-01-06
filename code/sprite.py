@@ -93,8 +93,8 @@ class Sprite():
     def similar(self, other):
         if isinstance(other, self.__class__):
             for i, pair in enumerate(zip([_[1] for _ in vars(self).items() if _[0] != 'parent'], [_[1] for _ in vars(other).items() if _[0] != 'parent'])):
-                print(list(self.__dict__.keys())[i])
-                print(pair)
+                #print(list(self.__dict__.keys())[i])
+                #print(pair)
                 if hasattr(pair[0], 'similar') and not pair[0].similar(pair[1]):
                     return False
                 elif not hasattr(pair[0], 'similar') and pair[0] != pair[1]:

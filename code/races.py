@@ -20,6 +20,8 @@ class BaseRace():
         vision_acuity: int = 8,
         dark_vision: int = 0,
         rarity: int = 10,
+        average_lifespan: int = 90,
+        adult_age: int = 18,
         ) -> None:
         
         self.name = name
@@ -41,6 +43,9 @@ class BaseRace():
             if [job for job in JOBS if job.__class__.__name__ in self.job_chance.keys()]:
                 continue
             self.job_chance[job] = job.rarity
+            
+        self.average_lifespan = average_lifespan
+        self.adult_age = adult_age
 
 class Human(BaseRace):
     def __init__(self) -> None:
@@ -49,7 +54,9 @@ class Human(BaseRace):
             default_char='h',
             attribute_bonuses={'DEX': 2, 'END': 1, 'CON': 1, 'FOC': 1},
             job_chance={'Rouge': 15},
-            rarity=15
+            rarity=15,
+            average_lifespan = 90,
+            adult_age=18,
             )
 
 class Elf(BaseRace):
@@ -61,7 +68,9 @@ class Elf(BaseRace):
             job_chance={'Mage': 20, 'Fighter': 5},
             vision_acuity=10,
             dark_vision=50,
-            rarity=5
+            rarity=5,
+            average_lifespan = 750,
+            adult_age=100,
             )
 
 class Dwarf(BaseRace):
@@ -72,6 +81,8 @@ class Dwarf(BaseRace):
             attribute_bonuses={'CON': 2, 'STR': 1},
             job_chance={'Fighter': 20, 'Mage': 5},
             dark_vision=75,
+            average_lifespan = 350,
+            adult_age=20,
             )
 
 RACES: List[BaseRace] = [Human(), Elf(), Dwarf()]

@@ -135,7 +135,6 @@ class Engine:
     def save_as(self, filename: str) -> None:
         """ Save this instance as a compressed file. """
         save_data = lzma.compress(pickle.dumps(self))
-
-        list_of_files = glob.glob("data\\user_data\\*.sav")
-        with open(max(list_of_files, key=os.path.getctime), 'wb') as f:
+        
+        with open(f'data/user_data/{filename}', 'wb') as f:
             f.write(save_data)

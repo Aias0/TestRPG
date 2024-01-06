@@ -154,6 +154,7 @@ class Item(Entity):
         
         self.effect = effect
         self.effect.parent = self
+
         
         super().__init__(name=name, description=description, value=value, tags=tags, materials=materials)
         
@@ -220,6 +221,7 @@ class Character(Entity):
         tags: set[str] = set(),
         materials: List[MaterialTypes] = [MaterialTypes.BIOLOGICAL],
         spell_book: List[Spell] = [],
+        age: int = None
         
     ) -> None:
         self.effects: List[CharacterEffect] = []
@@ -268,6 +270,10 @@ class Character(Entity):
         self.equip(self.job.starting_equipment, silent=True)
         
         self.invincible = False
+        
+        self.age = age
+        if self.age is None:
+            self.age = int(abs(random.random() - random.random()) * (1 + random.randrange(int(self.race.average_lifespan-self.race.average_lifespan/4), int(self.race.average_lifespan+self.race.average_lifespan/4)) - self.race.adult_age) + self.race.adult_age)
         
         super().__init__(name=name, description=description, value=0, tags=tags, materials=materials)
         self.update_stats()
@@ -649,13 +655,23 @@ class Character(Entity):
         for effect in self.effects:
             if not effect.automatic:
                 continue
-            
             try:
                 effect.activate(effect.get_action())
             except exceptions.Impossible:
                 pass
-            
             self.update_stats()
+            
+        # Handle aging and death from ageing
+        if self.engine.turn_count % 1250 == 0:
+            self.age += 1
+        if not 'eternal life' in self.tags and self.age > int(self.race.average_lifespan-self.race.average_lifespan/4):
+            death_chance_at_age = min(((self.age-int(self.race.average_lifespan-self.race.average_lifespan/4))**2)/(((int(self.race.average_lifespan+self.race.average_lifespan/4)-int(self.race.average_lifespan-self.race.average_lifespan/4))**2)/100), 100)/100
+            
+            if random.random() < death_chance_at_age:
+                self.engine.message_log.add_message(f'{self.name}, at {self.age} years old, died from old age.', fg=color.enemy_die)
+                self.die()
+            
+        self.update_stats()
         
     def add_effect(self, effect: CharacterEffect) -> bool:
         """ Returns `True` if effect was applied. `False` if not. """

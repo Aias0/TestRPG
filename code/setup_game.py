@@ -7,6 +7,8 @@ import copy, color, time
 import tcod, libtcodpy
 import lzma, pickle
 
+import glob, os
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -128,9 +130,12 @@ class MainMenu(input_handler.EventHandler):
             
             case tcod.event.KeySym.c:
                 try:
-                    saved_engine = load_game('savegame.sav')
+                    save_files = glob.glob("data\\user_data\\*.sav")
+                    latest_file = max(save_files, key=os.path.getctime).replace('data\\user_data\\', '')
+                    saved_engine = load_game(latest_file)
                 except FileNotFoundError:
                     print('No save File')
+                    return
                 except Exception as exc:
                     traceback.print_exc()
                 self.change_handler(input_handler.MainGameEventHandler(saved_engine))
@@ -282,7 +287,8 @@ class CharacterCreatorHandler(input_handler.EventHandler):
                 base_FOC=FOC,
                 base_INT=INT,
                 tags=set('player'),
-                dominant_hand=self.sub_menus[0].answers[3]
+                dominant_hand=self.sub_menus[0].answers[3],
+                age=self.sub_menus[0].answers[2]
             ),
            char= self.sub_menus[5].answers[0],
            color=self.sub_menus[5].answers[1],

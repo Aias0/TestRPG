@@ -14,4 +14,12 @@
 
 -[TODO:]Add titles to YNPopUpHandler
 
--[TODO:]Add load game handler to Main Menu and Pause Menu
+-[DONE]Add load game handler to Main Menu and Pause Menu
+
+-[FIXME:]Favorites bar end gets clipped of because item multiples.
+
+-[TODO:]Add skills
+
+-[TODO:]Add traits
+
+-[TODO:]Work on ageing. Need better death chance calculator. Current version on school Desmos.

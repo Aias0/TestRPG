@@ -16,6 +16,8 @@ import actions
 
 import render_functions
 
+from datetime import datetime
+
 from actions import (
     Action,
     DropItem,
@@ -136,6 +138,7 @@ class EventHandler(BaseEventHandler):
     def change_handler(self, new_handler):
         self.engine.event_handler = new_handler
 
+
 class LoadHandler(EventHandler):
     def __init__(self, engine: Engine, parent: EventHandler) -> None:
         self.engine = engine
@@ -146,8 +149,9 @@ class LoadHandler(EventHandler):
         self.saved_games: list[str] = []
         for file in glob.glob("data\\user_data\\*.sav"):
             self.saved_games.append(file)
-        print(self.saved_games.sort(key=os.path.getctime))
-        self.saved_games = [sg.replace('data\\user_data\\', '').replace('.sav', '') for sg in self.saved_games.sort(key=os.path.getctime)]
+        sg_sorted = sorted(self.saved_games, key=os.path.getctime, reverse=True)
+        self.saved_games = [sg.replace('data\\user_data\\', '').replace('.sav', '') for sg in sg_sorted]
+        self.create_times = [datetime.utcfromtimestamp(os.path.getctime(sg)).strftime('%Y-%m-%d %H:%M:%S') for sg in sg_sorted]
     
     def popup_result(self, result) -> None:
         if not result:
@@ -159,7 +163,9 @@ class LoadHandler(EventHandler):
         self.saved_games = []
         for file in glob.glob("data\\user_data\\*.sav"):
             self.saved_games.append(file)
-        self.saved_games = [sg.replace('data\\user_data\\', '').replace('.sav', '') for sg in self.saved_games.sort(key=os.path.getctime)]
+        sg_sorted = sorted(self.saved_games, key=os.path.getctime, reverse=True)
+        self.saved_games = [sg.replace('data\\user_data\\', '').replace('.sav', '') for sg in sg_sorted]
+        self.create_times = [datetime.utcfromtimestamp(os.path.getctime(sg)).strftime('%Y-%m-%d %H:%M:%S') for sg in sg_sorted]
         
         saved_games_list_console = tcod.console.Console(25, 48)
         
@@ -188,35 +194,38 @@ class LoadHandler(EventHandler):
         saved_game_info_console.draw_frame(0, 0, width=saved_game_info_console.width, height=saved_game_info_console.height, fg=color.ui_color)
         render_functions.draw_border_detail(saved_game_info_console)
         
-        tileset = tcod.tileset.load_tilesheet(
-            SETTINGS['tileset_file'], 16, 16, tcod.tileset.CHARMAP_CP437
-        )
-        from setup_game import load_game
-        preview_engine = load_game(f'{self.saved_games[self.selected_index]}.sav')
-        
-        tile = tileset.get_tile(ord(preview_engine.player.char))[:, :, 3:]
-        
-        new_tile = np.zeros((10, 10, 3), dtype=np.uint8)
-        for i, row in enumerate(new_tile):
-            for j, col in enumerate(row):
-                for k, a in enumerate(col):
-                    if tile[i, j] == 255:
-                        new_tile[i, j, k] = preview_engine.player.color[k]
-                    else:
-                        new_tile[i, j, k] = 0
-        
-        
-        img = tcod.image.Image.from_array(new_tile)
-        img.blit(saved_game_info_console, x=saved_game_info_console.width//2, y=6, bg_blend=1, scale_x=1, scale_y=1, angle=0)
-        
         saved_game_info_console.print(x=0, y=10, string=f'╠{"".join(["─"]*(saved_game_info_console.width-2))}╣')
         
-        y_offset = 12
-        saved_game_info_console.print(x=2, y=y_offset, string=f'Name: {preview_engine.player.name}', fg=color.ui_text_color)
-        saved_game_info_console.print(x=2, y=y_offset+1, string=f'Race: {preview_engine.player.entity.race.name}', fg=color.ui_text_color)
-        saved_game_info_console.print(x=2, y=y_offset+2, string=f'Class: {preview_engine.player.entity.job.name} Lv{preview_engine.player.entity.level}', fg=color.ui_text_color)
+        if self.saved_games:
+            tileset = tcod.tileset.load_tilesheet(
+                SETTINGS['tileset_file'], 16, 16, tcod.tileset.CHARMAP_CP437
+            )
+            from setup_game import load_game
+            preview_engine = load_game(f'{self.saved_games[self.selected_index]}.sav')
+
+            tile = tileset.get_tile(ord(preview_engine.player.char))[:, :, 3:]
+
+            new_tile = np.zeros((10, 10, 3), dtype=np.uint8)
+            for i, row in enumerate(new_tile):
+                for j, col in enumerate(row):
+                    for k, a in enumerate(col):
+                        if tile[i, j] == 255:
+                            new_tile[i, j, k] = preview_engine.player.color[k]
+                        else:
+                            new_tile[i, j, k] = 0
+
+
+            img = tcod.image.Image.from_array(new_tile)
+            img.blit(saved_game_info_console, x=saved_game_info_console.width//2, y=6, bg_blend=1, scale_x=1, scale_y=1, angle=0)
         
-        saved_game_info_console.print(x=2, y=y_offset+4, string=f'Number of Turns: {preview_engine.turn_count}', fg=color.ui_text_color)
+            y_offset = 12
+            saved_game_info_console.print(x=2, y=y_offset, string=f'Name: {preview_engine.player.name}', fg=color.ui_text_color)
+            saved_game_info_console.print(x=2, y=y_offset+1, string=f'Race: {preview_engine.player.entity.race.name}', fg=color.ui_text_color)
+            saved_game_info_console.print(x=2, y=y_offset+2, string=f'Class: {preview_engine.player.entity.job.name} Lv{preview_engine.player.entity.level}', fg=color.ui_text_color)
+
+            saved_game_info_console.print(x=2, y=y_offset+4, string=f'Number of Turns: {preview_engine.turn_count}', fg=color.ui_text_color)
+
+            saved_game_info_console.print(x=2, y=y_offset+6, string=f'Save Created: \n{self.create_times[self.selected_index]}', fg=color.ui_text_color)
         
         saved_game_info_console.blit(console, dest_x=console.width-saved_game_info_console.width-5, dest_y=10)
         
@@ -1324,17 +1333,18 @@ class InspectHandler(SelectTileHandler):
             render_functions.draw_reticle(console, *self.engine.mouse_location)
             return
         
-        display_console = tcod.console.Console(25, 10)
+        display_console = tcod.console.Console(25, 11)
         display_console.draw_frame(0, 0, display_console.width, display_console.height, fg=color.ui_color)
         
         display_console.print(1, 1, string=f'Name: {self.entity.name}')
-        display_console.print(1, 2, string=f'Race: {self.entity.race.name}')
-        display_console.print(1, 3, string=f'Job: {self.entity.job.name}')
-        display_console.print(1, 4, string=f'Level: {self.entity.level}')
+        display_console.print(1, 2, string=f'Age: {self.entity.age}')
+        display_console.print(1, 3, string=f'Race: {self.entity.race.name}')
+        display_console.print(1, 4, string=f'Job: {self.entity.job.name}')
+        display_console.print(1, 5, string=f'Level: {self.entity.level}')
         
-        display_console.print(1, 6, string=f'HP: {self.entity.hp}/{self.entity.max_hp}')
-        display_console.print(1, 7, string=f'MP: {self.entity.mp}/{self.entity.max_mp}')
-        display_console.print(1, 8, string=f'SP: {self.entity.sp}/{self.entity.max_sp}')
+        display_console.print(1, 7, string=f'HP: {self.entity.hp}/{self.entity.max_hp}')
+        display_console.print(1, 8, string=f'MP: {self.entity.mp}/{self.entity.max_mp}')
+        display_console.print(1, 9, string=f'SP: {self.entity.sp}/{self.entity.max_sp}')
         
         display_console.blit(console, 5, 5)
 
