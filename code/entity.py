@@ -755,6 +755,9 @@ class Character(Entity):
         
     def drop_inventory(self, item: str | Item, silent: bool = False) -> None:
         """ `silent` to not print messages. """
+        if not 'player' in self.tags:
+            silent = True
+        
         if isinstance(item, str):
             item = self.get_with_name(item)
         if item not in self.inventory:
@@ -787,6 +790,9 @@ class Character(Entity):
         
     def equip(self, items: Item | str | List[Item|str], slot: Optional[str] = None, silent: bool = False, force: bool = True) -> None:
         """ Equips a single `Item` or multiple. Adds item to inventory if it isn't already present.\n\n`slot` only used on single equip.\n\n`silent` to not print messages.\n\n`force` to equip items in slots that already have items."""
+        if not 'player' in self.tags:
+            silent = True
+        
         if not isinstance(items, list):
             items:List[Item|str] = [items]
         else:
@@ -833,6 +839,9 @@ class Character(Entity):
     
     def unequip(self, items: Item | str | List[Item | str], silent: bool = False) -> None:
         """ `silent` to not print messages. """
+        if not 'player' in self.tags:
+            silent = True
+        
         if not isinstance(items, list):
             items: List[Item|str] = [items]
         items: List[Item] = [self.get_with_name(item) if isinstance(item, str) else item for item in items]
@@ -848,6 +857,9 @@ class Character(Entity):
             
     def toggle_equip(self, items: Item | str | List[Item | str], silent: bool = False):
         """ `silent` to not print messages. """
+        if not 'player' in self.tags:
+            silent = True
+        
         if not isinstance(items, list):
             items: List[Item|str] = [items]
         items: List[Item] = [self.get_with_name(item) if isinstance(item, str) else item for item in items]
