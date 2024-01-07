@@ -449,8 +449,8 @@ class Character(Entity):
     @hp.setter
     def hp(self, value: int) -> None:
         self._hp = max(0, min(value, self.max_hp))
-        if self._hp == 0 and self.parent.ai:
-            self.die()
+        #if self._hp == 0 and self.parent.ai:
+        #    self.die()
             
     @property
     def mp(self) -> int:
@@ -644,9 +644,9 @@ class Character(Entity):
         self.base_magc_atk = self.INT
         
         #Resistance Stats
-        self.base_phys_defense = self.CON/100
+        self.base_phys_defense = self.CON/10
         self.base_phys_negation = 0
-        self.base_magc_defense = self.FOC/100
+        self.base_magc_defense = self.FOC/10
         self.base_magc_negation = 0
         
         self.base_dodge_chance = self.DEX *.01 + self.LCK *.001
@@ -670,6 +670,10 @@ class Character(Entity):
             if random.random() < death_chance_at_age:
                 self.engine.message_log.add_message(f'{self.name}, at {self.age} years old, died from old age.', fg=color.enemy_die)
                 self.die()
+        
+        # If hp is zero die
+        if self.hp == 0 and self.parent.ai:
+            self.die()
             
         self.update_stats()
         
@@ -855,8 +859,12 @@ class Character(Entity):
                 self.equip(item, silent)
     
         
-    def die(self) -> None:
+    def die(self, killer: Character | None = None) -> None:
         self.dead_sprite = copy.deepcopy(self.parent)
+        
+        if killer:
+            killer.add_xp(self.xp_given)
+        
         if self.engine.player is self.parent:
             death_message = 'You died!'
             death_message_color = color.player_die
@@ -946,7 +954,7 @@ class Character(Entity):
             DamageTypes.TRUE: {'neg': 0, 'def': 0},
         }
         
-        damage_after_def = int(amount * (1 - type_to_var[damage_type]['def']))
+        damage_after_def = int(amount * (100 - type_to_var[damage_type]['def'])/100)
         damage_after_neg = damage_after_def - type_to_var[damage_type]['neg']
         if damage_after_neg > 1 or damage_after_neg < -self.level*5:
             damage = max(damage_after_neg, 0)
@@ -970,6 +978,9 @@ class Character(Entity):
                     damage //= 2
             
         self.hp -= damage
+        if self.hp == 0 and self.parent.ai:
+            self.die(attacker)
+        
         return damage
         
 class Corpse(Item):
