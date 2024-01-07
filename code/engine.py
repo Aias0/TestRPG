@@ -55,6 +55,7 @@ class Engine:
         self.wallhacks = False
         self.omniscient = False
         self.ai_on = True
+        self.no_clip = False
         
         self.turn_count = 0
         

@@ -7,7 +7,7 @@ import color
 import exceptions
 import input_handler
 
-import glob
+import os
 
 tileset_file = SETTINGS['tileset_file']
 def refresh_tileset() -> None:
@@ -29,7 +29,14 @@ def main() -> None:
         tileset_file, 16, 16, tcod.tileset.CHARMAP_CP437
     )
     from engine import MainMenuEngine
-    handler = MainMenuEngine().event_handler
+    # See if a reboot save exists and reload if if it does. If it doesn't go to main menu.
+    if os.path.exists('data\\user_data\\TempRebootSave.sav'):
+        from setup_game import load_game
+        handler = load_game('TempRebootSave.sav').event_handler
+        os.remove('data\\user_data\\TempRebootSave.sav')
+    else:
+        handler = MainMenuEngine().event_handler
+    
     with tcod.context.new_terminal(
         screen_width,
         screen_height,
@@ -57,7 +64,7 @@ def main() -> None:
                             handler.handle_events(event)
                 except exceptions.ExitToMainMenu:
                     if not isinstance(handler.engine, MainMenuEngine):
-                        save_game(handler, f'savegame{abs(hash(handler.engine)) % (10 ** 5)}.sav')
+                        save_game(handler, f'exitsave{abs(hash(handler.engine)) % (10 ** 5)}.sav')
                     handler = MainMenuEngine().event_handler
                 except Exception: # Handle exceptions in game.
                     traceback.print_exc() # Print error to stderr

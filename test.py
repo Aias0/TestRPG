@@ -1,3 +1,3 @@
-test = 'test'
+test = None
 
-print(hash(test))
+print(str(test))

@@ -133,8 +133,11 @@ class MainMenu(input_handler.EventHandler):
             case tcod.event.KeySym.c:
                 try:
                     save_files = glob.glob("data\\user_data\\*.sav")
+                    if not save_files:
+                        raise FileNotFoundError()
                     latest_file = max(save_files, key=os.path.getctime).replace('data\\user_data\\', '')
                     saved_engine = load_game(latest_file)
+                    
                 except FileNotFoundError:
                     print('No save File')
                     return
@@ -337,7 +340,7 @@ class SubCharacterCreatorHandler(input_handler.EventHandler):
         
         start_game_console.print(x=2, y=2, string='Start Game', fg=text_color)
         
-        if all(self.parent.player_info):
+        if all(self.parent.player_info) and self.parent.sub_menus[3].points_remaining == 0:
             start_game_console.blit(console, dest_x=console.width//2-start_game_console.width//2, dest_y=console.height-7)
 
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
@@ -398,7 +401,10 @@ class OriginHandler(SubCharacterCreatorHandler):
                 elif self.selected_index == 3:
                     self.answers[3] = hand_dom[self.answers[3]]
                 else:
-                    self.engine.event_handler = input_handler.TextInputHandler(self.engine, x=len(self.menu_items[self.selected_index])+6, y=self.selected_index*2+11, parent=self)
+                    def_text = self.answers[self.selected_index]
+                    if def_text is None:
+                        def_text = ''
+                    self.change_handler(input_handler.TextInputHandler(self.engine, x=len(self.menu_items[self.selected_index])+6, y=self.selected_index*2+11, parent=self, default_text=def_text))
                     
         super().ev_keydown(event)
         
@@ -483,12 +489,14 @@ class AttributesHandler(SubCharacterCreatorHandler):
         self.stat_min = 8
         
         self.total_points = 75
+        self.points_remaining = self.total_points-sum(self.answers)
         
     def on_render(self, console: tcod.console.Console) -> None:
         super().on_render(console)
         
         console.print(x=4, y=8, string='Select Attributes:', fg=color.ui_text_color)
-        console.print(x=30, y=8, string=f'Points Remaining: {self.total_points-sum(self.answers)}', fg=color.ui_text_color)
+        self.points_remaining = self.total_points-sum(self.answers)
+        console.print(x=30, y=8, string=f'Points Remaining: {self.points_remaining}', fg=color.ui_text_color)
         attr_y = 11
         for i, item in enumerate(self.menu_items):
             text_color = color.ui_text_color
@@ -527,7 +535,7 @@ class AttributesHandler(SubCharacterCreatorHandler):
             case tcod.event.KeySym.HOME if self.selected_attr:
                 self.answers[self.selected_index] = self.stat_min
             case tcod.event.KeySym.END if self.selected_attr:
-                self.answers[self.selected_index] = min(self.answers[self.selected_index]+self.total_points-sum(self.answers), self.stat_max)
+                self.answers[self.selected_index] = min(self.answers[self.selected_index]+self.points_remaining, self.stat_max)
             case tcod.event.KeySym.RETURN if self.selected_attr:
                 self.selected_attr = None
             case tcod.event.KeySym.ESCAPE if self.selected_attr:

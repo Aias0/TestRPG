@@ -38,11 +38,13 @@ def dev_command(command: str, engine: Engine) -> str:
             god = not god
             invincible(engine, god)
             omniscience(engine, god)
+            keenmind(engine, god)
             return f'God mode: {onoff[god]}'
         case ['god', cmd]:
             god = onoff_bool[cmd]
             invincible(engine, god)
             omniscience(engine, god)
+            keenmind(engine, god)
             return f'God mode: {onoff[god]}'
         
         case ['revealmap']:
@@ -137,6 +139,8 @@ def dev_command(command: str, engine: Engine) -> str:
             return f' returned {engine.player.name} to life.'
         
         case ['restart']:
+            from main import save_game
+            save_game(engine.event_handler, 'TempRebootSave.sav')
             os.execl(sys.executable, sys.executable, * sys.argv)
             
         case ['turncount']:
@@ -146,6 +150,10 @@ def dev_command(command: str, engine: Engine) -> str:
             return keenmind(engine)
         case['keenmind', cmd]:
             return keenmind(engine, onoff_bool[cmd])
+        
+        case['noclip']:
+            engine.no_clip = not engine.no_clip
+            return f'No Clip: {onoff[engine.no_clip]}'
         
         case ['help']:
             return ', '.join([

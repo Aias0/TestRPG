@@ -144,7 +144,7 @@ class GameWorld:
         max_room_range: list,
         max_enemies_per_room: list,
         max_items_per_room: list,
-        current_floor: int = 0,
+        current_floor: int = 1,
         
     ) -> None:
         self.engine = engine
@@ -161,11 +161,39 @@ class GameWorld:
         
         self.current_floor = current_floor
         
+        self.maps: list[GameMap] = []
+        
+    def go_up(self) -> None:
+        map_up = [gmap for gmap in self.maps if gmap.floor_level == self.current_floor-1]
+        if map_up:
+            self.current_floor -= 1
+            self.engine.game_map = map_up[0]
+            self.engine.player.x, self.engine.player.y = self.engine.game_map.down_stairs_location
+            self.engine.game_map.sprites.add(self.engine.player)
+            return True
+        else:
+            print('No map above.')
+            return False
+            
+    def go_down(self, generate_floor: bool = True) -> None:
+        map_down = [gmap for gmap in self.maps if gmap.floor_level == self.current_floor+1]
+        if map_down:
+            self.current_floor += 1
+            self.engine.game_map = map_down[0]
+            self.engine.player.x, self.engine.player.y = self.engine.game_map.up_stairs_location
+            self.engine.game_map.sprites.add(self.engine.player)
+            return True
+        elif generate_floor:
+            self.current_floor += 1
+            self.generate_floor()
+            return True
+        else:
+            print('No map bellow.')
+            return False
+            
+        
     def generate_floor(self) -> None:
         from mapgen import generate_dungeon_floor
-        
-        self.current_floor += 1
-        
         self.engine.game_map = generate_dungeon_floor(
             max_rooms= self.max_room_range,
             room_min_size=self.room_min_size,
@@ -177,4 +205,6 @@ class GameWorld:
             engine=self.engine,
             floor_level = self.current_floor
         )
+        
+        self.maps.append(self.engine.game_map)
     

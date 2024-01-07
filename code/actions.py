@@ -31,6 +31,9 @@ class Action:
         """
         raise NotImplementedError()
     
+    def message(self, text: str, fg: tuple[int, int, int] = color.white):
+        self.engine.message_log.add_message(text, fg=fg)
+    
 class PickupAction(Action):
     """ Pickup an item and add it to the inventory. """
     
@@ -136,12 +139,11 @@ class TakeStairsAction(Action):
     def perform(self) -> None:
         """ Take the stairs, if any exist at sprite location. """
         if (self.sprite.x, self.sprite.y) == self.engine.game_map.down_stairs_location:
-            self.engine.game_world.generate_floor()
-            self.engine.message_log.add_message(
-                'You descend the staircase.', color.descend
-            )
+            if self.engine.game_world.go_down():
+                self.message('You descend the staircase.', color.descend)
         elif (self.sprite.x, self.sprite.y) == self.engine.game_map.up_stairs_location:
-            print('Go up stairs')
+            if self.engine.game_world.go_up():
+                self.message('You ascend the staircase.', color.descend)
         else:
             raise exceptions.Impossible('There are no stairs here.')
 
@@ -182,6 +184,7 @@ class MeleeAction(ActionWithDirection):
             attack_color = color.enemy_atk
         
         damage_taken = target.entity.take_damage(self.sprite.entity.phys_atk, attacker=self.sprite.entity)
+        print(damage_taken)
         if damage_taken is None:
             self.engine.message_log.add_message(
                 f'{attack_desc} but misses.', attack_color
@@ -203,7 +206,7 @@ class MovementAction(ActionWithDirection):
         if not self.engine.game_map.in_bounds(dest_x, dest_y):
             # Destination is out of bounds.
             raise exceptions.Impossible('That way is blocked')
-        if not self.engine.game_map.tiles['walkable'][dest_x, dest_y]:
+        if not self.engine.no_clip and not self.engine.game_map.tiles['walkable'][dest_x, dest_y]:
             # Destination is blocked by tile.
             raise exceptions.Impossible('That way is blocked')
         if self.engine.game_map.get_blocking_sprite_at_location(dest_x, dest_y):

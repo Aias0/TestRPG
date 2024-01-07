@@ -97,6 +97,9 @@ class BaseEventHandler(tcod.event.EventDispatch[Action]):
     
     def ev_quit(self, event: tcod.event.Quit) -> Optional[Action]:
         raise SystemExit()
+    
+    def change_handler(self, new_handler):
+        self.engine.event_handler = new_handler
 
 class EventHandler(BaseEventHandler):
     def __init__(self, engine: Engine) -> None:
@@ -134,9 +137,6 @@ class EventHandler(BaseEventHandler):
     
     def on_render(self, console: tcod.console.Console) -> None:
         self.engine.render(console)
-        
-    def change_handler(self, new_handler):
-        self.engine.event_handler = new_handler
         
     def message(self, text: str, fg: tuple(int, int, int) = color.white):
         self.engine.message_log.add_message(text=text, fg=fg)
@@ -1050,7 +1050,7 @@ class PauseMenuEventHandler(MenuListEventHandler):
                     case 0: # Resume
                         self.change_handler(MainGameEventHandler(self.engine))
                     case 1: # Save Game
-                        self.change_handler(BorderedTextInputHandler(self.engine, parent=self))
+                        self.change_handler(BorderedTextInputHandler(self.engine, default_text=f'savegame{abs(hash(self.engine)) % (10 ** 5)}', title='Save Name', parent=self))
                     case 2: # Load Game
                         self.change_handler(LoadHandler(self.engine, self))
                     case 3: # Settings
@@ -1525,7 +1525,7 @@ class MainGameEventHandler(EventHandler):
             case tcod.event.KeySym.v if not event.mod:
                 self.engine.event_handler = HistoryViewer(self.engine)
         
-            case tcod.event.KeySym.g if not event.mod:
+            case tcod.event.KeySym.p if not event.mod:
                 action = PickupAction(player)
             
             case tcod.event.KeySym.m if not event.mod:
@@ -1660,10 +1660,10 @@ class HistoryViewer(EventHandler):
             self.engine.event_handler = MainGameEventHandler(self.engine)
 
 class TextInputHandler(EventHandler):
-    def __init__(self, engine: Engine, x: int = 20, y: int = 41, width: int = None, parent: EventHandler = None):
+    def __init__(self, engine: Engine, x: int = 20, y: int = 41, width: int = None, parent: EventHandler = None, title: str = 'Input', default_text: str = ''):
         super().__init__(engine)
-        self.text_inputted = ''
-        self.title = 'Input'
+        self.text_inputted = str(default_text)
+        self.title = title
         self.input_index = -1
         self._cursor_blink = 40
         self.engine.wait = False

@@ -5,6 +5,8 @@ def tryeval(val):
         val = ast.literal_eval(val)
     except ValueError:
         pass
+    except SyntaxError:
+        pass
     return val
 
 config = configparser.ConfigParser()
