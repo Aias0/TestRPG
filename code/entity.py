@@ -224,6 +224,7 @@ class Character(Entity):
         age: int = None
         
     ) -> None:
+        self.tags = tags
         self.effects: List[CharacterEffect] = []
         
         self.race = race
