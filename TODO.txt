@@ -35,3 +35,5 @@
 -[TODO:]DEV quick start Character.
 
 -[TODO:]Add adult age, elderly age to race. Change auto age assigner to not assign a generated character an age near race elderly age. 
+
+-[TODO:]Make age effect stats. Lower STR, raise WIS, etc. 
