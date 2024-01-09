@@ -85,7 +85,7 @@ class Spell():
     
     def get_action(self, engine: Engine) -> actions.Action:
         engine.message_log.add_message(
-            "Select a target location.", color.needs_target
+            "Select a target location.", color.prompt_player
         )
         engine.event_handler = RangedAttackHandler(
             engine,

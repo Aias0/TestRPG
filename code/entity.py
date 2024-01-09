@@ -24,7 +24,16 @@ if TYPE_CHECKING:
 class Entity():
     parent: Sprite
     
-    def __init__(self, name:str, value:int, description:str = None, tags: set[str] = set(), materials: List[MaterialTypes] | None = None) -> None:
+    def __init__(
+        self,
+        name:str,
+        value:int,
+        description:str = None,
+        tags: set[str] = set(),
+        materials: List[MaterialTypes] | None = None,
+        providing_parent: bool = False,
+        interactable: bool = False,
+    ) -> None:
         self.name = name
         if description:
             self.description = description
@@ -67,9 +76,11 @@ class Entity():
         
         self.tags = tags
         self.materials = materials
+        self.interactable = interactable
         
-        from spritegen import entity_to_sprite
-        self.parent = entity_to_sprite(self)
+        if not providing_parent:
+            from spritegen import entity_to_sprite
+            self.parent = entity_to_sprite(self)
         
     @property
     def gamemap(self) -> GameMap:
@@ -79,7 +90,10 @@ class Entity():
     def engine(self) -> Engine:
         return self.gamemap.engine
         
-    def update(self) -> None:
+    def update(self) -> bool:
+        pass
+    
+    def interact(self, character: Character | None = None) -> bool:
         raise NotImplementedError()
         
     def __str__(self) -> str:
@@ -119,6 +133,8 @@ class Item(Entity):
         edible: bool = False,
         tags: set[str] = set(),
         materials: List[MaterialTypes] = [MaterialTypes.NON_BIOLOGICAL],
+        providing_parent: bool = False,
+        interactable: bool = False,
     ) -> None:
         
         self.weight = weight
@@ -156,7 +172,7 @@ class Item(Entity):
         self.effect.parent = self
 
         
-        super().__init__(name=name, description=description, value=value, tags=tags, materials=materials)
+        super().__init__(name=name, description=description, value=value, tags=tags, materials=materials, providing_parent=providing_parent, interactable=interactable)
         
     @property
     def char(self) -> str:
@@ -166,10 +182,14 @@ class Item(Entity):
             return '¡'
         elif self.itemtype == ItemTypes.SCROLL:
             return '~'
-        elif ItemTypes.is_armor(self):
+        elif ItemTypes.is_armor(self) or self.itemtype == ItemTypes.SHIELD:
             return '['
-        elif ItemTypes.is_weapon(self):
-            return '/'
+        elif ItemTypes.is_melee_weapons(self):
+            return '('
+        elif ItemTypes.is_ranged_weapons(self):
+            return '}'
+        elif ItemTypes.is_magic_weapon(self):
+            return '⌠'
         elif ItemTypes.is_useable(self):
             return '◦'
         else:
@@ -221,7 +241,9 @@ class Character(Entity):
         tags: set[str] = set(),
         materials: List[MaterialTypes] = [MaterialTypes.BIOLOGICAL],
         spell_book: List[Spell] = [],
-        age: int = None
+        age: int = None,
+        providing_parent: bool = False,
+        interactable: bool = False,
         
     ) -> None:
         self.tags = tags
@@ -267,16 +289,16 @@ class Character(Entity):
         self.base_LCK = base_LCK # luck(LCK) -> effects chance
         
         self.equipment: Dict[str, Optional[Item]] = {'Head': None, 'Chest': None, 'Gloves': None,  'Legs': None, 'Boots': None, 'Amulet': None, 'Right Ring': None, 'Left Ring': None, 'Right Hand': None, 'Left Hand': None}
-        print(self.job.starting_equipment)
+        #print(self.job.starting_equipment)
         self.equip(self.job.starting_equipment, silent=True)
         
         self.invincible = False
         
         self.age = age
         if self.age is None:
-            self.age = int(abs(random.random() - random.random()) * (1 + random.randrange(int(self.race.average_lifespan-self.race.average_lifespan/4), int(self.race.average_lifespan+self.race.average_lifespan/4)) - self.race.adult_age) + self.race.adult_age)
+            self.age = int(abs(random.random() - random.random()) * (1 + self.race.elderly_age) - self.race.adult_age) + self.race.adult_age
         
-        super().__init__(name=name, description=description, value=0, tags=tags, materials=materials)
+        super().__init__(name=name, description=description, value=0, tags=tags, materials=materials, providing_parent=providing_parent, interactable=interactable)
         self.update_stats()
         
     
@@ -653,6 +675,7 @@ class Character(Entity):
         self.base_dodge_chance = self.DEX *.01 + self.LCK *.001
         
     def update(self) -> None:
+        super().update()
         for effect in self.effects:
             if not effect.automatic:
                 continue
@@ -705,7 +728,7 @@ class Character(Entity):
             leftover = self.current_xp + xp - self.xp_for_next_level
             self.current_xp = 0
             self.level += 1
-            print('Level Up')
+            self.engine.event_handler.message('Level Up!', fg=color.green)
             self.update_stats()
             self.needs_level_up = True
             self.add_xp(leftover)
@@ -770,6 +793,10 @@ class Character(Entity):
         item.holder = None
         if not silent: self.parent.gamemap.engine.message_log.add_message(f'{item.name.capitalize()} dropped.')
         self.update_stats()
+        
+        if not hasattr(item, 'parent') or item.parent is None:
+            from spritegen import entity_to_sprite
+            item.parent = entity_to_sprite(item)
         
         item.parent.x = self.parent.x
         item.parent.y = self.parent.y
@@ -1009,6 +1036,7 @@ class Corpse(Item):
         effect: CorpseEffect | None = None,
         rarity: int = 10,
         material: List[MaterialTypes] = [MaterialTypes.BIOLOGICAL],
+        interactable: bool = False,
     ) -> None:
         if effect is None:
             from corpse_data import EFFECTS
@@ -1029,7 +1057,8 @@ class Corpse(Item):
             equippable = {},
             rarity=rarity,
             edible=True,
-            materials=material
+            materials=material,
+            interactable=interactable
         )
         self.effect = effect
         self.effect.parent = self
@@ -1050,3 +1079,42 @@ class Corpse(Item):
                     return False
                 
             return True
+        
+class Door(Entity):
+    def __init__(self, opened: bool = False, tags: set[str] = set(), materials: List[MaterialTypes] = [MaterialTypes.NON_BIOLOGICAL]) -> None:
+        super().__init__(
+            name='Door',
+            value=0,
+            description=None,
+            tags=tags,
+            materials=materials,
+            providing_parent=True,
+            interactable=True
+        )
+        self.opened = opened
+        
+        if hasattr(self, 'parent'):
+            if self.opened:
+                self.close()
+            else:
+                self.open()
+    
+    def open(self):
+        self.parent.char = '/'
+        self.parent.blocks_movement = False
+        self.parent.blocks_fov = False
+        self.opened = True
+        
+    def close(self):
+        self.parent.char = '+'
+        self.parent.blocks_movement = True
+        self.parent.blocks_fov = True
+        self.opened = False
+        
+    def interact(self, character: Character | None = None) -> None:
+        if self.opened:
+            self.close()
+        else:
+            self.open()
+            
+    

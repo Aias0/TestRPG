@@ -231,7 +231,7 @@ class ScrollEffect(ItemEffect):
         
     def get_action(self) -> actions.Action | None:
         self.parent.engine.message_log.add_message(
-            "Select a target location.", color.needs_target
+            "Select a target location.", color.prompt_player
         )
         self.parent.engine.event_handler = RangedAttackHandler(
             self.parent.engine,

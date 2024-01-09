@@ -32,10 +32,12 @@
 
 -[TODO:]Make multiple stacked items on map appear as a stack char
 
--[TODO:]DEV quick start Character.
+-[DONE]DEV quick start Character.
 
--[TODO:]Add adult age, elderly age to race. Change auto age assigner to not assign a generated character an age near race elderly age.
+-[DONE]Add adult age, elderly age to race. Change auto age assigner to not assign a generated character an age near race elderly age.
 
 -[TODO:]Make age effect stats. Lower STR, raise WIS, etc.
 
 -[TODO:]Add Race and Job abilities / traits
+
+-[TODO:]Transition Tiles from struct to class.

@@ -148,8 +148,6 @@ def entity_to_sprite(entities: Entity | List[Entity]) -> Sprite | List[Sprite]:
                 color=entity.color,
                 render_order=RenderOrder.ITEM
             ))
-        else:
-            sprites.append(Sprite())
     
     if len(sprites) == 1:
         return sprites[0]

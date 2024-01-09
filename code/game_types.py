@@ -32,9 +32,28 @@ class ItemTypes(Enum):
     AMULET = auto()
     
     @staticmethod
+    def melee_weapons() -> set:
+        return {ItemTypes.SWORD, ItemTypes.DAGGER}
+    def is_melee_weapons(item: Item) -> bool:
+        return item.itemtype in ItemTypes.melee_weapons()
+    @staticmethod
+    def ranged_weapons() -> set:
+        return set()
+    def is_ranged_weapons(item: Item) -> bool:
+        return item.itemtype in ItemTypes.ranged_weapons()
+    @staticmethod
+    def magic_weapons() -> set:
+        return {ItemTypes.STAFF, }
+    def is_magic_weapon(item: Item) -> bool:
+        return item.itemtype in ItemTypes.magic_weapons()
+    @staticmethod
     def weapons() -> set:
-        return {ItemTypes.SWORD, ItemTypes.STAFF, ItemTypes.DAGGER}
-    def is_weapon(item: Item) -> bool:
+        s = set()
+        s.update(ItemTypes.melee_weapons())
+        s.update(ItemTypes.ranged_weapons())
+        s.update(ItemTypes.magic_weapons())
+        return s
+    def is_weapon(item: Item):
         return item.itemtype in ItemTypes.weapons()
     
     @staticmethod

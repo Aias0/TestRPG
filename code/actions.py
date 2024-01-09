@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional, Tuple, List
+from sprite import Actor
 
 import color, exceptions
 
@@ -184,7 +185,6 @@ class MeleeAction(ActionWithDirection):
             attack_color = color.enemy_atk
         
         damage_taken = target.entity.take_damage(self.sprite.entity.phys_atk, attacker=self.sprite.entity)
-        print(damage_taken)
         if damage_taken is None:
             self.engine.message_log.add_message(
                 f'{attack_desc} but misses.', attack_color
@@ -197,6 +197,42 @@ class MeleeAction(ActionWithDirection):
             self.engine.message_log.add_message(
                 f'{attack_desc} but does no damage.', attack_color
             )
+            
+class InteractAction(Action):
+    def __init__(self, sprite: Actor, loc: Tuple[int, int] | None = None) -> None:
+        super().__init__(sprite)
+        self.loc = loc
+    
+    def perform(self) -> None:
+        interactable_sprites_around_player: dict[tuple[int, int], Sprite] = {}
+        
+        surrounding_points = [(0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)]
+        for sprite in self.engine.game_map.sprites - {self.engine.player}:
+            if not sprite.entity.interactable:
+                continue
+            
+            for point in surrounding_points:
+                if sprite.x == self.engine.player.x + point[0] and sprite.y == self.engine.player.y + point[1]:
+                    interactable_sprites_around_player[point] = sprite
+                    break
+        
+        if not interactable_sprites_around_player:
+            raise exceptions.Impossible('Nothing to interact with.')
+        
+        elif self.loc:
+            interactable_sprites_around_player[self.loc].entity.interact(self.engine.player.entity)
+            return
+        
+        elif len(interactable_sprites_around_player) == 1: # If only one interactable sprite in range interact with it.
+            list(interactable_sprites_around_player.values())[0].entity.interact(self.engine.player.entity)
+            return
+        
+        elif interactable_sprites_around_player: # If multiple interactable sprites prompt player for choice.
+            self.engine.message_log.add_message(
+                f'Pick Interact.', color.prompt_player
+            )
+            from input_handler import DirectionInputHandler
+            self.engine.event_handler = DirectionInputHandler(self.engine, lambda xy: InteractAction(self.sprite, xy))
         
 
 class MovementAction(ActionWithDirection):
@@ -217,7 +253,10 @@ class MovementAction(ActionWithDirection):
         
 class BumpAction(ActionWithDirection):
     def perform(self) -> None:
-        if self.target_actor:
+        from entity import Door
+        if self.blocking_sprite and isinstance(self.blocking_sprite.entity, Door):
+            self.blocking_sprite.entity.open()
+        elif self.target_actor:
             return MeleeAction(self.sprite, self.dx, self.dy).perform()
         else:
             return MovementAction(self.sprite, self.dx, self.dy).perform()

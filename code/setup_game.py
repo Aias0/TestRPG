@@ -52,7 +52,7 @@ def new_game(player: Actor | None = None) -> Engine:
     
     if not player:
         import sprite_data
-        player = copy.deepcopy(sprite_data.player)
+        player = copy.deepcopy(sprite_data.dev_player)
     for i in range(2):
         player.entity.add_inventory(copy.deepcopy(item_data.health_potion), silent=True)
     player.entity.spell_book.append(SPELLS[2])
@@ -154,6 +154,10 @@ class MainMenu(input_handler.EventHandler):
             case tcod.event.KeySym.n:
                 print('New Game')
                 self.change_handler(CharacterCreatorHandler(self.engine))
+                
+            case tcod.event.KeySym.d if SETTINGS['dev_mode']:
+                from sprite_data import dev_player
+                self.change_handler(input_handler.MainGameEventHandler(new_game(dev_player)))
  
  
                

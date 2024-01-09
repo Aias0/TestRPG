@@ -1,6 +1,11 @@
-from typing import Tuple
+from typing import Tuple, TYPE_CHECKING
 
 import numpy as np  # type: ignore
+
+import game_types
+
+if TYPE_CHECKING:
+    from tile_effect import TileEffect
 
 # Tile graphics structured type compatible with Console.tiles_rgb.
 graphic_dt = np.dtype(
@@ -62,3 +67,32 @@ up_stairs = new_tile(
     dark=(ord("<"), (100, 100, 100), tuple(np.subtract(floor_color, (100, 100, 100)))),
     light=(ord("<"), (255, 255, 255), floor_color),
 )
+
+""" class Tile:
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        walkable: bool, # True if this tile can be walked over.
+        transparent: bool, # True if this tile doesn't block FOV.
+        dark: np.dtype, # Graphics for when this tile is not in FOV.
+        light: np.dtype, # Graphics for when the tile is in FOV.
+        material: list[game_types.MaterialTypes] = [game_types.MaterialTypes.NON_BIOLOGICAL], # Material of Tile
+        travelability: int = 1, # Ease of travel
+        effect: TileEffect | None = None,
+    ) -> None:
+        self.x = x
+        self.y = y
+        
+        self.walkable = walkable
+        self.transparent = transparent
+        
+        self.dark = dark
+        self.light = light
+        
+        self.material = material
+        self.travelability = travelability
+        self.effect = effect
+        
+    def update(self, engine) -> None:
+        self.effect.active(engine) """

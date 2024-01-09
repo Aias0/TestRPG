@@ -29,7 +29,8 @@ class Sprite():
         color: Tuple[int, int, int] = (255, 255, 255),
         blocks_movement: bool = False,
         render_order: RenderOrder = RenderOrder.CORPSE,
-        pickupable:bool = True
+        pickupable:bool = True,
+        blocks_fov: bool = False,
         ) -> None:
 
         self.entity = entity
@@ -40,6 +41,7 @@ class Sprite():
         self.blocks_movement = blocks_movement
         self.render_order = render_order
         self.pickupable = pickupable
+        self.blocks_fov = blocks_fov
         
         self.entity.parent = self
         

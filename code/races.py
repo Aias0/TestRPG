@@ -22,6 +22,7 @@ class BaseRace():
         rarity: int = 10,
         average_lifespan: int = 90,
         adult_age: int = 18,
+        elderly_age: int = 65,
         ) -> None:
         
         self.name = name
@@ -46,6 +47,7 @@ class BaseRace():
             
         self.average_lifespan = average_lifespan
         self.adult_age = adult_age
+        self.elderly_age = elderly_age
 
 class Human(BaseRace):
     def __init__(self) -> None:
@@ -57,6 +59,7 @@ class Human(BaseRace):
             rarity=15,
             average_lifespan = 90,
             adult_age=18,
+            elderly_age=65
             )
 
 class Elf(BaseRace):
@@ -71,6 +74,7 @@ class Elf(BaseRace):
             rarity=5,
             average_lifespan = 750,
             adult_age=100,
+            elderly_age=650,
             )
 
 class Dwarf(BaseRace):
@@ -83,6 +87,7 @@ class Dwarf(BaseRace):
             dark_vision=75,
             average_lifespan = 350,
             adult_age=20,
+            elderly_age=270,
             )
 
 RACES: List[BaseRace] = [Human(), Elf(), Dwarf()]

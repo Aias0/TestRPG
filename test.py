@@ -1,3 +1,10 @@
-test = None
+import numpy as np
 
-print(str(test))
+t1 = np.zeros((4, 4), dtype=bool, order='F')
+t2 = t1
+
+t2[1, 1] = True
+
+print(t1)
+print()
+print(t2)

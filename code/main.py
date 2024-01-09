@@ -54,7 +54,7 @@ def main() -> None:
                 context.present(root_console)
 
                 try:
-                    if hasattr(handler, 'engine') and handler.engine.wait:
+                    if False: # hasattr(handler, 'engine') and handler.engine.wait
                         for event in tcod.event.wait():
                             context.convert_event(event)
                             handler.handle_events(event)

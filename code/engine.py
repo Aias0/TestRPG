@@ -71,8 +71,15 @@ class Engine:
             
     def update_fov(self) -> None:
         """ Recompute the visible area based on the players point of view. """
+        
+        visible = np.copy(self.game_map.tiles['transparent'])
+
+        for sprite in self.game_map.sprites:
+            if sprite.blocks_fov:
+                visible[sprite.x, sprite.y] = False
+
         self.game_map.visible[:] = compute_fov(
-            self.game_map.tiles['transparent'],
+            visible,
             (self.player.x, self.player.y),
             radius=8,
         )

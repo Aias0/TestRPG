@@ -32,6 +32,8 @@ from game_types import ItemTypes
 
 from message_log import MessageLog
 
+import numpy as np
+
 from config import SETTINGS, refresh_settings
 
 if TYPE_CHECKING:
@@ -98,7 +100,7 @@ class BaseEventHandler(tcod.event.EventDispatch[Action]):
     def ev_quit(self, event: tcod.event.Quit) -> Optional[Action]:
         raise SystemExit()
     
-    def change_handler(self, new_handler):
+    def change_handler(self, new_handler: BaseEventHandler):
         self.engine.event_handler = new_handler
 
 class EventHandler(BaseEventHandler):
@@ -113,6 +115,8 @@ class EventHandler(BaseEventHandler):
         """ Handle actions return from event methods.
         
         Returns True if the action will advance a turn. """
+        if hasattr(self.engine, 'update_fov'):
+            self.engine.update_fov()
         
         if action is None:
             return False
@@ -125,9 +129,9 @@ class EventHandler(BaseEventHandler):
         
         self.engine.handle_npc_turns()
         
-        self.engine.update_fov()
+        for sprite in self.engine.game_map.sprites:
+            sprite.entity.update()
         
-        self.engine.player.entity.update()
         
         self.engine.turn_count += 1
         return True
@@ -1258,7 +1262,16 @@ class FavoriteHandler(MenuListEventHandler):
                 elif isinstance(thing, Spell):
                     self.engine.event_handler = self.parent
                     return thing.get_action(self.engine)
-        
+
+class DirectionInputHandler(EventHandler):
+    def __init__(self, engine: Engine, callback: Callable[[Tuple[int, int], Optional[Action]]]):
+        super().__init__(engine)
+        self.callback = callback
+    def ev_keydown(self, event: tcod.event.KeyDown) -> None:
+        match event.sym:
+            case tcod.event.KeySym(sym) if sym in MOVE_KEY and not event.mod:
+                self.change_handler(MainGameEventHandler(self.engine))
+                return self.callback(MOVE_KEY[sym])
 
 class SelectTileHandler(EventHandler):
     """Handles asking the user for an tile on the map."""
@@ -1448,7 +1461,8 @@ class RangedAttackHandler(SelectTileHandler):
     
     def on_tile_selected(self, x: int, y: int) -> Action | None:
         return self.callback((x, y))
-    
+
+
 class ExplosionHandler(EventHandler):
     def __init__(self, engine: Engine, parent, x: int, y: int, radius: int, delay: float, char: str = '*', fg: Tuple[int, int, int] = [255, 255, 255]) -> None:
         super().__init__(engine)
@@ -1518,39 +1532,43 @@ class MainGameEventHandler(EventHandler):
                     return thing.get_action()
                 elif isinstance(thing, Spell):
                     return thing.get_action(self.engine)
+            
+            case tcod.event.KeySym.f if not event.mod: # General Interact
+                action = actions.InteractAction(player)
                 
             case tcod.event.KeySym.PERIOD if (event.mod & (tcod.event.KMOD_LSHIFT | tcod.event.KMOD_RSHIFT)):
                 action = actions.TakeStairsAction(player)
             
-            case tcod.event.KeySym.v if not event.mod:
-                self.engine.event_handler = HistoryViewer(self.engine)
+            case tcod.event.KeySym.v if not event.mod: # Message History
+                self.change_handler(HistoryViewer(self.engine))
         
-            case tcod.event.KeySym.p if not event.mod:
+            case tcod.event.KeySym.p if not event.mod: # Pick Up
                 action = PickupAction(player)
             
-            case tcod.event.KeySym.m if not event.mod:
-                self.engine.event_handler = MenuCollectionEventHandler(self.engine)
+            case tcod.event.KeySym.m if not event.mod: # Stats Menu
+                self.change_handler(MenuCollectionEventHandler(self.engine))
 
-            case tcod.event.KeySym.i if not event.mod:
-                self.engine.event_handler = MenuCollectionEventHandler(self.engine, 2)
+            case tcod.event.KeySym.i if not event.mod: # Inventory Menu
+                self.change_handler(MenuCollectionEventHandler(self.engine, 2))
                 
-            case tcod.event.KeySym.f if not event.mod:
-                self.engine.event_handler = FavoriteHandler(self.engine, self)
+            case tcod.event.KeySym.TAB if not event.mod: # Equipment Menu
+                self.change_handler(MenuCollectionEventHandler(self.engine, 1))
                 
-            case tcod.event.KeySym.TAB if not event.mod:
-                self.engine.event_handler = MenuCollectionEventHandler(self.engine, 1)
+            case tcod.event.KeySym(sym) if event.scancode == tcod.event.Scancode.GRAVE and not event.mod: # Favorites Menu
+                self.change_handler(FavoriteHandler(self.engine, self))
             
             case tcod.event.KeySym.BACKSLASH if SETTINGS['dev_mode'] and not event.mod:
-                self.engine.event_handler = DevConsole(self.engine)
+                self.change_handler(DevConsole(self.engine))
                 
             case tcod.event.KeySym.o if SETTINGS['dev_mode'] and not event.mod:
-                self.engine.event_handler = YNPopUp(self.engine)
+                from sprite_data import door
+                door.spawn(self.engine.game_map, *self.engine.mouse_location)
                 
             case tcod.event.KeySym.l if not event.mod:
                 if SETTINGS['dev_mode']:
-                    self.engine.event_handler = InspectHandler(self.engine)
+                    self.change_handler(InspectHandler(self.engine))
                 else:
-                    self.engine.event_handler = LookHandler(self.engine)
+                    self.change_handler(LookHandler(self.engine))
             
             case tcod.event.KeySym(sym) if sym in CURSOR_Y_KEYS and not event.mod:
                 if self.engine.hover_depth + CURSOR_Y_KEYS[key] in range(self.engine.hover_range):
