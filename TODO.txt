@@ -24,7 +24,7 @@
 
 -[TODO:]Work on ageing. Need better death chance calculator. Current version on school Desmos.
 
--[TODO:]Add doors. Open/Closed/Locked
+-[DONE]Add doors. Open/Closed/[TODO:]Locked
 
 -[TODO:]Add lighting. Light levels, player FOV limited if light level is not high enough.
 
@@ -41,3 +41,11 @@
 -[TODO:]Add Race and Job abilities / traits
 
 -[TODO:]Transition Tiles from struct to class.
+
+-[IMPORTANT][FIXED]Game freezing when enemy is killed. Freezing increases the more enemies killed. Prob. must be in death code; corpse gen or inv drop?
+
+-[FIXME:]Cannot favorite spells in spellbook.
+
+-[TODO:]Better save preview. Don't load entire engine, just relevant data.
+
+-[FIXME:] Down Staircase in top left corner.

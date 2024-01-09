@@ -136,7 +136,7 @@ class AOESpell(Spell):
                     self.damage_mult = 1.25
             else:
                 for item in caster.equipment.values():
-                    if any(map(lambda x: isinstance(x, MagicFocusTypes), item.itemsubtypes)):
+                    if item.itemsubtypes and any(map(lambda x: isinstance(x, MagicFocusTypes), item.itemsubtypes)):
                         if equip_in_dom_hand_itemtypes and MagicFocusTypes.EFFICIENCY in equip_in_dom_hand_itemtypes:
                             cost = int(self.cost*.75)
                         if equip_in_dom_hand_itemtypes and MagicFocusTypes.POWER in equip_in_dom_hand_itemtypes:

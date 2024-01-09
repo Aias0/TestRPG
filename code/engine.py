@@ -98,7 +98,7 @@ class Engine:
         console.print(x=1, y=43, string=f'┤{"".join([" "]*len(self.player.entity.name))}├', fg=color.ui_color)
         console.print(x=2, y=43, string=f'{self.player.entity.name}', fg=color.ui_text_color)
         
-        level_border = f'┤{"".join([" "]*(self.player.entity.level+3))}├'
+        level_border = f'┤{"".join([" "]*(len(str(self.player.entity.level))+3))}├'
         console.print(x=19-len(level_border), y=43, string=level_border, fg=color.ui_color)
         console.print(x=20-len(level_border), y=43, string=f'Lv:{self.player.entity.level}', fg=color.ui_text_color)
         

@@ -8,6 +8,8 @@ import tile_types
 
 import tcod
 
+import numpy as np
+
 from spritegen import gen_enemies, gen_items
 
 if TYPE_CHECKING:
@@ -53,6 +55,35 @@ class RectangularRoom(Room):
     def inner(self) -> Tuple[slice, slice]:
         """Return the inner area of this room as a 2D array index."""
         return slice(self.x1 + 1, self.x2), slice(self.y1 + 1, self.y2)
+    
+    @property
+    def outer(self) -> List[Tuple[int, int]]:
+        points: List[Tuple[int, int]] = []
+        for i in range(self.x1, self.x2):
+            points.append((i, self.y1))
+            points.append((i, self.y2))
+        for i in range(self.y1, self.y2):
+            points.append((self.x1, i))
+            points.append((self.x2, i))
+            
+        return points
+    
+    def place_doors(self, dungeon:GameMap, chance: float = .5) -> None:
+        for point in self.outer:
+            if dungeon.tiles[point] != tile_types.floor:
+                continue
+            
+            from sprite_data import door
+            if dungeon.tiles[tuple(np.add(point, (0, 1)))] == tile_types.wall and dungeon.tiles[tuple(np.add(point, (0, -1)))] == tile_types.wall:
+                if random.random() > chance:
+                    door.spawn(dungeon, *point)
+            elif dungeon.tiles[tuple(np.add(point, (1, 0)))] == tile_types.wall and dungeon.tiles[tuple(np.add(point, (-1, 0)))] == tile_types.wall:
+                if random.random() > chance:
+                    door.spawn(dungeon, *point)
+            
+            
+                
+        
     
     def intersects(self, other: RectangularRoom) -> bool:
         """Return True if this room overlaps with another RectangularRoom."""
@@ -158,6 +189,8 @@ def generate_dungeon_floor(
                 dungeon.tiles[x, y] = tile_types.floor
                 
             center_of_last_room = new_room.center
+            
+        
 
         sprites: List[Sprite] = gen_items(item_num=items_per_room_range)
         if not new_room.safe:
@@ -173,5 +206,8 @@ def generate_dungeon_floor(
         
         # Finally, append the new room to the list.
         rooms.append(new_room)
+        
+    for room in rooms:
+        room.place_doors(dungeon)
     
     return dungeon

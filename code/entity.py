@@ -728,7 +728,7 @@ class Character(Entity):
             leftover = self.current_xp + xp - self.xp_for_next_level
             self.current_xp = 0
             self.level += 1
-            self.engine.event_handler.message('Level Up!', fg=color.green)
+            self.engine.event_handler.message(text='Level Up!', fg=color.green)
             self.update_stats()
             self.needs_level_up = True
             self.add_xp(leftover)
@@ -900,10 +900,14 @@ class Character(Entity):
     
         
     def die(self, killer: Character | None = None) -> None:
-        self.dead_sprite = copy.deepcopy(self.parent)
-        
+        print('die')
+        self.dead_sprite_info = {'char': self.parent.char, 'color': self.parent.color}
+
         if killer:
+            print('add xp')
             killer.add_xp(self.xp_given)
+        
+        print('corpse')
         
         if self.engine.player is self.parent:
             death_message = 'You died!'
@@ -945,8 +949,8 @@ class Character(Entity):
     def resurrect(self, health_percent: float = .5):
         from ai import HostileEnemy
         if self.engine.player is self.parent:
-            self.parent.char=self.dead_sprite.char
-            self.parent.color=self.dead_sprite.color
+            self.parent.char=self.dead_sprite_info['char']
+            self.parent.color=self.dead_sprite_info['color']
             self.parent.ai = HostileEnemy
             
             health_percent *= self.max_hp

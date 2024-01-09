@@ -851,6 +851,7 @@ class SpellbookMenuHandler(SubMenuEventHandler):
                     self.engine.message_log.add_message(exc.args[0], color.impossible)
                     
             case tcod.event.KeySym(sym) if sym in range(tcod.event.KeySym.N0, tcod.event.KeySym.N9+1) and tcod.event.get_keyboard_state()[tcod.event.KeySym.f.scancode] and self.selected_spell != 1:
+                print('hi')
                 global FAVORITES
                 spell = self.engine.player.entity.spell_book[self.selected_spell]
                 if spell in FAVORITES.values():
@@ -1042,7 +1043,10 @@ class PauseMenuEventHandler(MenuListEventHandler):
                 self.engine.event_handler = MainGameEventHandler(self.engine)
                 
             case tcod.event.KeySym.q:
-                raise SystemExit()
+                if not SETTINGS['dev_mode']:
+                    raise SystemExit()
+                else:
+                    raise exceptions.QuitWithoutSaving()
             
             case tcod.event.KeySym.s | tcod.event.KeySym.DOWN:
                 self.selected_index = min(self.selected_index+1, len(self.menu_items)-1)
@@ -1263,6 +1267,7 @@ class FavoriteHandler(MenuListEventHandler):
                     self.engine.event_handler = self.parent
                     return thing.get_action(self.engine)
 
+
 class DirectionInputHandler(EventHandler):
     def __init__(self, engine: Engine, callback: Callable[[Tuple[int, int], Optional[Action]]]):
         super().__init__(engine)
@@ -1272,6 +1277,7 @@ class DirectionInputHandler(EventHandler):
             case tcod.event.KeySym(sym) if sym in MOVE_KEY and not event.mod:
                 self.change_handler(MainGameEventHandler(self.engine))
                 return self.callback(MOVE_KEY[sym])
+
 
 class SelectTileHandler(EventHandler):
     """Handles asking the user for an tile on the map."""
