@@ -15,6 +15,7 @@ from spritegen import gen_enemies, gen_items
 if TYPE_CHECKING:
     from engine import Engine
     from sprite import Actor, Sprite
+    from entity import Door
 
 class Room:
     @property
@@ -68,19 +69,26 @@ class RectangularRoom(Room):
             
         return points
     
-    def place_doors(self, dungeon:GameMap, chance: float = .5) -> None:
+    def place_doors(self, dungeon:GameMap, chance: float = .5, open_chance: float = .25) -> None:
+        surrounding_points = [(0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)]
+        from sprite_data import door
         for point in self.outer:
             if dungeon.tiles[point] != tile_types.floor:
                 continue
             
-            from sprite_data import door
-            if dungeon.tiles[tuple(np.add(point, (0, 1)))] == tile_types.wall and dungeon.tiles[tuple(np.add(point, (0, -1)))] == tile_types.wall:
-                if random.random() > chance:
-                    door.spawn(dungeon, *point)
-            elif dungeon.tiles[tuple(np.add(point, (1, 0)))] == tile_types.wall and dungeon.tiles[tuple(np.add(point, (-1, 0)))] == tile_types.wall:
-                if random.random() > chance:
-                    door.spawn(dungeon, *point)
-            
+            door_around = False
+            for s_point in surrounding_points:
+                if isinstance(dungeon.get_sprite_at_location(point[0]+s_point[0], point[1]+s_point[1]), door.__class__):
+                    door_around = True
+            if door_around:
+                continue
+            if (dungeon.tiles[tuple(np.add(point, (0, 1)))] == tile_types.wall and dungeon.tiles[tuple(np.add(point, (0, -1)))] == tile_types.wall) or (dungeon.tiles[tuple(np.add(point, (1, 0)))] == tile_types.wall and dungeon.tiles[tuple(np.add(point, (-1, 0)))] == tile_types.wall):
+                if random.random() < chance:
+                    new_door: Door = door.spawn(dungeon, *point).entity
+                    if random.random() > open_chance:
+                        new_door.close()
+                    else:
+                        new_door.open()
             
                 
         
@@ -197,15 +205,15 @@ def generate_dungeon_floor(
             sprites.extend(gen_enemies(enemy_num=enemies_per_room_range))
         place_sprites(new_room, dungeon, sprites)
         
-        dungeon.tiles[center_of_last_room] = tile_types.down_stairs
-        dungeon.down_stairs_location = center_of_last_room
-        
-        if dungeon.floor_level > 1:
-            dungeon.tiles[center_of_first_room] = tile_types.up_stairs
-            dungeon.up_stairs_location = center_of_first_room
-        
         # Finally, append the new room to the list.
         rooms.append(new_room)
+        
+    dungeon.tiles[center_of_last_room] = tile_types.down_stairs
+    dungeon.down_stairs_location = center_of_last_room
+    
+    if dungeon.floor_level > 1:
+        dungeon.tiles[center_of_first_room] = tile_types.up_stairs
+        dungeon.up_stairs_location = center_of_first_room
         
     for room in rooms:
         room.place_doors(dungeon)

@@ -16,7 +16,7 @@
 
 -[DONE]Add load game handler to Main Menu and Pause Menu
 
--[FIXME:]Favorites bar end gets clipped of because item multiples.
+-[FIXED]Favorites bar end gets clipped of because item multiples.
 
 -[TODO:]Add skills
  
@@ -40,12 +40,20 @@
 
 -[TODO:]Add Race and Job abilities / traits
 
--[TODO:]Transition Tiles from struct to class.
+-[TODO:]Transition map Tiles from struct to class.
 
 -[IMPORTANT][FIXED]Game freezing when enemy is killed. Freezing increases the more enemies killed. Prob. must be in death code; corpse gen or inv drop?
 
--[FIXME:]Cannot favorite spells in spellbook.
+-[FIXED]Cannot favorite spells in spellbook.
 
 -[TODO:]Better save preview. Don't load entire engine, just relevant data.
 
--[FIXME:] Down Staircase in top left corner.
+-[FIXED]Down Staircase in top left corner.
+
+-[FIXED]Enemies can see through doors.
+
+-[TODO:]Favorites should remember items that run out and if slot isn't reassigned auto slot those items back
+
+-[FIXED]Engine message function color not working. (Wasn't actually a bug, I just defined green as white in color)
+
+-[FIXME:]Enemy equipment gets added to player inv?

@@ -219,7 +219,7 @@ class InteractAction(Action):
         if not interactable_sprites_around_player:
             raise exceptions.Impossible('Nothing to interact with.')
         
-        elif self.loc:
+        elif self.loc and self.engine.game_map.get_sprite_at_location(self.sprite.x+self.loc[0], self.sprite.y+self.loc[1]):
             interactable_sprites_around_player[self.loc].entity.interact(self.engine.player.entity)
             return
         
@@ -250,6 +250,7 @@ class MovementAction(ActionWithDirection):
             raise exceptions.Impossible('That way is blocked')
         
         self.sprite.move(self.dx, self.dy)
+        self.engine.mouse_location = dest_x, dest_y
         
 class BumpAction(ActionWithDirection):
     def perform(self) -> None:

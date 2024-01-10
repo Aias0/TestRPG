@@ -19,7 +19,7 @@ def get_names_at_location(x: int, y: int, game_map: GameMap) -> list[str]:
     elif not game_map.in_bounds(x, y) or not game_map.visible[x, y]:
         return []
     
-    names = [sprite.entity.name.capitalize() for sprite in game_map.sprites if sprite.x == x and sprite.y == y]
+    names = [sprite.entity.name.capitalize() for sprite in game_map.sprites - {game_map.engine.player} if sprite.x == x and sprite.y == y]
     
     return names
 
@@ -71,7 +71,7 @@ def render_resource_bar(
 def draw_circle(console: Console, char: str, x: int, y: int, radius: int, fg: Tuple[int, int, int] | None = None) -> List[Tuple[int, int]]:
     points: List[Tuple[int, int]]= []
     if not fg:
-        fg = color.ui_color
+        fg = fg
     
     if radius == 1:
         points = [(x-1, y), (x, y-1), (x, y+1), (x+1, y)]
@@ -103,19 +103,32 @@ def draw_line(
 def line(start_coord: tuple[int, int], end_coord: tuple[int, int]) -> None:
     return list(bresenham.bresenham(*start_coord, *end_coord))
 
-def draw_reticle(console: Console, x: int, y: int, fg: Tuple[int, int, int] | None = None) -> None:
-    if fg is None:
-        fg = color.ui_color
-    
+def draw_reticle(console: Console, x: int, y: int, fg: Tuple[int, int, int] = color.ui_color) -> None:
     console.print(x=x, y=y-1, string='│', fg=fg)
     console.print(x=x-1, y=y+1, string='/', fg=fg)
     console.print(x=x+1, y=y+1, string='\\', fg=fg)
     
     
-def draw_border_detail(console: Console, chars: str = '╔╗╚╝') -> None:
+def draw_border_detail(console: Console, chars: str = '╔╗╚╝', fg: tuple[int, int, int] = color.ui_color) -> None:
     chars = list(chars)
-    console.print(x=0, y=0, string=chars[0], fg=color.ui_color)
-    console.print(x=0, y=console.height-1, string=chars[2], fg=color.ui_color)
-    console.print(x=console.width-1, y=0, string=chars[1], fg=color.ui_color)
-    console.print(x=console.width-1, y=console.height-1, string=chars[3], fg=color.ui_color)
+    console.print(x=0, y=0, string=chars[0], fg=fg)
+    console.print(x=0, y=console.height-1, string=chars[2], fg=fg)
+    console.print(x=console.width-1, y=0, string=chars[1], fg=fg)
+    console.print(x=console.width-1, y=console.height-1, string=chars[3], fg=fg)
     
+def draw_inner_border_detail(console: Console, chars: str = '╥╚╡╥╝╞╨╗╞╨╔╡', fg: tuple[int, int, int] = color.ui_color) -> None:
+    console.print(x=console.width-2, y=0, string=chars[0], fg=fg)
+    console.print(x=console.width-2, y=1, string=chars[1], fg=fg)
+    console.print(x=console.width-1, y=1, string=chars[2], fg=fg)
+    
+    console.print(x=1, y=0, string=chars[3], fg=fg)
+    console.print(x=1, y=1, string=chars[4], fg=fg)
+    console.print(x=0, y=1, string=chars[5], fg=fg)
+    
+    console.print(x=1, y=console.height-1, string=chars[6], fg=fg)
+    console.print(x=1, y=console.height-2, string=chars[7], fg=fg)
+    console.print(x=0, y=console.height-2, string=chars[8], fg=fg)
+    
+    console.print(x=console.width-2, y=console.height-1, string=chars[9], fg=fg)
+    console.print(x=console.width-2, y=console.height-2, string=chars[10], fg=fg)
+    console.print(x=console.width-1, y=console.height-2, string=chars[11], fg=fg)

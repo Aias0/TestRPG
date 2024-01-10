@@ -33,7 +33,12 @@ class Spell():
             cost = int(self.cost*.75)
         else:
             equip_in_dom_hand_itemtypes = None
-            if caster.equipment[f'{caster.dominant_hand.capitalize()} Hand']:
+            if caster.dominant_hand == 'ambidextrous':
+                if caster.equipment['Right Hand']:
+                    equip_in_dom_hand_itemtypes = caster.equipment['Right Hand'].itemsubtypes
+                if caster.equipment['Left Hand'] and equip_in_dom_hand_itemtypes is None and not any(map(lambda x: isinstance(x, MagicFocusTypes), equip_in_dom_hand_itemtypes)):
+                    equip_in_dom_hand_itemtypes = caster.equipment['Left Hand'].itemsubtypes
+            elif caster.equipment[f'{caster.dominant_hand.capitalize()} Hand']:
                 equip_in_dom_hand_itemtypes = caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes
             if self.req_focus_type and not [item for item in caster.equipment.values() if self.req_focus_type in item.itemsubtypes]:
                 raise Impossible(f'{self.name} not cast. {caster.name} does not have correct focus[{GameTypeNames.magicfocustypes_to_name[self.req_focus_type]}].')
@@ -124,7 +129,14 @@ class AOESpell(Spell):
         if scroll_cast:
             cost = int(self.cost*.75)
         else:
-            equip_in_dom_hand_itemtypes = caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes
+            equip_in_dom_hand_itemtypes = None
+            if caster.dominant_hand == 'ambidextrous':
+                if caster.equipment['Right Hand']:
+                    equip_in_dom_hand_itemtypes = caster.equipment['Right Hand'].itemsubtypes
+                if caster.equipment['Left Hand'] and equip_in_dom_hand_itemtypes is None and not any(map(lambda x: isinstance(x, MagicFocusTypes), equip_in_dom_hand_itemtypes)):
+                    equip_in_dom_hand_itemtypes = caster.equipment['Left Hand'].itemsubtypes
+            elif caster.equipment[f'{caster.dominant_hand.capitalize()} Hand']:
+                equip_in_dom_hand_itemtypes = caster.equipment[f'{caster.dominant_hand.capitalize()} Hand'].itemsubtypes
             if self.req_focus_type and not [item for item in caster.equipment.values() if self.req_focus_type in item.itemsubtypes]:
                 raise Impossible(f'{self.name} not cast. {caster.name} does not have correct focus[{GameTypeNames.magicfocustypes_to_name[self.req_focus_type]}].')
             elif any(map(lambda x: isinstance(x, MagicFocusTypes), equip_in_dom_hand_itemtypes)):

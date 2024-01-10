@@ -55,12 +55,18 @@ class HostileEnemy(BaseAI):
         self.lose_aggro_turns = self.sprite.entity.INT // 2
         self.aggro_turn = 0
         
-    
+
     def perform(self) -> Action:
         target = self.engine.player
         
+        visible = np.copy(self.sprite.gamemap.tiles['transparent'])
+
+        for sprite in self.sprite.gamemap.sprites:
+            if sprite.blocks_fov:
+                visible[sprite.x, sprite.y] = False
+        
         vis_tiles = compute_fov(
-            self.sprite.gamemap.tiles['transparent'],
+            visible,
             (self.sprite.x, self.sprite.y),
             radius=8,
         )

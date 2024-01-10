@@ -207,6 +207,7 @@ class CharacterCreatorHandler(input_handler.EventHandler):
         
         info_console.draw_frame(0, 0, width=info_console.width, height=info_console.height, fg=color.ui_color)
         render_functions.draw_border_detail(info_console)
+        render_functions.draw_inner_border_detail(info_console)
         
         #info_console.print(x=info_console.width//2, y=2, string=self.sub_menus[5].answers[0], fg=self.sub_menus[5].answers[1])
         tileset = tcod.tileset.load_tilesheet(
@@ -341,6 +342,7 @@ class SubCharacterCreatorHandler(input_handler.EventHandler):
         start_game_console = tcod.console.Console(len('Start Game')+4, 5)
         start_game_console.draw_frame(0, 0, start_game_console.width, start_game_console.height)
         render_functions.draw_border_detail(start_game_console)
+        render_functions.draw_inner_border_detail(start_game_console)
         
         start_game_console.print(x=2, y=2, string='Start Game', fg=text_color)
         
@@ -349,6 +351,9 @@ class SubCharacterCreatorHandler(input_handler.EventHandler):
 
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
         match event.sym:
+            case tcod.event.KeySym.ESCAPE:
+                self.change_handler(MainMenu(self.engine))
+            
             case tcod.event.KeySym(sym) if sym in range(49, 49+len(self.parent.sub_menus)):
                 i = sym - 49
                 self.parent.selected_menu = i

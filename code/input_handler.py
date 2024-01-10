@@ -142,7 +142,7 @@ class EventHandler(BaseEventHandler):
     def on_render(self, console: tcod.console.Console) -> None:
         self.engine.render(console)
         
-    def message(self, text: str, fg: tuple(int, int, int) = color.white):
+    def message(self, text: str, fg: tuple[int, int, int] = color.white):
         self.engine.message_log.add_message(text=text, fg=fg)
 
 
@@ -179,6 +179,7 @@ class LoadHandler(EventHandler):
         
         saved_games_list_console.draw_frame(0, 0, width=saved_games_list_console.width, height=saved_games_list_console.height, fg=color.ui_color)
         render_functions.draw_border_detail(saved_games_list_console)
+        render_functions.draw_inner_border_detail(saved_games_list_console)
 
         saved_games_list_console.print(x=saved_games_list_console.width//2-len('Select Saved Game')//2, y=2, string='Select Saved Game', fg=color.ui_text_color)
 
@@ -201,6 +202,7 @@ class LoadHandler(EventHandler):
         
         saved_game_info_console.draw_frame(0, 0, width=saved_game_info_console.width, height=saved_game_info_console.height, fg=color.ui_color)
         render_functions.draw_border_detail(saved_game_info_console)
+        render_functions.draw_inner_border_detail(saved_game_info_console)
         
         saved_game_info_console.print(x=0, y=10, string=f'╠{"".join(["─"]*(saved_game_info_console.width-2))}╣')
         
@@ -272,6 +274,7 @@ class YNPopUp(EventHandler):
         popup_console = tcod.console.Console(7, 6)
         popup_console.draw_frame(0, 0, popup_console.width, popup_console.height)
         render_functions.draw_border_detail(popup_console)
+        render_functions.draw_inner_border_detail(popup_console)
         
         yes_color = color.ui_text_color
         no_color = color.ui_text_color
@@ -353,7 +356,9 @@ class MenuCollectionEventHandler(EventHandler):
                 title_color = color.ui_text_color
             console.print_box(x=menu_x,y=0, width=len(title_border), height=1, string=title_border, fg=color.ui_color)
             console.print_box(x=menu_x+1,y=0, width=len(title), height=1, string=title, fg=title_color)
-            menu_x+=len(title_border)+1
+            menu_x+=len(title_border)
+            if len(self.menus) ==4 or not (self.engine.player.entity.max_sp > 9 and self.engine.player.entity.max_mp > 9 and self.engine.player.entity.max_hp > 9):
+                menu_x+=1
         
         console.print(x=console.width-2, y=0, string='├', fg=color.ui_color)
         
@@ -850,12 +855,11 @@ class SpellbookMenuHandler(SubMenuEventHandler):
                 except exceptions.Impossible as exc:
                     self.engine.message_log.add_message(exc.args[0], color.impossible)
                     
-            case tcod.event.KeySym(sym) if sym in range(tcod.event.KeySym.N0, tcod.event.KeySym.N9+1) and tcod.event.get_keyboard_state()[tcod.event.KeySym.f.scancode] and self.selected_spell != 1:
-                print('hi')
+            case tcod.event.KeySym(sym) if sym in range(tcod.event.KeySym.N0, tcod.event.KeySym.N9+1) and tcod.event.get_keyboard_state()[tcod.event.KeySym.f.scancode] and self.selected_spell != -1:
                 global FAVORITES
                 spell = self.engine.player.entity.spell_book[self.selected_spell]
                 if spell in FAVORITES.values():
-                    FAVORITES = [list(FAVORITES.keys())[list(FAVORITES.values()).index(spell)]] = None
+                    FAVORITES[list(FAVORITES.keys())[list(FAVORITES.values()).index(spell)]] = None
                 FAVORITES[sym] = spell
 
 
@@ -971,22 +975,7 @@ class MenuListEventHandler(EventHandler):
         
         menu_console.draw_frame(0, 0, menu_console.width, menu_console.height, fg=color.ui_color)
         render_functions.draw_border_detail(menu_console)
-        
-        menu_console.print(x=menu_console.width-2, y=0, string='╥', fg=color.ui_color)
-        menu_console.print(x=menu_console.width-2, y=1, string='╚', fg=color.ui_color)
-        menu_console.print(x=menu_console.width-1, y=1, string='╡', fg=color.ui_color)
-        
-        menu_console.print(x=1, y=0, string='╥', fg=color.ui_color)
-        menu_console.print(x=1, y=1, string='╝', fg=color.ui_color)
-        menu_console.print(x=0, y=1, string='╞', fg=color.ui_color)
-        
-        menu_console.print(x=1, y=menu_console.height-1, string='╨', fg=color.ui_color)
-        menu_console.print(x=1, y=menu_console.height-2, string='╗', fg=color.ui_color)
-        menu_console.print(x=0, y=menu_console.height-2, string='╞', fg=color.ui_color)
-        
-        menu_console.print(x=menu_console.width-2, y=menu_console.height-1, string='╨', fg=color.ui_color)
-        menu_console.print(x=menu_console.width-2, y=menu_console.height-2, string='╔', fg=color.ui_color)
-        menu_console.print(x=menu_console.width-1, y=menu_console.height-2, string='╡', fg=color.ui_color)
+        render_functions.draw_inner_border_detail(menu_console)
         
         item_y = 2
         for i, item in enumerate(self.menu_items):
@@ -1137,10 +1126,10 @@ class FavoriteHandler(MenuListEventHandler):
             sum(
                 [len(_.name) for _ in self.menu_items if hasattr(_, 'name')])
                 +sum([len(_[0].name) for _ in self.menu_items if isinstance(_, list) and all(isinstance(t, Item) for t in _)])
+                +sum([2 for _ in self.menu_items if isinstance(_, list) and all(isinstance(t, Item) for t in _) and len(_) > 1])
                 +len([_ for _ in self.menu_items if not isinstance(_, list) and not hasattr(_, 'name')])
                 +1
-                +len(self.menu_items
-            ),
+                +len(self.menu_items),
             4
         )
         menu_console.draw_frame(0, 0, menu_console.width, menu_console.height-1, fg=color.ui_color)
@@ -1429,11 +1418,11 @@ class RangedAttackHandler(SelectTileHandler):
         for point in self.points_on_map:
             console.print(*point, '*', fg=self.attack.color)
 
-        if self.prev_time is None:
+        if self.points and self.prev_time is None:
             self.prev_time = time.time()
             self.points_on_map.append(self.points.pop(0))
             console.print(*self.points_on_map[0], '*', fg=self.attack.color)
-        elif time.time() - self.prev_time >= self.delay:
+        elif self.points and time.time() - self.prev_time >= self.delay:
             self.points_on_map.append(self.points.pop(0))
             console.print(*self.points_on_map[-1], '*', fg=self.attack.color)
             self.prev_time = time.time()
@@ -1567,8 +1556,7 @@ class MainGameEventHandler(EventHandler):
                 self.change_handler(DevConsole(self.engine))
                 
             case tcod.event.KeySym.o if SETTINGS['dev_mode'] and not event.mod:
-                from sprite_data import door
-                door.spawn(self.engine.game_map, *self.engine.mouse_location)
+                self.change_handler(TextInputHandler(self.engine, parent=self))
                 
             case tcod.event.KeySym.l if not event.mod:
                 if SETTINGS['dev_mode']:
@@ -1687,6 +1675,8 @@ class TextInputHandler(EventHandler):
     def __init__(self, engine: Engine, x: int = 20, y: int = 41, width: int = None, parent: EventHandler = None, title: str = 'Input', default_text: str = ''):
         super().__init__(engine)
         self.text_inputted = str(default_text)
+        self.highlighted_text = 0
+        
         self.title = title
         self.input_index = -1
         self._cursor_blink = 40
@@ -1719,14 +1709,19 @@ class TextInputHandler(EventHandler):
         input_console = tcod.console.Console(self.width, 1)
         # Draw inputted text
         input_console.print(0, 0, self.text_inputted, fg=color.ui_text_color)
+        # Highlight Text
+        if self.highlighted_text != 0:
+            input_console.print(len(self.text_inputted)-len(self.text_inputted[self.highlighted_text:]), 0, self.text_inputted[self.highlighted_text:], fg=color.black, bg=color.ui_text_color)
+
         # Draw blinking cursor
-        if not len(self.text_inputted) >= self.width-2:
+        elif not len(self.text_inputted) >= self.width-2:
             if self.cursor_blink >= 40:
                 input_console.print(x=len(self.text_inputted), y=0, string='▌', fg=color.ui_text_color)
             self.cursor_blink += 1
         input_console.blit(console, self.x, self.y)
             
     def ev_textinput(self, event: tcod.event.TextInput) -> None:
+        self.highlighted_text = 0
         if not self.width:
             return # When first opening input box text can be inputted before render causing width to be None
         self.cursor_blink = 55
@@ -1745,15 +1740,21 @@ class TextInputHandler(EventHandler):
                 self.engine.event_handler = self.parent
             case tcod.event.KeySym.BACKSPACE:
                 self.cursor_blink = 55
-                self.text_inputted = self.text_inputted[:-1]
-                self.input_index = -1
+                if self.highlighted_text != 0 and self.text_inputted[self.highlighted_text:]:
+                    self.text_inputted = self.text_inputted[:self.highlighted_text]
+                    self.highlighted_text = 0
+                else:
+                    self.text_inputted = self.text_inputted[:-1]
+                    self.input_index = -1
                 
             case tcod.event.KeySym.UP:
+                self.highlighted_text = 0
                 if len(self.engine.input_log) > self.input_index+1:
                     self.input_index +=1
                     self.text_inputted = self.engine.input_log[self.input_index]
                         
             case tcod.event.KeySym.DOWN:
+                self.highlighted_text = 0
                 self.input_index -=1
                 if self.input_index > 0:
                     self.text_inputted = self.engine.input_log[self.input_index]
@@ -1763,9 +1764,21 @@ class TextInputHandler(EventHandler):
             case tcod.event.KeySym.ESCAPE:
                 self.engine.event_handler = self.parent
     
-            case tcod.event.KeySym.v:
-                if tcod.event.get_keyboard_state()[tcod.event.KeySym.LCTRL.scancode]:
-                    self.text_inputted += pyperclip.paste()
+            case tcod.event.KeySym.v if (event.mod & tcod.event.Modifier.CTRL):
+                self.text_inputted += pyperclip.paste()
+            case tcod.event.KeySym.c if (event.mod & tcod.event.Modifier.CTRL):
+                pyperclip.copy(self.text_inputted[self.highlighted_text:])
+                
+            case tcod.event.KeySym.LEFT if (event.mod & tcod.event.Modifier.SHIFT):
+                self.highlighted_text = max(self.highlighted_text-1, -len(self.text_inputted))
+            case tcod.event.KeySym.RIGHT if (event.mod & tcod.event.Modifier.SHIFT):
+                self.highlighted_text = min(self.highlighted_text+1, 0)
+            case tcod.event.KeySym.RIGHT if not event.mod:
+                self.highlighted_text = 0
+            case tcod.event.KeySym.a if (event.mod & tcod.event.Modifier.CTRL):
+                self.highlighted_text = -len(self.text_inputted)
+                
+            
                     
     def use_input(self) -> None:
         self.parent.return_text(self.text_inputted)
@@ -1795,8 +1808,12 @@ class BorderedTextInputHandler(TextInputHandler):
         
         # Draw inputted text
         input_console.print(1, 1, self.text_inputted, fg=color.ui_text_color)
+        # Highlight Text
+        if self.highlighted_text != 0:
+            input_console.print(len(self.text_inputted)-len(self.text_inputted[self.highlighted_text:])+1, 1, self.text_inputted[self.highlighted_text:], fg=color.black, bg=color.ui_text_color)
+
         # Draw blinking cursor
-        if not len(self.text_inputted) >= self.width-2:
+        elif not len(self.text_inputted) >= self.width-2:
             if self.cursor_blink >= 40:
                 input_console.print(x=1+len(self.text_inputted), y=1, string='▌', fg=color.ui_text_color)
             self.cursor_blink += 1

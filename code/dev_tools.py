@@ -155,6 +155,10 @@ def dev_command(command: str, engine: Engine) -> str:
             engine.no_clip = not engine.no_clip
             return f'No Clip: {onoff[engine.no_clip]}'
         
+        case['xp', cmd]:
+            engine.player.entity.add_xp(int(cmd))
+            return f'{cmd} xp added to player.'
+        
         case ['help']:
             return ', '.join([
                 'invincible',
@@ -178,6 +182,8 @@ def dev_command(command: str, engine: Engine) -> str:
             ])
         case _:
             return f'command not found: {command}'
+        
+    return ''
         
 def wallhacks(engine: Engine, state: Optional[bool] = None):
     if state is not None:

@@ -900,14 +900,10 @@ class Character(Entity):
     
         
     def die(self, killer: Character | None = None) -> None:
-        print('die')
         self.dead_sprite_info = {'char': self.parent.char, 'color': self.parent.color}
 
         if killer:
-            print('add xp')
             killer.add_xp(self.xp_given)
-        
-        print('corpse')
         
         if self.engine.player is self.parent:
             death_message = 'You died!'

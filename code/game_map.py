@@ -69,6 +69,13 @@ class GameMap:
         
         return None
     
+    def get_sprite_at_location(self, x: int, y: int) -> Optional[Sprite]:
+        for sprite in self.sprites:
+            if sprite.x == x and sprite.y == y:
+                return sprite
+        
+        return None
+    
     def get_actors_in_range(self, x: int, y: int, radius: int) -> List[Actor]:
         actors_in_range: List[Actor] = []
         for actor in self.actors:
