@@ -91,6 +91,9 @@ class MainMenu(input_handler.EventHandler):
     def __init__(self, engine: Engine) -> None:
         super().__init__(engine)
         self.engine.wait = False
+        self.selected_index = 0
+        if glob.glob("data\\user_data\\*.sav"):
+            self.selected_index = 1
 
     def on_render(self, console: tcod.console.Console) -> None:
         if background_image:
@@ -98,8 +101,8 @@ class MainMenu(input_handler.EventHandler):
         
         console.print(
             console.width // 2,
-            console.height // 2 - 4,
-            'TestRPG',
+            console.height // 4,
+            '[PLACEHOLDER]',
             fg=color.menu_title,
             alignment=libtcodpy.CENTER
         )
@@ -111,22 +114,45 @@ class MainMenu(input_handler.EventHandler):
             alignment=libtcodpy.CENTER
         )
         
-        menu_width = 24
-        for i, text in enumerate(
-            ['[N] New game', '[C] Continue last game', '[L] Load Game', '[S] Settings', '[Q] Quit']
-        ):
-            console.print(
-                console.width // 2,
-                console.height // 2 - 2 + i,
-                text.ljust(menu_width),
-                fg=color.menu_text,
-                bg=color.black,
-                alignment=libtcodpy.CENTER,
-                bg_blend=libtcodpy.BKGND_ALPHA(64),
+        self.options = ['[N] New game', '[C] Continue last game', '[L] Load Game', '[S] Settings', '[Q] Quit']
+        selection_console = tcod.console.Console(max(len(op) for op in self.options)+4, len(self.options)+4)
+        render_functions.draw_border(selection_console)
+        render_functions.draw_border_detail(selection_console)
+        render_functions.draw_inner_border_detail(selection_console)
+        
+        option_y = 2
+        for i, text in enumerate(self.options):
+            text_color = color.menu_text
+            if self.selected_index == i:
+                text_color = color.ui_cursor_text_color
+            selection_console.print(
+                selection_console.width//2,
+                option_y + i,
+                text,
+                fg=text_color,
+                alignment=libtcodpy.CENTER
             )
+            
+        selection_console.blit(console, dest_x=console.width//2-selection_console.width//2, dest_y=console.height//2-selection_console.height//2)
             
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[input_handler.EventHandler]:
         match event.sym:
+            
+            case tcod.event.KeySym.DOWN:
+                self.selected_index = min(self.selected_index+1, len(self.options)-1)
+            case tcod.event.KeySym.UP:
+                self.selected_index = max(self.selected_index-1, 0)
+            
+            case tcod.event.KeySym.RETURN:
+                keys = [
+                    tcod.event.KeyDown(0, tcod.event.KeySym.n, 0), #New Game
+                    tcod.event.KeyDown(0, tcod.event.KeySym.c, 0), #Continue Game
+                    tcod.event.KeyDown(0, tcod.event.KeySym.l, 0), #Load Game
+                    tcod.event.KeyDown(0, tcod.event.KeySym.s, 0), #Settings
+                    tcod.event.KeyDown(0, tcod.event.KeySym.q, 0), #Quit
+                ]
+                self.ev_keydown(keys[self.selected_index])
+            
             case tcod.event.KeySym.q | tcod.event.KeySym.ESCAPE:
                 raise SystemExit()
             

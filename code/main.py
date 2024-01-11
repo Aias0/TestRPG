@@ -9,6 +9,8 @@ import input_handler
 
 import os
 
+import imageio.v3 as iio
+
 tileset_file = SETTINGS['tileset_file']
 def refresh_tileset() -> None:
     global tileset_file
@@ -22,8 +24,8 @@ def save_game(handler: input_handler.EventHandler, filename: str) -> None:
         print('Game Saved')
         
 def main() -> None:
-    screen_width = SETTINGS['screen_width']
-    screen_height = SETTINGS['screen_height']
+    screen_width = 80
+    screen_height = 50
     
     tileset = tcod.tileset.load_tilesheet(
         tileset_file, 16, 16, tcod.tileset.CHARMAP_CP437
@@ -45,8 +47,12 @@ def main() -> None:
         vsync=True,
     ) as context:
         root_console = tcod.console.Console(screen_width, screen_height, order='F')
+        
+        context.sdl_window.fullscreen = SETTINGS['full_screen']
+        context.sdl_window.maximize()
         try:
             while True:
+                context.sdl_window.fullscreen = SETTINGS['full_screen']
                 handler = handler.engine.event_handler
                 
                 root_console.clear()

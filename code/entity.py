@@ -224,7 +224,7 @@ class Character(Entity):
         job: BaseJob,
         description: str = None,
         level: int = 1,
-        inventory: List[Item] = [],
+        inventory: List[Item] = None,
         base_CON: int = 10,
         base_STR: int = 10,
         base_END: int = 10,
@@ -236,11 +236,11 @@ class Character(Entity):
         base_LCK: int = 10,
         level_up_factor: int = 150,
         xp_given: int = 100,
-        titles: list = [],
+        titles: list = None,
         dominant_hand: str = None,
         tags: set[str] = set(),
-        materials: List[MaterialTypes] = [MaterialTypes.BIOLOGICAL],
-        spell_book: List[Spell] = [],
+        materials: List[MaterialTypes] = None,
+        spell_book: List[Spell] = None,
         age: int = None,
         providing_parent: bool = False,
         interactable: bool = False,
@@ -257,7 +257,7 @@ class Character(Entity):
         self.job = job
         self.job.parent = self
         
-        self.inventory = inventory
+        self.inventory = inventory or []
         self.corpse_value = corpse_value
         
         self.level = level
@@ -265,15 +265,15 @@ class Character(Entity):
         self.current_xp = 0
         self.level_up_factor = level_up_factor
         self.xp_given = xp_given
-        self.needs_level_up = False
+        self.level_awaiting = 0
         
-        self.titles = titles
+        self.titles = titles or set()
         
         self.dominant_hand = dominant_hand
         if self.dominant_hand is None:
             self.dominant_hand = random.choices(['right', 'left', 'ambidextrous'], [90, 10, 1])[0]
             
-        self.spell_book = spell_book
+        self.spell_book = spell_book or []
         
         # Attr Guide: 1: Ant | 10: Average Human | 100: Dragon
         # Visible Attributes
@@ -290,7 +290,8 @@ class Character(Entity):
         
         self.equipment: Dict[str, Optional[Item]] = {'Head': None, 'Chest': None, 'Gloves': None,  'Legs': None, 'Boots': None, 'Amulet': None, 'Right Ring': None, 'Left Ring': None, 'Right Hand': None, 'Left Hand': None}
         #print(self.job.starting_equipment)
-        self.equip(self.job.starting_equipment, silent=True)
+        for item in self.job.starting_equipment:
+            self.equip(copy.deepcopy(item), silent=True)
         
         self.invincible = False
         
@@ -727,10 +728,9 @@ class Character(Entity):
         if self.current_xp + xp >= self.xp_for_next_level:
             leftover = self.current_xp + xp - self.xp_for_next_level
             self.current_xp = 0
-            self.level += 1
+            self.level_awaiting += 1
             self.engine.event_handler.message(text='Level Up!', fg=color.green)
             self.update_stats()
-            self.needs_level_up = True
             self.add_xp(leftover)
         else:
             self.current_xp += xp

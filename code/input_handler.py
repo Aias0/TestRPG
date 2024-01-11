@@ -8,6 +8,8 @@ import numpy as np
 
 import glob, os, exceptions
 
+from tcod.event import KeyDown
+
 import textwrap, math, time, configparser
 
 import pyperclip
@@ -869,6 +871,7 @@ class SettingsMenuHandler(MenuCollectionEventHandler):
         self.engine = engine
         self.menus: list[SubMenuEventHandler] = [
             SubSettingsHandler(engine, 'Graphics'),
+            SubSettingsHandler(engine, 'Display'),
             SubSettingsHandler(engine, 'Controls'),
             SubSettingsHandler(engine, 'Other'),
         ]
@@ -959,8 +962,207 @@ class SubSettingsHandler(SubMenuEventHandler):
                 self.change_handler(MainMenu(self.engine))
                 return
         super().ev_keydown(event)
-                
+    
+
+class LevelUpMenuHandler(MenuCollectionEventHandler):
+    def __init__(self, engine: Engine, main_menu: bool = False):
+        self.engine = engine
+        self.menus: list[SubLevelUpHandler] = [
+            AttributesHandler(engine, self, 'Attributes'),
+            #SubLevelUpHandler(engine, self, 'Skills'),
+            #SubLevelUpHandler(engine, self, 'Other'),
+        ]
+        self.selected_menu = 0
+        self.change_handler(self.menus[self.selected_menu])
+        
+        self.all_complete = all([menu.completed for menu in self.menus])
+        
+    def on_render(self, console: tcod.console.Console) -> None:
+        self.all_complete = all([menu.completed for menu in self.menus])
+
+        if isinstance(self.engine.event_handler, MenuCollectionEventHandler):
+            self.engine.event_handler = self.menus[self.selected_menu]
+        console.draw_rect(x=0, y=0, width=console.width, height=1, ch=ord('─'), fg=color.ui_color)
+        menu_x = 1
+        for i, menu in enumerate(self.menus):
+            title = menu.title
+            menu.menu_x = menu_x
+            if i == self.selected_menu:
+                title_border = f'╢{"".join([" "]*len(title))}╟'
+                title_color = color.ui_cursor_text_color
+            else:
+                title_border = f'┤{"".join([" "]*len(title))}├'
+                title_color = color.ui_text_color
+            console.print_box(x=menu_x,y=0, width=len(title_border), height=1, string=title_border, fg=color.ui_color)
+            console.print_box(x=menu_x+1,y=0, width=len(title), height=1, string=title, fg=title_color)
+            menu_x+=len(title_border)+1
             
+        player_info_console = tcod.console.Console(24, 30)
+        
+        player_info_console.draw_frame(0, 0, width=player_info_console.width, height=player_info_console.height, fg=color.ui_color)
+        render_functions.draw_border_detail(player_info_console)
+        render_functions.draw_inner_border_detail(player_info_console)
+        
+        player_info_console.print(x=0, y=10, string=f'╠{"".join(["─"]*(player_info_console.width-2))}╣')
+        
+        tileset = tcod.tileset.load_tilesheet(
+            SETTINGS['tileset_file'], 16, 16, tcod.tileset.CHARMAP_CP437
+        )
+        tile = tileset.get_tile(ord(self.engine.player.char))[:, :, 3:]
+        new_tile = np.zeros((10, 10, 3), dtype=np.uint8)
+        for i, row in enumerate(new_tile):
+            for j, col in enumerate(row):
+                for k, a in enumerate(col):
+                    if tile[i, j] == 255:
+                        new_tile[i, j, k] = self.engine.player.color[k]
+                    else:
+                        new_tile[i, j, k] = 0
+        img = tcod.image.Image.from_array(new_tile)
+        img.blit(player_info_console, x=player_info_console.width//2, y=6, bg_blend=1, scale_x=1, scale_y=1, angle=0)
+    
+        y_offset = 12
+        player_info_console.print(x=2, y=y_offset, string=f'Name: {self.engine.player.name}', fg=color.ui_text_color)
+        player_info_console.print(x=2, y=y_offset+1, string=f'Level: {self.engine.player.entity.level}→{self.engine.player.entity.level+self.engine.player.entity.level_awaiting}', fg=color.ui_text_color)
+        player_info_console.print(x=2, y=y_offset+3, string=f'Race: {self.engine.player.entity.race.name}', fg=color.ui_text_color)
+        player_info_console.print(x=2, y=y_offset+4, string=f'Class: {self.engine.player.entity.job.name}', fg=color.ui_text_color)
+        player_info_console.print(x=2, y=y_offset+6, string=f'Attributes:', fg=color.ui_text_color)
+        attr_y = y_offset+7
+        for i, attr in enumerate([
+            'CON', 'STR', 'END', 'DEX', 'FOC', 'INT'
+        ]):
+            player_info_console.print(x=3, y=attr_y+i, string=f'{attr}: {self.engine.player.entity.__getattribute__(f"base_{attr}")} → {self.menus[0].answers[i]}', fg=color.ui_text_color)
+        
+        player_info_console.blit(console, dest_x=console.width-player_info_console.width-5, dest_y=10)
+        self.info_width = player_info_console.width
+        
+    def finish_levelup(self):
+        self.engine.player.entity.level = self.engine.player.entity.level+self.engine.player.entity.level_awaiting
+        for i, attr in enumerate([
+            'CON', 'STR', 'END', 'DEX', 'FOC', 'INT'
+        ]):
+            self.engine.player.entity.__setattr__(f"base_{attr}", self.menus[0].answers[i])
+        
+        self.engine.player.entity.update_stats()
+        self.engine.player.entity.level_awaiting = 0
+        self.change_handler(MainGameEventHandler(self.engine))
+
+class SubLevelUpHandler(SubMenuEventHandler):
+    def __init__(self, engine: Engine, parent: LevelUpMenuHandler, title: str):
+        super().__init__(engine, title)
+        self.parent: LevelUpMenuHandler = parent
+        self.selected_index = 0
+        self.menu_items = []
+        
+        self.completed = False
+    def display_latest_message(self, console: Console, x: int = None, y: int = None):
+        pass
+    def on_render(self, console: Console) -> None:
+        self.parent.on_render(console)
+        
+        if not self.parent.all_complete:
+            return
+        
+        done_console = tcod.console.Console(len('Done')+4, 5)
+        render_functions.draw_all_border(done_console)
+        
+        done_color = color.ui_text_color
+        if self.selected_index == len(self.menu_items):
+            done_color = color.ui_cursor_text_color
+        done_console.print(x=2, y=2, string='Done', fg=done_color)
+        
+        done_console.blit(console, dest_x=console.width-self.parent.info_width//2-done_console.width//2-5, dest_y=console.height-done_console.height-3)
+    
+    def ev_keydown(self, event: KeyDown) -> None:
+        done_index_extra = 0
+        if self.parent.all_complete:
+            done_index_extra = 1
+        
+        match event.sym:
+            case tcod.event.KeySym.UP:
+                self.selected_index = max(self.selected_index-1, 0)
+            case tcod.event.KeySym.DOWN:
+                self.selected_index = min(self.selected_index+1, len(self.menu_items)-1+done_index_extra)
+                
+            case tcod.event.KeySym.RETURN if self.selected_index == len(self.menu_items):
+                self.parent.finish_levelup()
+                
+        
+        super().ev_keydown(event)
+
+class AttributesHandler(SubLevelUpHandler):
+    def __init__(self, engine, parent: LevelUpMenuHandler, title: str):
+        super().__init__(engine, parent, title)
+        self.parent: LevelUpMenuHandler
+        self.attribute_names = {'CON': 'Constitution', 'STR': 'Strength', 'END': 'Endurance', 'DEX': 'Dexterity', 'FOC': 'Focus', 'INT': 'Intelligence'}
+        self.menu_items = list(self.attribute_names.keys())
+        self.answers = [None,]*len(self.menu_items)
+        for i, attr in enumerate(self.menu_items):
+            self.answers[i] = self.engine.player.entity.__getattribute__(f"base_{attr}")
+        
+        self.selected_attr = None
+        
+        self.stat_max = 20+self.engine.player.entity.level
+        self.stat_mins = self.answers[:]
+        
+        add_points = self.engine.player.entity.level_awaiting*2
+        
+        self.total_points = sum(self.answers)+add_points
+        self.points_remaining = self.total_points-sum(self.answers)
+        
+    def on_render(self, console: tcod.console.Console) -> None:
+        if self.points_remaining == 0:
+            self.completed = True
+        
+        console.print(x=3, y=8, string='Select Attributes:', fg=color.ui_text_color)
+        self.points_remaining = self.total_points-sum(self.answers)
+        console.print(x=28, y=8, string=f'Points Remaining: {self.points_remaining}', fg=color.ui_text_color)
+        attr_y = 11
+        for i, item in enumerate(self.menu_items):
+            text_color = color.ui_text_color
+            text2_color = color.ui_text_color
+            if item == self.selected_attr:
+                text_color = color.ui_selected_text_color
+                text2_color = color.ui_cursor_text_color
+            elif i == self.selected_index:
+                text_color = color.ui_cursor_text_color
+            
+            
+            console.print(x=5, y=attr_y, string=f'{self.attribute_names[item]}: ', fg=text_color)
+            field_text = str(self.answers[i])
+            if field_text is None:
+                field_text = ''
+            console.print(x=5+len(self.attribute_names[item])+2, y=attr_y, string=str(field_text), fg=text2_color)
+            
+            attr_y+=2
+        
+        super().on_render(console)
+            
+    def ev_keydown(self, event: tcod.event.KeyDown) -> None:
+        if not self.selected_attr:
+            super().ev_keydown(event)
+        match event.sym:
+            case tcod.event.KeySym.RETURN if not self.selected_attr and self.selected_index < len(self.menu_items):
+                self.selected_attr = self.menu_items[self.selected_index]
+                self.prev_val = self.answers[self.selected_index]
+            
+            case tcod.event.KeySym.UP | tcod.event.KeySym.w if self.selected_attr:
+                if self.total_points-sum(self.answers) <= 0:
+                    return
+                self.answers[self.selected_index] = min(self.answers[self.selected_index]+1, self.stat_max)
+            case tcod.event.KeySym.DOWN | tcod.event.KeySym.s if self.selected_attr:
+                self.answers[self.selected_index] = max(self.answers[self.selected_index]-1, self.stat_mins[self.selected_index])
+            case tcod.event.KeySym.HOME if self.selected_attr:
+                self.answers[self.selected_index] = self.stat_mins[self.selected_index]
+            case tcod.event.KeySym.END if self.selected_attr:
+                self.answers[self.selected_index] = min(self.answers[self.selected_index]+self.points_remaining, self.stat_max)
+            case tcod.event.KeySym.RETURN if self.selected_attr:
+                self.selected_attr = None
+            case tcod.event.KeySym.ESCAPE if self.selected_attr:
+                self.answers[self.selected_index] = self.prev_val
+                self.selected_attr = None
+          
+          
+  
 class MenuListEventHandler(EventHandler):
     def __init__(self, engine: Engine, menu_items):
         super().__init__(engine)
@@ -1032,10 +1234,17 @@ class PauseMenuEventHandler(MenuListEventHandler):
                 self.engine.event_handler = MainGameEventHandler(self.engine)
                 
             case tcod.event.KeySym.q:
-                if not SETTINGS['dev_mode']:
-                    raise SystemExit()
-                else:
+                if SETTINGS['dev_mode']:
                     raise exceptions.QuitWithoutSaving()
+                
+                saves = glob.glob("data\\user_data\\*.sav")
+                if saves:
+                    sg_sorted = sorted(saves, key=os.path.getctime, reverse=True)
+                    from setup_game import load_game
+                    temp_load = load_game(sg_sorted[0])
+                    if self.engine.turn_count == temp_load.turn_count:
+                        raise exceptions.QuitWithoutSaving()
+                raise SystemExit()
             
             case tcod.event.KeySym.s | tcod.event.KeySym.DOWN:
                 self.selected_index = min(self.selected_index+1, len(self.menu_items)-1)
@@ -1556,13 +1765,16 @@ class MainGameEventHandler(EventHandler):
                 self.change_handler(DevConsole(self.engine))
                 
             case tcod.event.KeySym.o if SETTINGS['dev_mode'] and not event.mod:
-                self.change_handler(TextInputHandler(self.engine, parent=self))
+                self.change_handler(LevelUpMenuHandler(self.engine))
                 
             case tcod.event.KeySym.l if not event.mod:
                 if SETTINGS['dev_mode']:
                     self.change_handler(InspectHandler(self.engine))
                 else:
                     self.change_handler(LookHandler(self.engine))
+            
+            case tcod.event.KeySym.l if self.engine.player.entity.level_awaiting and (event.mod & tcod.event.Modifier.SHIFT):
+                self.change_handler(LevelUpMenuHandler(self.engine))
             
             case tcod.event.KeySym(sym) if sym in CURSOR_Y_KEYS and not event.mod:
                 if self.engine.hover_depth + CURSOR_Y_KEYS[key] in range(self.engine.hover_range):

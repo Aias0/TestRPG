@@ -4,6 +4,8 @@ from typing import Iterable, TYPE_CHECKING, Optional, Iterator, List
 import numpy as np # type: ignore
 from tcod.console import Console
 
+import color
+
 import tile_types
 from sprite import Sprite, Actor
 from entity import Corpse, Item
@@ -115,9 +117,14 @@ class GameMap:
             
             # Only print sprite that are in the FOV
             if self.visible[sprite.x, sprite.y] or self.engine.wallhacks:
-                console.print(
-                    x=sprite.x, y=sprite.y, string=sprite.char, fg=sprite.color
-                )
+                if console.rgb[sprite.x, sprite.y][0] not in [ord(" "), ord(">"), ord("<")] and isinstance(sprite.entity, Item):
+                    console.print(
+                    x=sprite.x, y=sprite.y, string='#', fg=color.white
+                    )
+                else:
+                    console.print(
+                        x=sprite.x, y=sprite.y, string=sprite.char, fg=sprite.color
+                    )
                 
                 #Remember sprites seen
                 #if sprite has already been then update it's last seen turn
@@ -128,9 +135,14 @@ class GameMap:
                     
             elif sprite in sprites_remembered:
                 remembered_sprite = self.remembered_sprites[sprites_remembered.index(sprite)]
-                console.print(
-                    x=remembered_sprite[1], y=remembered_sprite[2], string=remembered_sprite[0], fg=sprite.color
-                )
+                if console.rgb[sprite.x, sprite.y][0] not in [ord(" "), ord(">"), ord("<")] and isinstance(sprite.entity, Item):
+                    console.print(
+                    x=sprite.x, y=sprite.y, string='#', fg=color.white
+                    )
+                else:
+                    console.print(
+                        x=remembered_sprite[1], y=remembered_sprite[2], string=remembered_sprite[0], fg=sprite.color
+                    )
         
         for remembered_sprite in self.remembered_sprites:
             #print(self.engine.turn_count, remembered_sprite[3], self.engine.player.entity.INT//2)

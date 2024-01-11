@@ -4,7 +4,7 @@
 
 -[FIXED]If player picks up item in favorites bar it doesn't update the number in favorites.
 
--[FIXME:]Crash when player targets and kills themselves with a spell
+-[FIXED]Crash when player targets and kills themselves with a spell
 
 -[DONE]Settings on main menu. Will need to create new settings input handler or rework old to work w/out engine.
 
@@ -54,6 +54,12 @@
 
 -[TODO:]Favorites should remember items that run out and if slot isn't reassigned auto slot those items back
 
--[FIXED]Engine message function color not working. (Wasn't actually a bug, I just defined green as white in color)
+-[FIXED]Engine message function color not working. (Wasn't actually a bug, I just defined green as white in color.py)
 
--[FIXME:]Enemy equipment gets added to player inv?
+-[FIXED]Enemy equipment gets added to player inv?
+
+-[FIXME:]Entity default's if list/set/dict need to be None and empty iterable should be made in innit.
+
+-[FIXME:]When player kills themselves with a spell they die but can still move.
+
+-[TODO:]Add overworld and support for multiple dungeons.

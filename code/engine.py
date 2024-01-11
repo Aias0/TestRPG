@@ -99,8 +99,14 @@ class Engine:
         console.print(x=2, y=43, string=f'{self.player.entity.name}', fg=color.ui_text_color)
         
         level_border = f'┤{"".join([" "]*(len(str(self.player.entity.level))+3))}├'
+        level_text = self.player.entity.level
+        level_color = color.ui_text_color
+        if self.player.entity.level_awaiting:
+            level_border = f'┤{"".join([" "]*(len(str(self.player.entity.level))+3))}├'
+            level_text = '↑'
+            level_color = color.ui_selected_text_color
         console.print(x=19-len(level_border), y=43, string=level_border, fg=color.ui_color)
-        console.print(x=20-len(level_border), y=43, string=f'Lv:{self.player.entity.level}', fg=color.ui_text_color)
+        console.print(x=20-len(level_border), y=43, string=f'Lv:{level_text}', fg=level_color)
         
         self.message_log.render(console=console, x=21, y=45, width=38, height=5)
         console.print(x=20, y=43, string='┬', fg=color.ui_color)

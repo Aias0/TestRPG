@@ -132,3 +132,11 @@ def draw_inner_border_detail(console: Console, chars: str = '╥╚╡╥╝╞�
     console.print(x=console.width-2, y=console.height-1, string=chars[9], fg=fg)
     console.print(x=console.width-2, y=console.height-2, string=chars[10], fg=fg)
     console.print(x=console.width-1, y=console.height-2, string=chars[11], fg=fg)
+    
+def draw_border(console: Console, fg: tuple[int, int, int] = color.ui_color, chars: str = "┌─┐│ │└─┘"):
+    console.draw_frame(x=0, y=0, width=console.width, height=console.height, decoration=chars, fg=fg)
+    
+def draw_all_border(console: Console, fg: tuple[int, int, int] = color.ui_color) -> None:
+    draw_border(console)
+    draw_border_detail(console)
+    draw_inner_border_detail(console)
