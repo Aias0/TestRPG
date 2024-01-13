@@ -58,9 +58,10 @@ class PickupAction(Action):
             self.engine.event_handler = MultiPickupHandler(self.engine, items_at_loc, self.sprite)
             return
 
-        result = self.sprite.entity.add_inventory(items_at_loc[0].entity)
+        result = self.sprite.entity.add_inventory(items_at_loc[0].entity, True)
         if not result:
             self.engine.game_map.sprites.remove(items_at_loc[0])
+            self.engine.message_log.add_message(f'{self.sprite.name.capitalize()} picked up {items_at_loc[0].name}.')
             return
         self.engine.message_log.add_message(result.args[0], color.impossible)
 

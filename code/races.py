@@ -2,6 +2,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, List
 from jobs import JOBS
 
+import game_types
+
 if TYPE_CHECKING:
     from entity import Character
 
@@ -23,6 +25,7 @@ class BaseRace():
         average_lifespan: int = 90,
         adult_age: int = 18,
         elderly_age: int = 65,
+        resistances: dict = {},
         ) -> None:
         
         self.name = name
@@ -48,6 +51,8 @@ class BaseRace():
         self.average_lifespan = average_lifespan
         self.adult_age = adult_age
         self.elderly_age = elderly_age
+        
+        self.resistances = {elem: 0 for elem in game_types.ElementTypes.elements()} | resistances
 
 class Human(BaseRace):
     def __init__(self) -> None:
@@ -88,6 +93,7 @@ class Dwarf(BaseRace):
             average_lifespan = 350,
             adult_age=20,
             elderly_age=270,
+            resistances={game_types.ElementTypes.EARTH: 10}
             )
 
 RACES: List[BaseRace] = [Human(), Elf(), Dwarf()]

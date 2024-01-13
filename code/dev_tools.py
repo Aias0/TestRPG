@@ -11,6 +11,8 @@ import copy, os, sys
 from item_data import ITEMS
 from input_handler import SelectTileHandler
 
+import game_types
+
 if TYPE_CHECKING:
     from engine import Engine
 
@@ -158,6 +160,15 @@ def dev_command(command: str, engine: Engine) -> str:
         case['xp', cmd]:
             engine.player.entity.add_xp(int(cmd))
             return f'{cmd} xp added to player.'
+        
+        case['damage', amount, type, element]:
+            dam = {v: k for k, v in game_types.GameTypeNames.damagetype_to_name.items()}
+            ele = {v: k for k, v in game_types.GameTypeNames.elementtype_to_name.items()}
+            print(int(amount), dam[type], ele[element], None, False)
+            engine.player.entity.take_damage(int(amount), dam[type], ele[element], None, False)
+        
+        case['>>>', *cmd]:
+            eval(' '.join(cmd))
         
         case ['help']:
             return ', '.join([

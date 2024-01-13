@@ -107,6 +107,10 @@ class ElementTypes(Enum):
     
     POISON = auto()
     
+    @staticmethod
+    def elements() -> set:
+        return {ElementTypes.FIRE, ElementTypes.WATER, ElementTypes.AIR, ElementTypes.EARTH, ElementTypes.LIGHTNING, ElementTypes.ICE, ElementTypes.POISON}
+    
 class MaterialTypes(Enum):
     METAL = auto()
     GLASS = auto()
@@ -117,5 +121,5 @@ class MaterialTypes(Enum):
     
 class GameTypeNames:
     damagetype_to_name = {DamageTypes.PHYS: 'physical', DamageTypes.MAGC: 'magical', DamageTypes.TRUE: 'true'}
-    elementtype_to_name = {ElementTypes.FIRE: 'fire', ElementTypes.WATER: 'water', ElementTypes.AIR: 'air', ElementTypes.EARTH: 'earth', ElementTypes.POISON: 'poison'}
+    elementtype_to_name = {ElementTypes.FIRE: 'fire', ElementTypes.WATER: 'water', ElementTypes.AIR: 'air', ElementTypes.EARTH: 'earth', ElementTypes.POISON: 'poison', ElementTypes.LIGHTNING: 'lightning', ElementTypes.ICE: 'ice'}
     magicfocustypes_to_name = {MagicFocusTypes.BALANCE: 'balance', MagicFocusTypes.POWER: 'power', MagicFocusTypes.PRECISION: 'precision', MagicFocusTypes.EFFICIENCY: 'efficiency'}

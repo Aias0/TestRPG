@@ -49,7 +49,8 @@ def main() -> None:
         root_console = tcod.console.Console(screen_width, screen_height, order='F')
         
         context.sdl_window.fullscreen = SETTINGS['full_screen']
-        context.sdl_window.maximize()
+        if SETTINGS['start_maximized']:
+            context.sdl_window.maximize()
         try:
             while True:
                 context.sdl_window.fullscreen = SETTINGS['full_screen']
@@ -85,7 +86,7 @@ def main() -> None:
             raise
         except BaseException: # Save on any other unexpected exception.
             if not isinstance(handler.engine, MainMenuEngine):
-                save_game(handler, f'savegame{abs(hash(handler.engine)) % (10 ** 5)}.sav')
+                save_game(handler, f'errorsave{abs(hash(handler.engine)) % (10 ** 5)}.sav')
             raise
 if __name__ == '__main__':
     main()

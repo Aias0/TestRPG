@@ -4,13 +4,17 @@ from typing import TYPE_CHECKING, List, Optional, Dict, Tuple
 from render_order import RenderOrder
 from input_handler import GameOverEventHandler, MainGameEventHandler
 
-from game_types import ItemTypes, ItemSubTypes
+from game_types import ItemTypes, ItemSubTypes, ElementTypes
 
 from entity_effect import ItemEffect, CharacterEffect, CorpseEffect, DOTEffect
 
 import re, color, exceptions, random, copy
 
 from game_types import DamageTypes, ElementTypes, MaterialTypes
+
+from collections import Counter
+
+import utils
 
 if TYPE_CHECKING:
     from sprite import Sprite, Actor
@@ -292,12 +296,16 @@ class Character(Entity):
         #print(self.job.starting_equipment)
         for item in self.job.starting_equipment:
             self.equip(copy.deepcopy(item), silent=True)
+        for spell in self.job.starting_spells:
+            self.spell_book.append(spell)
         
         self.invincible = False
         
         self.age = age
         if self.age is None:
             self.age = int(abs(random.random() - random.random()) * (1 + self.race.elderly_age) - self.race.adult_age) + self.race.adult_age
+        
+        self.base_resistances = {elem: 0 for elem in ElementTypes.elements()}
         
         super().__init__(name=name, description=description, value=0, tags=tags, materials=materials, providing_parent=providing_parent, interactable=interactable)
         self.update_stats()
@@ -635,6 +643,22 @@ class Character(Entity):
             if item.effect.needs_equipped and not item.equipped:
                 continue
             total += item.effect.dodge_chance_bonus
+        return total
+    
+    @property
+    def resistances(self) -> Dict[ElementTypes, int]:
+        return utils.add_dict(self.base_resistances, self.intrinsic_resistances, self.extrinsic_resistances)
+    @property
+    def intrinsic_resistances(self) -> Dict[ElementTypes, int]:
+        total = self.race.resistances
+        for effect in self.effects:
+            total = utils.add_dict(total, effect.resistances)
+        return total
+    @property
+    def extrinsic_resistances(self) -> Dict[ElementTypes, int]:
+        total = {}
+        for item in self.inventory:
+            total = utils.add_dict(total, item.effect.resistances)
         return total
     
     def update_stats(self) -> None:
@@ -994,6 +1018,7 @@ class Character(Entity):
             DamageTypes.TRUE: {'neg': 0, 'def': 0},
         }
         
+        #Apply defense and negation
         damage_after_def = int(amount * (100 - type_to_var[damage_type]['def'])/100)
         damage_after_neg = damage_after_def - type_to_var[damage_type]['neg']
         if damage_after_neg > 1 or damage_after_neg < -self.level*5:
@@ -1001,7 +1026,7 @@ class Character(Entity):
         else:
             damage = 1
         
-        
+        #Try to dodge if possible
         if dodgeable:
             dodge_chance = self.dodge_chance
             if attacker:
@@ -1016,6 +1041,10 @@ class Character(Entity):
                     return None
                 elif rand < dodge_chance:
                     damage //= 2
+                    
+        #Apply elemental resistances
+        if element_type:
+            damage *= (100-self.resistances[element_type])/100
             
         self.hp -= damage
         if self.hp == 0 and self.parent.ai:

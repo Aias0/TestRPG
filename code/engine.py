@@ -58,6 +58,7 @@ class Engine:
         self.no_clip = False
         
         self.turn_count = 0
+        self._blink_counter = 0
         
     def handle_npc_turns(self) -> None:
         for sprite in self.game_map.sprites - {self.player} - {sprite for sprite in self.game_map.sprites if not isinstance(sprite, Actor)}:
@@ -88,6 +89,16 @@ class Engine:
         
         # If a tile is "visible" it should be added to "explored".
         self.game_map.explored |= self.game_map.visible
+        
+    @property
+    def blink_counter(self) -> int:
+        return self._blink_counter
+    @blink_counter.setter
+    def blink_counter(self, amount: int) -> None:
+        self._blink_counter = amount
+        if self.blink_counter >= 70:
+            self._blink_counter = 0
+            
     
     def render(self, console: Console) -> None:
         self.game_map.render(console)
@@ -104,15 +115,20 @@ class Engine:
         if self.player.entity.level_awaiting:
             level_border = f'┤{"".join([" "]*(len(str(self.player.entity.level))+3))}├'
             level_text = '↑'
-            level_color = color.ui_selected_text_color
+            
+            level_color = color.ui_text_color
+            if self.blink_counter >= 40:
+                level_color = color.ui_selected_text_color
+            self.blink_counter += 1
+            
         console.print(x=19-len(level_border), y=43, string=level_border, fg=color.ui_color)
         console.print(x=20-len(level_border), y=43, string=f'Lv:{level_text}', fg=level_color)
         
-        self.message_log.render(console=console, x=21, y=45, width=38, height=5)
+        self.message_log.render(console=console, x=21, y=45, width=console.width-41, height=5)
         console.print(x=20, y=43, string='┬', fg=color.ui_color)
         console.draw_rect(x=20, y=44, width=1, height=40, ch=ord('│'), fg=color.ui_color)
-        console.print(x=58, y=43, string='┬', fg=color.ui_color)
-        console.draw_rect(x=58, y=44, width=1, height=40, ch=ord('│'), fg=color.ui_color)
+        console.print(x=console.width-20, y=43, string='┬', fg=color.ui_color)
+        console.draw_rect(x=console.width-20, y=44, width=1, height=40, ch=ord('│'), fg=color.ui_color)
         
         render_resource_bar(
             x=0,

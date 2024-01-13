@@ -132,8 +132,12 @@ class GameMap:
                     self.remembered_sprites.append([sprite.char, sprite.x, sprite.y, self.engine.turn_count, sprite])
                 elif sprite != self.engine.player:
                     self.remembered_sprites[sprites_remembered.index(sprite)] = [sprite.char, sprite.x, sprite.y, self.engine.turn_count, sprite]
-                    
+            
+            # Print sprite's in memory
             elif sprite in sprites_remembered:
+                if self.visible[sprite.x, sprite.y]:
+                    continue
+                
                 remembered_sprite = self.remembered_sprites[sprites_remembered.index(sprite)]
                 if console.rgb[sprite.x, sprite.y][0] not in [ord(" "), ord(">"), ord("<")] and isinstance(sprite.entity, Item):
                     console.print(

@@ -38,7 +38,7 @@ background_image = None
 #except:
 #    pass
     
-def new_game(player: Actor | None = None) -> Engine:
+def new_game(player: Actor) -> Engine:
     """Return a brand new game session as an Engine instance."""
     map_width = 80
     map_height = 43
@@ -50,12 +50,8 @@ def new_game(player: Actor | None = None) -> Engine:
     max_enemies_per_room = (0, 2)
     max_items_per_room = (0, 2)
     
-    if not player:
-        import sprite_data
-        player = copy.deepcopy(sprite_data.dev_player)
     for i in range(2):
         player.entity.add_inventory(copy.deepcopy(item_data.health_potion), silent=True)
-    player.entity.spell_book.append(SPELLS[2])
     
     engine = Engine(player=player)
     

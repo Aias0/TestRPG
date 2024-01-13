@@ -1101,7 +1101,7 @@ class AttributesHandler(SubLevelUpHandler):
         
         self.selected_attr = None
         
-        self.stat_max = 20+self.engine.player.entity.level
+        self.stat_max = 20+self.engine.player.entity.level + self.engine.player.entity.level_awaiting
         self.stat_mins = self.answers[:]
         
         add_points = self.engine.player.entity.level_awaiting*2
@@ -1837,7 +1837,7 @@ class HistoryViewer(EventHandler):
     def on_render(self, console: tcod.console.Console) -> None:
         super().on_render(console) # Draw the main state as the background.
         
-        log_console = tcod.console.Console(console.width - 41, console.height - 2)
+        log_console = tcod.console.Console(console.width - 39, console.height - 2)
         
         # Draw a frame with a custom banner title.
         log_console.draw_frame(0, 0, log_console.width, log_console.height, fg=color.ui_color)

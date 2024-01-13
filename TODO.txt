@@ -30,7 +30,7 @@
 
 -[FIXED]Player and enemies can't damage each other.
 
--[TODO:]Make multiple stacked items on map appear as a stack char
+-[DONE]Make multiple stacked items on map appear as a stack char
 
 -[DONE]DEV quick start Character.
 

@@ -26,7 +26,8 @@ class BaseEffect():
         magc_negation_bonus: int = 0,
         dodge_chance_bonus: int = 0,
         attribute_bonuses: dict[str, int] = {},
-        stackable: bool = True
+        stackable: bool = True,
+        resistances: dict[game_types.ElementTypes, int] = {},
     ) -> None:
         
         self.name = name
@@ -40,6 +41,8 @@ class BaseEffect():
         self.dodge_chance_bonus = dodge_chance_bonus
         
         self.attribute_bonuses = _bonus_dict | attribute_bonuses
+        
+        self.resistances = {elem: 0 for elem in game_types.ElementTypes.elements()} | resistances
         
         self.stackable = stackable
         
@@ -85,8 +88,8 @@ class ItemEffect(BaseEffect):
         attribute_bonuses: dict[str, int] = {},
         needs_equipped: bool = True,
         consumable: bool = False,
-        stackable: bool = True
-        
+        stackable: bool = True,
+        resistances: dict[game_types.ElementTypes, int] = {},
     ):
 
         super().__init__(
@@ -100,6 +103,7 @@ class ItemEffect(BaseEffect):
             dodge_chance_bonus=dodge_chance_bonus,
             attribute_bonuses=attribute_bonuses,
             stackable=stackable,
+            resistances=resistances,
         )
         self.needs_equipped = needs_equipped # True means that bonus will only be applied if item is equipped
         
@@ -139,6 +143,7 @@ class CharacterEffect(BaseEffect):
         stackable: bool = True,
         duration: int = 60,
         automatic: bool = True,
+        resistances: dict[game_types.ElementTypes, int] = {},
     ) -> None:
         """ `duration` of -1 is indicates a infinite time."""
         self.duration = duration
@@ -156,6 +161,7 @@ class CharacterEffect(BaseEffect):
             dodge_chance_bonus=dodge_chance_bonus,
             attribute_bonuses=attribute_bonuses,
             stackable=stackable,
+            resistances=resistances,
         )
         
     def remove(self) -> None:
@@ -248,6 +254,7 @@ class ScrollEffect(ItemEffect):
             self.consume()
         
 class CorpseEffect(ItemEffect):
+    """ This effect's purpose is to contain then apply effects onto a character when the corpse is eatten. """
     parent: Corpse
     def __init__(self, effects: list[CharacterEffect | DOTEffect | HealingEffect], name: str = None, stackable: bool = True):
         super().__init__(
@@ -291,7 +298,8 @@ class DOTEffect(CharacterEffect):
         dodge_chance_bonus: int = 0,
         attribute_bonuses: dict[str, int] = {},
         stackable: bool = True,
-        duration: int = 60
+        duration: int = 60,
+        resistances: dict[game_types.ElementTypes, int] = {},
     ) -> None:
         
         super().__init__(
@@ -305,7 +313,8 @@ class DOTEffect(CharacterEffect):
             dodge_chance_bonus=dodge_chance_bonus,
             attribute_bonuses=attribute_bonuses,
             stackable=stackable,
-            duration=duration
+            duration=duration,
+            resistances=resistances,
         )
         self.damage = damage
         self.damage_type = damage_type

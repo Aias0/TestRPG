@@ -3,10 +3,13 @@ from typing import TYPE_CHECKING, List, Tuple
 
 import item_data
 
+import magic
+
 import copy
 
 if TYPE_CHECKING:
     from entity import Character, Item
+    from magic import Spell
 
 class BaseJob():
     parent: Character
@@ -15,11 +18,13 @@ class BaseJob():
         name: str,
         default_color: Tuple[int, int, int],
         starting_equipment: List[Item] = [],
+        starting_spells: List[Spell] = [],
         rarity: int = 10
     ) -> None:
         self.name = name
         self.default_color = default_color
         self.starting_equipment = starting_equipment
+        self.starting_spells = starting_spells
         self.rarity = rarity
 
 class Mage(BaseJob):
@@ -28,7 +33,8 @@ class Mage(BaseJob):
             name='Mage',
             default_color=[0, 0, 255],
             rarity=5,
-            starting_equipment = list(map(copy.deepcopy, [item_data.staff, item_data.robes]))
+            starting_equipment = list(map(copy.deepcopy, [item_data.staff, item_data.robes])),
+            starting_spells=[magic.FireBolt()]
         )
 
 class Rouge(BaseJob):
