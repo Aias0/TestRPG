@@ -96,3 +96,10 @@ up_stairs = new_tile(
         
     def update(self, engine) -> None:
         self.effect.active(engine) """
+        
+        
+t1 = np.zeros((4, 4), dtype=tile_dt, order='F')
+
+t1[1, 1] = floor
+
+np.savetxt('test.csv', t1, delimiter=' | ', fmt=['%s']*4)

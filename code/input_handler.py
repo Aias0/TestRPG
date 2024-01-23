@@ -145,8 +145,7 @@ class EventHandler(BaseEventHandler):
         self.engine.render(console)
         
     def message(self, text: str, fg: tuple[int, int, int] = color.white):
-        self.engine.message_log.add_message(text=text, fg=fg)
-
+        self.engine.message(text=text, fg=fg)
 
 
 class LoadHandler(EventHandler):
@@ -1269,8 +1268,7 @@ class PauseMenuEventHandler(MenuListEventHandler):
                         raise exceptions.QuitWithoutSaving()
         
     def return_text(self, text):
-        from main import save_game
-        save_game(self, f'{text}.sav')
+        self.engine.save_as(f'{text}.sav')
         self.message('saved game', color.valid)
                 
 class MultiPickupHandler(MenuListEventHandler):
@@ -1781,14 +1779,13 @@ class MainGameEventHandler(EventHandler):
                     self.engine.hover_depth += CURSOR_Y_KEYS[key]
             
             case tcod.event.KeySym.F5: # Quick Save
-                from main import save_game
                 files = glob.glob("data\\user_data\\quicksave*.sav")
                 save_num = 1
                 if files:
                     os.remove(files[0])
                     save_num = int(files[0].replace("data\\user_data\\quicksave", '').replace(".sav", ''))+1
                 
-                save_game(self, f'quicksave{save_num}.sav')
+                self.engine.save_as(f'quicksave_{save_num}.sav')
                 self.message('quick save', color.valid)
                 print('quick save')
                 

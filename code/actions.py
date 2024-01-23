@@ -141,10 +141,10 @@ class TakeStairsAction(Action):
     def perform(self) -> None:
         """ Take the stairs, if any exist at sprite location. """
         if (self.sprite.x, self.sprite.y) == self.engine.game_map.down_stairs_location:
-            if self.engine.game_world.go_down():
+            if self.engine.game_location.go_down():
                 self.message('You descend the staircase.', color.descend)
         elif (self.sprite.x, self.sprite.y) == self.engine.game_map.up_stairs_location:
-            if self.engine.game_world.go_up():
+            if self.engine.game_location.go_up():
                 self.message('You ascend the staircase.', color.descend)
         else:
             raise exceptions.Impossible('There are no stairs here.')

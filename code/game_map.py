@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 class GameMap:
     def __init__(
-        self, engine: Engine, width: int, height: int, floor_level: int, sprites: Iterable[Sprite] = ()
+        self, engine: Engine, width: int, height: int, floor_level: int = 0, sprites: Iterable[Sprite] = ()
     ) -> None:
         self.engine = engine
         self.width, self.height = width, height
@@ -71,8 +71,8 @@ class GameMap:
         
         return None
     
-    def get_sprite_at_location(self, x: int, y: int) -> Optional[Sprite]:
-        for sprite in self.sprites:
+    def get_sprite_at_location(self, x: int, y: int, exclude: set[Sprite] = set()) -> Optional[Sprite]:
+        for sprite in self.sprites - exclude:
             if sprite.x == x and sprite.y == y:
                 return sprite
         
@@ -153,7 +153,7 @@ class GameMap:
             if not 'keen mind' in self.engine.player.entity.tags and self.engine.turn_count-remembered_sprite[3] > self.engine.player.entity.INT:
                 self.remembered_sprites.remove(remembered_sprite)
                 
-class GameWorld:
+class GameLocation:
     """ Holds the settings for the GameMap, and generates new maps when moving down the stairs. """
     
     def __init__(
@@ -231,3 +231,8 @@ class GameWorld:
         
         self.maps.append(self.engine.game_map)
     
+class GameWorld:
+    def __init__(self) -> None:
+        self.over_world_map: GameMap = None
+        
+        self.dungeons: List[GameLocation] = None

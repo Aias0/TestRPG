@@ -13,6 +13,7 @@ class BaseRace():
     def __init__(
         self,
         name: str,
+        name_adj: str,
         default_char: str,
         attribute_bonuses: dict[str, int] = {},
         standard_weight: int = 100,
@@ -29,6 +30,7 @@ class BaseRace():
         ) -> None:
         
         self.name = name
+        self.name_adj = name_adj
         self.default_char = default_char
         
         self.attribute_bonuses = self._bonus_dict | attribute_bonuses
@@ -43,6 +45,8 @@ class BaseRace():
         self.rarity = rarity
         
         self.job_chance = job_chance
+        if self.job_chance is None:
+            self.job_chance = {}
         for job in JOBS:
             if [job for job in JOBS if job.__class__.__name__ in self.job_chance.keys()]:
                 continue
@@ -58,6 +62,7 @@ class Human(BaseRace):
     def __init__(self) -> None:
         super().__init__(
             name='Human',
+            name_adj='human',
             default_char='h',
             attribute_bonuses={'DEX': 2, 'END': 1, 'CON': 1, 'FOC': 1},
             job_chance={'Rouge': 15},
@@ -71,6 +76,7 @@ class Elf(BaseRace):
     def __init__(self) -> None:
         super().__init__(
             name='Elf',
+            name_adj='elven',
             default_char='e',
             attribute_bonuses={'FOC': 2, 'INT': 1},
             job_chance={'Mage': 20, 'Fighter': 5},
@@ -86,6 +92,7 @@ class Dwarf(BaseRace):
     def __init__(self) -> None:
         super().__init__(
             name='Dwarf',
+            name_adj='dwarven',
             default_char='d',
             attribute_bonuses={'CON': 2, 'STR': 1},
             job_chance={'Fighter': 20, 'Mage': 5},
@@ -95,7 +102,19 @@ class Dwarf(BaseRace):
             elderly_age=270,
             resistances={game_types.ElementTypes.EARTH: 10}
             )
+        
+class Tiefling(BaseRace):
+    def __init__(self) -> None:
+        super().__init__(
+            name='Tiefling',
+            name_adj='tiefling',
+            default_char='t',
+            attribute_bonuses={'CON': 2, 'STR': 1},
+            dark_vision=20,
+            average_lifespan = 270,
+            adult_age=60,
+            elderly_age=200,
+            resistances={game_types.ElementTypes.FIRE: 50}
+            )
 
-RACES: List[BaseRace] = [Human(), Elf(), Dwarf()]
-
-RACES_PLURAL = {'Human': 'human', 'Elf': 'elven', 'Dwarf': 'dwarven'}
+RACES: List[BaseRace] = [Human(), Elf(), Dwarf(), Tiefling()]

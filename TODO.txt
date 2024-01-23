@@ -24,7 +24,7 @@
 
 -[TODO:]Work on ageing. Need better death chance calculator. Current version on school Desmos.
 
--[DONE]Add doors. Open/Closed/[TODO:]Locked
+-[DONE]Add doors. Open/Closed/[DONE]Locked
 
 -[TODO:]Add lighting. Light levels, player FOV limited if light level is not high enough.
 
@@ -60,6 +60,10 @@
 
 -[FIXME:]Entity default's if list/set/dict need to be None and empty iterable should be made in innit.
 
--[FIXME:]When player kills themselves with a spell they die but can still move.
+-[FIXME:]Sometimes when player kills themselves with a spell they die but can still move.
 
 -[TODO:]Add overworld and support for multiple dungeons.
+
+-[TODO:]Create and load maps from files.
+
+-[TODO:]Overworld generation

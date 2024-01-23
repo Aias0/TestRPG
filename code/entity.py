@@ -72,8 +72,7 @@ class Entity():
         
         # Auto gen character description if one doesn't exist.
         elif type(self) == Character:
-            from races import RACES_PLURAL
-            self.description = f'A level {self.level} {RACES_PLURAL[self.race.name]} {re.sub(r"^(.)", lambda match: match.group(1).lower(), self.job.name)} named {self.name}.'
+            self.description = f'A level {self.level} {self.race.name_adj} {re.sub(r"^(.)", lambda match: match.group(1).lower(), self.job.name)} named {self.name}.'
         else:
             self.description = 'This should\'t happen.'
         self.value = value
@@ -1122,6 +1121,8 @@ class Door(Entity):
         )
         self.opened = opened
         
+        self.lock_val: int = 0
+        
         if hasattr(self, 'parent'):
             if self.opened:
                 self.close()
@@ -1129,16 +1130,37 @@ class Door(Entity):
                 self.open()
     
     def open(self):
+        if self.lock_val != 0:
+            raise exceptions.Impossible('Door is locked.')
         self.parent.char = '/'
         self.parent.blocks_movement = False
         self.parent.blocks_fov = False
         self.opened = True
         
     def close(self):
+        assert self.lock_val == 0
+        
+        if hasattr(self.engine, 'game_map'):
+            sprite_on_top = self.engine.game_map.get_sprite_at_location(self.parent.x, self.parent.y, {self.parent})
+            if sprite_on_top:
+                raise exceptions.Impossible(f'Cannot close door, {sprite_on_top.name} is blocking door.')
+            
         self.parent.char = '+'
         self.parent.blocks_movement = True
         self.parent.blocks_fov = True
         self.opened = False
+        
+    def lock(self, key: int) -> None:
+        if self.lock_val == 0:
+            raise exceptions.Impossible('Door already locked.')
+        self.lock_val = key
+        self.close()
+    
+    def unlock(self, key: int) -> None:
+        if self.lock_val == key:
+            self.lock_val = 0
+            return
+        raise exceptions.Impossible('Lock does not work on door.')
         
     def interact(self, character: Character | None = None) -> None:
         if self.opened:

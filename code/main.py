@@ -9,8 +9,6 @@ import input_handler
 
 import os
 
-import imageio.v3 as iio
-
 tileset_file = SETTINGS['tileset_file']
 def refresh_tileset() -> None:
     global tileset_file
@@ -71,7 +69,7 @@ def main() -> None:
                             handler.handle_events(event)
                 except exceptions.ExitToMainMenu:
                     if not isinstance(handler.engine, MainMenuEngine):
-                        save_game(handler, f'exitsave{abs(hash(handler.engine)) % (10 ** 5)}.sav')
+                        save_game(handler, f'exitsave_{abs(hash(handler.engine)) % (10 ** 5)}.sav')
                     handler = MainMenuEngine().event_handler
                 except Exception: # Handle exceptions in game.
                     traceback.print_exc() # Print error to stderr
@@ -82,11 +80,11 @@ def main() -> None:
         
         except SystemExit: # Save and Quit
             if not isinstance(handler.engine, MainMenuEngine):
-                save_game(handler, f'exitsave{abs(hash(handler.engine)) % (10 ** 5)}.sav')
+                save_game(handler, f'exitsave_{abs(hash(handler.engine)) % (10 ** 5)}.sav')
             raise
         except BaseException: # Save on any other unexpected exception.
             if not isinstance(handler.engine, MainMenuEngine):
-                save_game(handler, f'errorsave{abs(hash(handler.engine)) % (10 ** 5)}.sav')
+                save_game(handler, f'errorsave_{abs(hash(handler.engine)) % (10 ** 5)}.sav')
             raise
 if __name__ == '__main__':
     main()

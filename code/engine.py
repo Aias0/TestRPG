@@ -20,7 +20,7 @@ import lzma
 import pickle
 
 if TYPE_CHECKING:
-    from game_map import GameMap, GameWorld
+    from game_map import GameMap, GameLocation
     from input_handler import EventHandler
     
 class MainMenuEngine:
@@ -38,7 +38,7 @@ class MainMenuEngine:
 
 class Engine:
     game_map: GameMap
-    game_world: GameWorld
+    game_location: GameLocation
     
     def __init__(self, player: Actor):
         self.event_handler: EventHandler = MainGameEventHandler(self)
@@ -59,6 +59,9 @@ class Engine:
         
         self.turn_count = 0
         self._blink_counter = 0
+        
+    def message(self, text: str, fg: tuple[int, int, int] = color.white):
+        self.message_log.add_message(text=text, fg=fg)
         
     def handle_npc_turns(self) -> None:
         for sprite in self.game_map.sprites - {self.player} - {sprite for sprite in self.game_map.sprites if not isinstance(sprite, Actor)}:
