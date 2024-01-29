@@ -110,22 +110,17 @@ def gen_rivers(arr, num_rivers = None) -> list[list[tuple]]:
         num_rivers = random.randint(0, 3)
     
     rivers: list[list] = []
-    prev_start = None
     while num_rivers > 0:
         current_point = (random.randint(0, map_height-1), random.randint(0, map_width-1))
         if (
         arr[*current_point] < water_adjust(.8) or
-        prev_start == current_point or
-        (prev_start and current_point in [tuple(np.add(prev_start, p)) for p in [(1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (1, -1), (-1, -1), (-1, 1)]])):
+        (rivers and current_point in [tuple(np.add(river[0], p)) for p in [(1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (1, -1), (-1, -1), (-1, 1), (0, 0)] for river in rivers])):
             continue
-        prev_start = current_point
         
         rivers.append([])
         picked_points = []
-        while get_biome(arr[*current_point], 1) != 'OCEAN':
+        while not arr[*current_point] < water_level:
             neighbors = get_surround_elevation(*current_point)
-            if not neighbors:
-                break
             temp = neighbors[0]
             picked_point = False
             for neighbor in neighbors:
@@ -287,6 +282,7 @@ def main():
     ) as context:
         console = tcod.console.Console(map_width, map_height+2, order='F')
 
+        show_hover = False
         #context.sdl_window.maximize()
 
         while True:
@@ -294,11 +290,11 @@ def main():
 
             for i, row in enumerate(elevation):
                 for j, val in enumerate(row):
-                    console.rgb[j, i] = ord('█'), biome_colors[get_biome(val, moisture[i, j])], (0,)*3
+                    console.rgb[j, i] = ord(' '),  (0,)*3, biome_colors[get_biome(val, moisture[i, j])]
                     
             for river in rivers:
                 for point in river:
-                    console.rgb[*point[::-1]] = ord('█'), biome_colors['FRESH_WATER'], (0,)*3
+                    console.rgb[*point[::-1]] = ord(' '), (0,)*3, biome_colors['FRESH_WATER']
 
             console.print(0, console.height-2, f'LC: {n}')
 
@@ -310,7 +306,13 @@ def main():
                 console.print(console.width-1, console.height-2, f'Elv: {"%.3f" % round(elevation[mouse_location[1]][mouse_location[0]], 3)}', alignment=tcod.libtcodpy.RIGHT)
                 console.print(console.width-1, console.height-1, f'Mos: {"%.3f" % round(moisture[mouse_location[1]][mouse_location[0]], 3)}', alignment=tcod.libtcodpy.RIGHT)
                 console.print(0, console.height-1, f'Biome: {get_biome(elevation[mouse_location[1]][mouse_location[0]], moisture[mouse_location[1]][mouse_location[0]])}')
+
+                if show_hover:
+                    #console.rgba= ord('+'), (255,)*4, (0,)*4
+                    console.print(*mouse_location, string='+', fg=(255,)*3, bg=None)
+            
             context.present(console)
+            
 
 
             for event in tcod.event.get():
@@ -354,6 +356,9 @@ def main():
                             
                         case tcod.event.KeySym.m:
                             context.sdl_window.maximize()
+                            
+                        case tcod.event.KeySym.e:
+                            show_hover = not show_hover
                             
                         case tcod.event.KeySym.i:
                             seed = int(input("seed: "))
