@@ -11,6 +11,10 @@ from colour import Color
 import random
 import opensimplex
 
+from multiprocessing import Pool, freeze_support
+
+import time
+
 seed = None
 
 if seed is None:
@@ -26,7 +30,7 @@ def normalized_noise2(x, y):
 def lerp(start, end, amt):
   return (1-amt)*start+amt*end
 
-def noise_array(shape: tuple, frequency: float = 1, octave_blend: list[float] = [1]) -> NDArray:
+def noise_array(shape: tuple, frequency: float = 1, octave_blend: list[float] = [1], redistribution: float = 1) -> NDArray:
     arr = np.zeros(shape)
     
     for i, row in enumerate(arr):
@@ -38,12 +42,12 @@ def noise_array(shape: tuple, frequency: float = 1, octave_blend: list[float] = 
             for octave in octave_blend:
                 total += octave*normalized_noise2(1/octave*nx, 1/octave*ny)
             
-            arr[i, j] = total/sum(octave_blend)
+            arr[i, j] = (total/sum(octave_blend))**redistribution
     
     #print(np.min(arr), np.max(arr), octave_blend, sep=' | ')
     return arr
 
-def gen_elevation(noise: NDArray, lerp_const: float) -> NDArray:
+def gen_elevation(noise: NDArray, lerp_const: float, redistribution: float = 1.2) -> NDArray:
     arr = np.zeros(noise.shape)
     
     for i, row in enumerate(arr):
@@ -55,7 +59,7 @@ def gen_elevation(noise: NDArray, lerp_const: float) -> NDArray:
             #dist = 1 - (1-nx**2) * (1-ny**2)
             dist = max(2*(1 - (1-nx**2) * (1-ny**2)), 0)
             
-            arr[i, j] = lerp(val, 1-dist, lerp_const)
+            arr[i, j] = max(lerp(val, 1-dist, lerp_const), 0)**redistribution
     
     #print(np.min(arr), np.max(arr), octave_blend, sep=' | ')
     return arr
@@ -96,10 +100,12 @@ def gen_rivers(elevation: NDArray, water_level: float, num_rivers: int | None = 
                     temp = neighbor
                     picked_point = True
             
+            #print(f'lake {current_point}')
             # Lakes/ponds
             if not picked_point:
                 temp = picked_points[-1]
                 for point in picked_points:
+                    #print(f'working on lake {point}')
                     p_neighbors = get_surround_elevation(elevation, point)
                     temp2 = None
                     for p_neighbor in p_neighbors:
@@ -116,35 +122,63 @@ def gen_rivers(elevation: NDArray, water_level: float, num_rivers: int | None = 
         
     return rivers
         
-def dist_formula(x2, x1, y2, y1):
-    return ((x2-x1)**2+(y2-y1)**2)**.5
 def gen_moisture(elevation: NDArray, rivers: list[list[tuple]], water_level: float, moisture_const: float = .95) -> NDArray:
     moisture = np.zeros(elevation.shape)
     if not rivers:
+        for i, row in enumerate(elevation):
+            for j, elv in enumerate(row):
+                if elv < water_level:
+                    moisture[i, j] = 1
         return moisture
     
+    data = []
     for i, row in enumerate(elevation):
         for j, elv in enumerate(row):
-            if not rivers[0] or elv < water_level:
-                continue
-            closest_fresh_water = rivers[0][0]
-            for river in rivers:
-                for point in river:
-                    new_dist = dist_formula(point[0], i, point[1], j)
-                    old_dist = dist_formula(closest_fresh_water[0], i, closest_fresh_water[1], j)
-                    if new_dist < old_dist:
-                        closest_fresh_water = point
+            data.append([(i, j), elevation, rivers, water_level, moisture_const])
             
-            moisture[i, j] = (moisture_const + (random.random()*.00625)-.003125)**dist_formula(closest_fresh_water[0], i, closest_fresh_water[1], j)
-            #print([i, j],closest_fresh_water)
+    results = Pool().starmap(moisture_at_tile, data)
+    
+    for result in results:
+        moisture[*result[0]] = result[1]
             
     return moisture
+
+def dist_formula(x2, x1, y2, y1):
+    return ((x2-x1)**2+(y2-y1)**2)**.5
+def moisture_at_tile(point, elevation, rivers, water_level, moisture_const) -> float:
+    if elevation[*point] < water_level or any([point in river for river in rivers]):
+        return (point, 1)
+    closest_fresh_water = rivers[0][0]
+    for river in rivers:
+        #print('working on moist')
+        for r_point in river:
+            new_dist = dist_formula(r_point[0], point[0], r_point[1], point[1])
+            old_dist = dist_formula(closest_fresh_water[0], point[0], closest_fresh_water[1], point[1])
+            if new_dist < old_dist:
+                closest_fresh_water = r_point
+    
+    random_fudge = (random.random()*.00625)-.003125
+    moisture_val = (moisture_const + random_fudge)**dist_formula(closest_fresh_water[0], point[0], closest_fresh_water[1], point[1])
+
+    return (point, moisture_val)
     
 def gen_map(map_shape, frequency, octaves, lerp_const, water_level) -> tuple:
+    noise_time = time.time()
     raw_noise = noise_array(map_shape, frequency, octaves)
+    print(f'Noise: {time.time()-noise_time}')
+    
+    elevation_time = time.time()
     elevation = gen_elevation(raw_noise, lerp_const)
+    print(f'Elevation: {time.time()-elevation_time}')
+    
+    river_time = time.time()
     rivers = gen_rivers(elevation, water_level)
+    print(f'Rivers: {time.time()-river_time}')
+    
+    moisture_time = time.time()
     moisture = gen_moisture(elevation, rivers, water_level)
+    print(f'Moisture: {time.time()-moisture_time}')
+    print()
     
     return raw_noise, elevation, rivers, moisture
 
@@ -153,6 +187,9 @@ def water_adjust(water_level, val: float) -> float:
 def get_biome(water_level, elevation, moisture) -> str:
     if elevation < water_level:
         return 'OCEAN'
+    
+    #elif elevation < water_adjust(water_level, .14):
+    #    return 'SHALLOW_WATER'
     
     elif elevation < water_adjust(water_level, .2):
         return 'BEACH'
@@ -196,6 +233,7 @@ def get_biome(water_level, elevation, moisture) -> str:
 biome_colors = {
     'OCEAN': (0, 0, 200),
     'FRESH_WATER': (0, 0, 255),
+    'SHALLOW_WATER': (169,153,166),
     
     'BEACH': (232, 210, 153),
     
@@ -222,6 +260,7 @@ biome_colors = {
 }
 
 def main():
+    freeze_support()
     map_width = 100
     map_height = 80
     tileset = tcod.tileset.load_tilesheet(
@@ -243,15 +282,21 @@ def main():
         
         water_level = .1
         
-        show_noise = False
+        background_stuff = 0
         
         raw_noise, elevation, rivers, moisture = gen_map((map_width, map_height), frequency, octaves, lerp_const, water_level)
         while True:
             console.clear()
-            if show_noise:
+            if background_stuff == 1: # Elevation
                 for i, row in enumerate(elevation):
                     for j, val in enumerate(row):
                         console.print(i, j, ' ', bg=b_w_grad[min(int(val*100), 99)])
+                console.print(0, 0, string='Elevation', fg=(255,)*3)
+            elif background_stuff == 2: # Moisture
+                for i, row in enumerate(moisture):
+                    for j, val in enumerate(row):
+                        console.print(i, j, ' ', bg=b_w_grad[min(int(val*100), 99)])
+                console.print(0, 0, string='Moisture', fg=(0,)*3)
                     
             else:
                 for i, row in enumerate(elevation):
@@ -263,9 +308,11 @@ def main():
                         console.print(*p, ' ', bg=biome_colors['FRESH_WATER'])
                         
                         
-            
-            console.print(x=0, y=console.height-1, string=f'Elv:{elevation[*mouse_location]}')
-            
+            if mouse_location[0] in range(console.height-1) and mouse_location[1] in range(console.width-1):
+                console.print(x=0, y=console.height-1, string=f'Elv:{elevation[*mouse_location]}')
+                console.print(x=console.width//2, y=console.height-1, string=f'Biome:{get_biome(water_level, elevation[*mouse_location], moisture[*mouse_location])}', alignment=tcod.constants.CENTER)
+                console.print(x=console.width-1, y=console.height-1, string=f'Moist:{moisture[*mouse_location]}', alignment=tcod.constants.RIGHT)
+
             context.present(console)
             
             for event in tcod.event.get():
@@ -308,10 +355,14 @@ def main():
                             water_level = max(water_level-.01, 0)
                             rivers = gen_rivers(elevation, water_level)
                             moisture = gen_moisture(elevation, rivers, water_level)
+                            
+                        case tcod.event.KeySym.TAB:
+                            background_stuff += 1
+                            if background_stuff > 2:
+                                background_stuff = 0
                 
                 if isinstance(event, tcod.event.MouseMotion):
-                    if event.tile.x in range(elevation.shape[1]) and event.tile.y in range(elevation.shape[0]):
-                        mouse_location = event.tile.x, event.tile.y
+                    mouse_location = event.tile.x, event.tile.y
             
 if __name__ == '__main__':
     main()

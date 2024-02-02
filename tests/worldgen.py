@@ -21,7 +21,7 @@ def normalized_noise2(x, y):
     return (opensimplex.noise2(x, y)/.86591+1)/2
 
 
-def noise_array(shape: tuple, frequency: float = 1, octave_blend: list[float] = [1]) -> NDArray:
+def noise_array(shape: tuple, frequency: float = 1, octave_blend: list[float] = [1], redistribution: float = 1) -> NDArray:
     arr = np.zeros(shape)
     
     for i, row in enumerate(arr):
@@ -33,7 +33,7 @@ def noise_array(shape: tuple, frequency: float = 1, octave_blend: list[float] = 
             for octave in octave_blend:
                 total += octave*normalized_noise2(1/octave*nx, 1/octave*ny)
             
-            arr[i, j] = total/sum(octave_blend)
+            arr[i, j] = total/sum(octave_blend)**redistribution
     
     #print(np.min(arr), np.max(arr), octave_blend, sep=' | ')
     return arr
