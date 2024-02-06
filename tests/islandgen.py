@@ -13,19 +13,15 @@ import opensimplex
 
 from multiprocessing import Pool, freeze_support
 
-import time
-
-seed = None
-
-if seed is None:
-    seed = random.randint(0, 636413622)
-opensimplex.seed(seed)
+import time, ast
 
 b_w_grad = [tuple(map(lambda x: int(x*255), color.rgb)) for color in Color('black').range_to(Color('white'), 100)]
 
-def normalized_noise2(x, y):
+def normalized_noise2(x: float, y: float) -> float:
     """ Opensimplex noise normalized to 0-1. """
-    return (opensimplex.noise2(x, y)/.86591+1)/2
+    noise = (opensimplex.noise2(x, y)/.86591+1)/2
+    assert 0 <= noise <= 1
+    return noise
 
 def lerp(start, end, amt):
   return (1-amt)*start+amt*end
@@ -134,7 +130,8 @@ def gen_moisture(elevation: NDArray, rivers: list[list[tuple]], water_level: flo
     data = []
     for i, row in enumerate(elevation):
         for j, elv in enumerate(row):
-            data.append([(i, j), elevation, rivers, water_level, moisture_const])
+            random_fudge = (random.random()*.00625)-.003125
+            data.append([(i, j), elevation, rivers, water_level, moisture_const, random_fudge])
             
     results = Pool().starmap(moisture_at_tile, data)
     
@@ -145,7 +142,7 @@ def gen_moisture(elevation: NDArray, rivers: list[list[tuple]], water_level: flo
 
 def dist_formula(x2, x1, y2, y1):
     return ((x2-x1)**2+(y2-y1)**2)**.5
-def moisture_at_tile(point, elevation, rivers, water_level, moisture_const) -> float:
+def moisture_at_tile(point, elevation, rivers, water_level, moisture_const, random_fudge) -> float:
     if elevation[*point] < water_level or any([point in river for river in rivers]):
         return (point, 1)
     closest_fresh_water = rivers[0][0]
@@ -157,12 +154,14 @@ def moisture_at_tile(point, elevation, rivers, water_level, moisture_const) -> f
             if new_dist < old_dist:
                 closest_fresh_water = r_point
     
-    random_fudge = (random.random()*.00625)-.003125
+    
     moisture_val = (moisture_const + random_fudge)**dist_formula(closest_fresh_water[0], point[0], closest_fresh_water[1], point[1])
 
     return (point, moisture_val)
     
 def gen_map(map_shape, frequency, octaves, lerp_const, water_level) -> tuple:
+    print()
+    print(f'Seed: {opensimplex.get_seed()}')
     noise_time = time.time()
     raw_noise = noise_array(map_shape, frequency, octaves)
     print(f'Noise: {time.time()-noise_time}')
@@ -229,7 +228,7 @@ def get_biome(water_level, elevation, moisture) -> str:
             return 'BARE'
         if moisture < 0.5:
             return 'TUNDRA'
-        return 'SNOW'  
+        return 'SNOW'
 biome_colors = {
     'OCEAN': (0, 0, 200),
     'FRESH_WATER': (0, 0, 255),
@@ -259,8 +258,30 @@ biome_colors = {
     'SNOW': (255, 255, 255)
 }
 
+def make_seed(val):
+    try:
+        val = ast.literal_eval(val)
+    except ValueError:
+        pass
+    except SyntaxError:
+        pass
+    if val is None:
+        val = random.randint(0, 636413622)
+    elif isinstance(val, str):
+        temp = ''
+        for char in val:
+            temp += str(ord(char))
+        val = int(temp)
+    return val
+
 def main():
     freeze_support()
+    
+    seed = None
+    seed = make_seed(seed)
+    opensimplex.seed(seed)
+    random.seed(seed)
+    
     map_width = 100
     map_height = 80
     tileset = tcod.tileset.load_tilesheet(
@@ -273,6 +294,9 @@ def main():
         title='WorldGen',
         vsync=True,
     ) as context:
+        context.sdl_window.resizable = False
+        context.sdl_window.size = int(map_width*10*1.5), int(map_height*10*1.5)
+        
         console = tcod.console.Console(map_width, map_height+1, order='F')
         mouse_location = (0, 0)
         
@@ -284,8 +308,17 @@ def main():
         
         background_stuff = 0
         
+        input_text: str = ''
+        inputting_text = False
+        
         raw_noise, elevation, rivers, moisture = gen_map((map_width, map_height), frequency, octaves, lerp_const, water_level)
         while True:
+            if not inputting_text and input_text:
+                seed = make_seed(input_text)
+                input_text = ''
+                opensimplex.seed(seed)
+                random.seed(seed)
+                raw_noise, elevation, rivers, moisture = gen_map((map_width, map_height), frequency, octaves, lerp_const, water_level)
             console.clear()
             if background_stuff == 1: # Elevation
                 for i, row in enumerate(elevation):
@@ -312,22 +345,33 @@ def main():
                 console.print(x=0, y=console.height-1, string=f'Elv:{elevation[*mouse_location]}')
                 console.print(x=console.width//2, y=console.height-1, string=f'Biome:{get_biome(water_level, elevation[*mouse_location], moisture[*mouse_location])}', alignment=tcod.constants.CENTER)
                 console.print(x=console.width-1, y=console.height-1, string=f'Moist:{moisture[*mouse_location]}', alignment=tcod.constants.RIGHT)
+            
+            if inputting_text:
+                console.print_box(x=0, y=0, width=len(input_text)+3, height=3, string='', fg=(0,)*3, bg=(0,)*3)
+                console.draw_frame(x=0, y=0, width=len(input_text)+3, height=3, fg=(255,)*3, bg=(0,)*3)
+                console.print(x=1, y=1, string=input_text, fg=(255,)*3, bg=(0,)*3)
+                console.print(x=len(input_text)+1, y=1, string='_', bg=(0,)*3)
 
             context.present(console)
             
-            for event in tcod.event.get():
+            for event in tcod.event.wait():
                 context.convert_event(event)
 
-                if isinstance(event, tcod.event.KeyDown):
+                if not inputting_text and isinstance(event, tcod.event.KeyDown):
                     match event.sym:
                         case tcod.event.KeySym.ESCAPE:
                             exit()
                         
                         case tcod.event.KeySym.SPACE:
-                            seed = random.randint(0, 636413622)
+                            seed = make_seed(random.randint(0, 636413622))
                             opensimplex.seed(seed)
                             random.seed(seed)
                             raw_noise, elevation, rivers, moisture = gen_map((map_width, map_height), frequency, octaves, lerp_const, water_level)
+                        case tcod.event.KeySym.i:
+                            inputting_text = True
+                            has_i = True
+                        case tcod.event.KeySym.p:
+                            print(seed)
                             
                         case tcod.event.KeySym.s:
                             frequency+=.5
@@ -361,7 +405,25 @@ def main():
                             if background_stuff > 2:
                                 background_stuff = 0
                 
-                if isinstance(event, tcod.event.MouseMotion):
+                elif inputting_text:
+                    if isinstance(event, tcod.event.KeyDown):
+                        match event.sym:
+                            case tcod.event.KeySym.ESCAPE:
+                                input_text = ''
+                                inputting_text = False
+                            case tcod.event.KeySym.RETURN:
+                                inputting_text = False
+                            case tcod.event.KeySym.BACKSPACE:
+                                input_text = input_text[:-1]
+                    
+                    elif isinstance(event, tcod.event.TextInput):
+                        input_text += event.text
+                        
+                    if has_i:
+                        input_text = ''
+                        has_i = False
+                
+                elif isinstance(event, tcod.event.MouseMotion):
                     mouse_location = event.tile.x, event.tile.y
             
 if __name__ == '__main__':

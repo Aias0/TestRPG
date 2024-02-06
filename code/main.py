@@ -29,7 +29,7 @@ def main() -> None:
         tileset_file, 16, 16, tcod.tileset.CHARMAP_CP437
     )
     from engine import MainMenuEngine
-    # See if a reboot save exists and reload if if it does. If it doesn't go to main menu.
+    # See if a reboot save exists and reload if it does. If it doesn't go to main menu.
     if os.path.exists('data\\user_data\\TempRebootSave.sav'):
         from setup_game import load_game
         handler = load_game('TempRebootSave.sav').event_handler

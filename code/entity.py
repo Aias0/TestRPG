@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from entity import Character
     from engine import Engine
     from game_map import GameMap
-    from magic import Spell
+    from magic import AttackSpell
 
 class Entity():
     parent: Sprite
@@ -243,7 +243,7 @@ class Character(Entity):
         dominant_hand: str = None,
         tags: set[str] = set(),
         materials: List[MaterialTypes] = None,
-        spell_book: List[Spell] = None,
+        spell_book: List[AttackSpell] = None,
         age: int = None,
         providing_parent: bool = False,
         interactable: bool = False,
@@ -1138,8 +1138,6 @@ class Door(Entity):
         self.opened = True
         
     def close(self):
-        assert self.lock_val == 0
-        
         if hasattr(self.engine, 'game_map'):
             sprite_on_top = self.engine.game_map.get_sprite_at_location(self.parent.x, self.parent.y, {self.parent})
             if sprite_on_top:
@@ -1151,7 +1149,7 @@ class Door(Entity):
         self.opened = False
         
     def lock(self, key: int) -> None:
-        if self.lock_val == 0:
+        if self.lock_val != 0:
             raise exceptions.Impossible('Door already locked.')
         self.lock_val = key
         self.close()

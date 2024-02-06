@@ -110,7 +110,7 @@ class MainMenu(input_handler.EventHandler):
             alignment=libtcodpy.CENTER
         )
         
-        self.options = ['[N] New game', '[C] Continue last game', '[L] Load Game', '[S] Settings', '[Q] Quit']
+        self.options = ['New game', 'Continue last game', 'Load Game', 'Settings', 'Quit']
         selection_console = tcod.console.Console(max(len(op) for op in self.options)+4, len(self.options)+4)
         render_functions.draw_border(selection_console)
         render_functions.draw_border_detail(selection_console)

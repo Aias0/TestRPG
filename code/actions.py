@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from sprite import Sprite, Actor
     from entity import Item
     from entity_effect import BaseEffect, ItemEffect
-    from magic import Spell
+    from magic import AttackSpell
 
 class Action:
     def __init__(self, sprite: Actor) -> None:
@@ -118,7 +118,7 @@ class EatAction(EffectAction):
         
 class MagicAction(Action):
     def __init__(
-        self, sprite: Sprite, spell: Spell, target_xy: Optional[Tuple[int, int]] = None
+        self, sprite: Sprite, spell: AttackSpell, target_xy: Optional[Tuple[int, int]] = None
     ) -> None:
         super().__init__(sprite)
         self.spell = spell
@@ -251,13 +251,22 @@ class MovementAction(ActionWithDirection):
             raise exceptions.Impossible('That way is blocked')
         
         self.sprite.move(self.dx, self.dy)
-        self.engine.mouse_location = dest_x, dest_y
+        if self.sprite == self.engine.player:
+            self.engine.mouse_location = dest_x, dest_y
         
 class BumpAction(ActionWithDirection):
     def perform(self) -> None:
         from entity import Door
         if self.blocking_sprite and isinstance(self.blocking_sprite.entity, Door):
-            self.blocking_sprite.entity.open()
+            door = self.blocking_sprite.entity
+            from entity_effect import KeyEffect
+            key = [item for item in self.sprite.entity.inventory if isinstance(item.effect, KeyEffect) and item.effect.key == door.lock_val]
+            if door.lock_val != 0 and key:
+                self.engine.message(f'Unlocked door with {key[0].name}')
+                door.unlock(key[0].effect.key)
+                if key[0].effect.one_time:
+                    self.sprite.entity.inventory.remove(key[0])
+            door.open()
         elif self.target_actor:
             return MeleeAction(self.sprite, self.dx, self.dy).perform()
         else:

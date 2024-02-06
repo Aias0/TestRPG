@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 import actions, color, random, game_types, sys
+from game_types import ElementTypes
 
 from exceptions import Impossible
 
@@ -10,7 +11,7 @@ from magic import AOESpell
 
 if TYPE_CHECKING:
     from entity import Entity, Item, Character, Corpse
-    from magic import Spell
+    from magic import AttackSpell
 
 _bonus_dict = {'CON': 0, 'STR': 0, 'END': 0, 'DEX': 0, 'FOC': 0, 'INT': 0, 'WIL': 0, 'WGT': 0, 'LCK': 0}
 class BaseEffect():
@@ -122,7 +123,11 @@ class ItemEffect(BaseEffect):
             FAVORITES[key].remove(self.parent)
             if not FAVORITES[key]:
                 FAVORITES[key] = None
-        self.parent.holder.inventory.remove(self.parent)
+        
+        if self.parent.holder.in_inventory(self.parent):
+            self.parent.holder.inventory.remove(self.parent)
+        else:
+            self.parent.gamemap.sprites.remove(self.parent.parent)
         
     def eat(self, action: actions.EffectAction) -> None:
         raise Impossible(f'{self.parent} is not edible.')
@@ -217,7 +222,7 @@ class HealingEffect(ItemEffect):
             self.consume()
         
 class ScrollEffect(ItemEffect):
-    def __init__(self, spell: Spell, consumable: bool = True, name: str = None, stackable: bool = True):
+    def __init__(self, spell: AttackSpell, consumable: bool = True, name: str = None, stackable: bool = True):
         super().__init__(
             name=name,
             phys_atk_bonus=0,
@@ -331,3 +336,41 @@ class DOTEffect(CharacterEffect):
             )
             
             self.current_turn += 1
+            
+class KeyEffect(ItemEffect):
+    def __init__(
+        self,
+        key: int,
+        one_time: bool = False,
+        name: str = None,
+        phys_atk_bonus: int = 0,
+        magc_atk_bonus: int = 0,
+        phys_defense_bonus: int = 0,
+        phys_negation_bonus: int = 0,
+        magc_defense_bonus: int = 0,
+        magc_negation_bonus: int = 0,
+        dodge_chance_bonus: int = 0,
+        attribute_bonuses: dict[str, int] = {},
+        needs_equipped: bool = True,
+        consumable: bool = False,
+        stackable: bool = True,
+        resistances: dict[game_types.ElementTypes, int] = {},
+    ):
+        super().__init__(
+            name,
+            phys_atk_bonus,
+            magc_atk_bonus,
+            phys_defense_bonus,
+            phys_negation_bonus,
+            magc_defense_bonus,
+            magc_negation_bonus,
+            dodge_chance_bonus,
+            attribute_bonuses,
+            needs_equipped,
+            consumable,
+            stackable,
+            resistances
+        )
+        
+        self.key = key
+        self.one_time = one_time

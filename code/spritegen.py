@@ -69,6 +69,7 @@ def gen_enemies(
             job_chance = base_job_list | enemy_race.job_chance
         job_key, level_job_weights = zip(*job_chance.items())
         job_pick = random.choices(job_key, level_job_weights)[0]
+
         enemy_job = [i for i in JOBS if i.__class__.__name__ == job_pick][0]
         
         enemies.append(Character(

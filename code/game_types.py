@@ -14,6 +14,7 @@ class ItemTypes(Enum):
     
     POTION = auto()
     SCROLL = auto()
+    KEY = auto()
     
     SWORD = auto()
     DAGGER = auto()
@@ -97,6 +98,8 @@ class DamageTypes(Enum):
     TRUE = auto()
     
 class ElementTypes(Enum):
+    NONE = auto()
+    
     FIRE = auto()
     WATER = auto()
     AIR = auto()

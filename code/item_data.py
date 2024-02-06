@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from entity import Item
-from entity_effect import ItemEffect, HealingEffect, ScrollEffect
+from entity_effect import ItemEffect, HealingEffect, ScrollEffect, KeyEffect
 
 import magic
 
@@ -45,6 +45,10 @@ lightning_bolt_scroll = Item(
 
 fire_ball_scroll = Item(
     'Fire Ball Scroll', 400, 1, itemtype=ItemTypes.SCROLL, effect=ScrollEffect(magic.FireBall()), rarity=2
+)
+
+simple_key = Item(
+    'Simple Key', 1, 1, '⌐', color=(200,)*3, itemtype=ItemTypes.KEY, effect=KeyEffect(1)
 )
 
 ITEMS = [health_potion, sword, fire_ball_scroll, lightning_bolt_scroll, mana_potion, staff, dagger, leather_jerkin, robes, chest_plate]

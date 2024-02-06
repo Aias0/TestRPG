@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from engine import Engine
     from entity import Item
     from sprite import Sprite, Actor
-    from magic import AOESpell, Spell
+    from magic import AOESpell, AttackSpell
     from entity_effect import BaseEffect, CharacterEffect
     
 KEY_ACTION = {
@@ -77,7 +77,7 @@ CURSOR_Y_KEYS = {
     tcod.event.KeySym.DOWN: 1,
 }
 
-FAVORITES: Dict[tcod.event.KeySym, list[Item] | CharacterEffect | Spell | None] = {
+FAVORITES: Dict[tcod.event.KeySym, list[Item] | CharacterEffect | AttackSpell | None] = {
     tcod.event.KeySym.N1: None,
     tcod.event.KeySym.N2: None,
     tcod.event.KeySym.N3: None,
@@ -687,6 +687,10 @@ class InventoryEventHandler(SubMenuEventHandler):
                     favorite = f'(F{list(FAVORITES.values()).index(stack)+1})'
                 
                 menu_console.print(x=5, y=y, string=f'{chr(i+65)} - ({stack[0].parent.char}){stack[0].name}{equipped}{favorite} {item_amount}', fg=text_color)
+                item_color = stack[0].parent.color
+                if item_color == (0, 0, 0):
+                    menu_console.print(x=5+len(f'{chr(i+65)} - ('), y=y, string=f' ', bg=(155,)*3)
+                menu_console.print(x=5+len(f'{chr(i+65)} - ('), y=y, string=f'{stack[0].parent.char}', fg=item_color)
                 weight_text = f'[{stack[0].weight*len(stack)}]'
                 menu_console.print(x=menu_console.width-5-len(weight_text), y=y, string=weight_text, fg=text_color)
                 y+=1
@@ -697,12 +701,22 @@ class InventoryEventHandler(SubMenuEventHandler):
                 menu_console.print(x=6, y=7+max(len(self.items_on_page), 1), string='<...', fg=color.ui_text_color)
                 
         if self.selected_item in range(0, len(self.items_on_page)):
-            desc_console = tcod.console.Console(22, 5)
+            desc_console = tcod.console.Console(35, 10)
             desc_console.draw_frame(0, 0, desc_console.width, desc_console.height, fg=color.ui_color)
-            for i, line in enumerate(textwrap.wrap(self.items_on_page[self.selected_item][0].description, desc_console.width-2, expand_tabs=True)):
-                desc_console.print(x=1, y=i+1, string=line, fg=color.ui_text_color)
+            
+            desc = self.items_on_page[self.selected_item][0].description
+            
+            desc_lines = desc.replace('\n', '\n').split('\n')
+            
+            current_line = 0
+            for i, l_line in enumerate(desc_lines):
+                for j, line in enumerate(textwrap.wrap(l_line, desc_console.width-2, expand_tabs=True)):
+                    desc_console.print(x=1, y=current_line+1, string=line, fg=color.ui_text_color)
+                    current_line += 1
+                current_line += 1
+                    
 
-            desc_console.blit(menu_console, dest_x=menu_console.width-4-22, dest_y=43)
+            desc_console.blit(menu_console, dest_x=menu_console.width-4-desc_console.width, dest_y=37)
 
         self.display_latest_message(menu_console)
         menu_console.blit(console, dest_x=0, dest_y=1)
@@ -761,6 +775,11 @@ class InventoryEventHandler(SubMenuEventHandler):
                 if stack in FAVORITES.values():
                     FAVORITES[list(FAVORITES.keys())[list(FAVORITES.values()).index(stack)]] = None
                 FAVORITES[sym] = stack
+            
+            case tcod.event.KeySym(sym) if event.scancode == tcod.event.Scancode.GRAVE and not event.mod:
+                stack = self.items_on_page[self.selected_item]
+                if stack in FAVORITES.values():
+                    FAVORITES[list(FAVORITES.keys())[list(FAVORITES.values()).index(stack)]] = None
                 
 class DropAmountEventHandler(EventHandler):
     parent: InventoryEventHandler
@@ -781,7 +800,7 @@ class DropAmountEventHandler(EventHandler):
         drop_console.print(x=drop_console.width-len(amount_max)-len(amount_current)-2, y=2, string=amount_current, fg=color.ui_cursor_text_color)
 
         self.parent.on_render(console)
-        drop_console.blit(console, dest_x=4, dest_y=44)
+        drop_console.blit(console, dest_x=4, dest_y=43)
         
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
         match event.sym:
@@ -831,7 +850,7 @@ class SpellbookMenuHandler(SubMenuEventHandler):
             if [i for i in FAVORITES.values() if i == spell]:
                 favorite = f'(F{list(FAVORITES.values()).index(spell)+1})'
                 
-            menu_console.print(x=5, y=y, string=f'{single_aoe} - {spell.name}{favorite}       [{spell.cost}]', fg=text_color)
+            menu_console.print(x=5, y=y, string=f'{single_aoe} - [{spell.cost}]:{spell.name}{favorite}', fg=text_color)
             y+=1
         
         self.display_latest_message(menu_console)
@@ -1111,6 +1130,8 @@ class AttributesHandler(SubLevelUpHandler):
     def on_render(self, console: tcod.console.Console) -> None:
         if self.points_remaining == 0:
             self.completed = True
+        else:
+            self.completed = False
         
         console.print(x=3, y=8, string='Select Attributes:', fg=color.ui_text_color)
         self.points_remaining = self.total_points-sum(self.answers)
@@ -1175,8 +1196,8 @@ class MenuListEventHandler(EventHandler):
         menu_console = tcod.console.Console(len(max(self.menu_items, key=len))+2, len(self.menu_items)+4)
         
         menu_console.draw_frame(0, 0, menu_console.width, menu_console.height, fg=color.ui_color)
-        render_functions.draw_border_detail(menu_console)
-        render_functions.draw_inner_border_detail(menu_console)
+        render_functions.draw_border_detail(menu_console, fg=color.ui_color)
+        render_functions.draw_inner_border_detail(menu_console, fg=color.ui_color)
         
         item_y = 2
         for i, item in enumerate(self.menu_items):
@@ -1428,7 +1449,7 @@ class FavoriteHandler(MenuListEventHandler):
             case tcod.event.KeySym(sym) if sym in FAVORITES:
                 from entity import Item
                 from entity_effect import CharacterEffect
-                from magic import Spell
+                from magic import AttackSpell
                 
                 thing = FAVORITES[sym]
                 if thing is None:
@@ -1440,14 +1461,14 @@ class FavoriteHandler(MenuListEventHandler):
                 elif isinstance(thing, CharacterEffect):
                     self.engine.event_handler = self.parent
                     return thing.get_action()
-                elif isinstance(thing, Spell):
+                elif isinstance(thing, AttackSpell):
                     self.engine.event_handler = self.parent
                     return thing.get_action(self.engine)
             
             case tcod.event.KeySym.RETURN:
                 from entity import Item
                 from entity_effect import CharacterEffect
-                from magic import Spell
+                from magic import AttackSpell
                 
                 thing = self.menu_items[self.selected_index]
                 if thing is None:
@@ -1459,7 +1480,7 @@ class FavoriteHandler(MenuListEventHandler):
                 elif isinstance(thing, CharacterEffect):
                     self.engine.event_handler = self.parent
                     return thing.get_action()
-                elif isinstance(thing, Spell):
+                elif isinstance(thing, AttackSpell):
                     self.engine.event_handler = self.parent
                     return thing.get_action(self.engine)
 
@@ -1590,7 +1611,7 @@ class InspectHandler(SelectTileHandler):
 class RangedAttackHandler(SelectTileHandler):
     """Handles targeting enemies at range. Only the enemies selected will be affected."""
     
-    def __init__(self, engine: Engine, callback: Callable[[Tuple[int, int], Optional[Action]]], effect: BaseEffect | None = None, spell: Spell | None = None, delay: float = .5) -> None:
+    def __init__(self, engine: Engine, callback: Callable[[Tuple[int, int], Optional[Action]]], effect: BaseEffect | None = None, spell: AttackSpell | None = None, delay: float = .5) -> None:
         super().__init__(engine)
         
         self.effect = effect
@@ -1712,27 +1733,27 @@ class MainGameEventHandler(EventHandler):
         player = self.engine.player
         key = event.sym
         match event.sym:
-            case tcod.event.KeySym.ESCAPE if not event.mod:
+            case tcod.event.KeySym.ESCAPE if not event.mod: # Pause
                 self.engine.event_handler = PauseMenuEventHandler(self.engine)
             
-            case tcod.event.KeySym(sym) if sym in MOVE_KEY and not event.mod:
+            case tcod.event.KeySym(sym) if sym in MOVE_KEY and not event.mod: # Move
                 dx, dy = MOVE_KEY[sym]
                 action = BumpAction(player, dx, dy)
             
-            case tcod.event.KeySym(sym) if sym in WAIT_KEY and not event.mod:
+            case tcod.event.KeySym(sym) if sym in WAIT_KEY and not event.mod: # Wait
                 action = WaitAction(player)
                 
-            case tcod.event.KeySym(sym) if sym in FAVORITES and not event.mod:
+            case tcod.event.KeySym(sym) if sym in FAVORITES and not event.mod: # Quick favorite
                 from entity import Item
                 from entity_effect import CharacterEffect
-                from magic import Spell
+                from magic import AttackSpell
                 
                 thing = FAVORITES[sym]
                 if isinstance(thing, list) and all(isinstance(t, Item) for t in thing):
                     return thing[0].effect.get_action()
                 elif isinstance(thing, CharacterEffect):
                     return thing.get_action()
-                elif isinstance(thing, Spell):
+                elif isinstance(thing, AttackSpell):
                     return thing.get_action(self.engine)
             
             case tcod.event.KeySym.f if not event.mod: # General Interact
@@ -1746,6 +1767,20 @@ class MainGameEventHandler(EventHandler):
         
             case tcod.event.KeySym.p if not event.mod: # Pick Up
                 action = PickupAction(player)
+                
+            case tcod.event.KeySym.e if (event.mod & (tcod.event.KMOD_LSHIFT | tcod.event.KMOD_RSHIFT)): # Eat/use off ground
+                try:
+                    sprite_under = self.engine.game_map.get_sprite_at_location(self.engine.player.x, self.engine.player.y, {self.engine.player})
+                    from entity import Item
+                    if sprite_under is not None and isinstance(sprite_under.entity, Item):
+                        item: Item = sprite_under.entity
+                        item.holder = self.engine.player.entity
+                        action = item.effect.get_action()
+                        return action
+                except NotImplementedError:
+                    pass
+                except exceptions.Impossible as exc:
+                    self.engine.message_log.add_message(exc.args[0], color.impossible)
             
             case tcod.event.KeySym.m if not event.mod: # Stats Menu
                 self.change_handler(MenuCollectionEventHandler(self.engine))
@@ -1759,19 +1794,22 @@ class MainGameEventHandler(EventHandler):
             case tcod.event.KeySym(sym) if event.scancode == tcod.event.Scancode.GRAVE and not event.mod: # Favorites Menu
                 self.change_handler(FavoriteHandler(self.engine, self))
             
-            case tcod.event.KeySym.BACKSLASH if SETTINGS['dev_mode'] and not event.mod:
+            case tcod.event.KeySym.BACKSLASH if SETTINGS['dev_mode'] and not event.mod: # Dev console
                 self.change_handler(DevConsole(self.engine))
                 
-            case tcod.event.KeySym.o if SETTINGS['dev_mode'] and not event.mod:
-                self.change_handler(LevelUpMenuHandler(self.engine))
+            case tcod.event.KeySym.o if SETTINGS['dev_mode'] and not event.mod: # Dev tester
+                from sprite_data import door
+                from entity import Door
+                d: Door = door.spawn(self.engine.game_map, *self.engine.mouse_location).entity
+                d.lock(1)
                 
-            case tcod.event.KeySym.l if not event.mod:
+            case tcod.event.KeySym.l if not event.mod: # Look/inspect
                 if SETTINGS['dev_mode']:
                     self.change_handler(InspectHandler(self.engine))
                 else:
                     self.change_handler(LookHandler(self.engine))
             
-            case tcod.event.KeySym.l if self.engine.player.entity.level_awaiting and (event.mod & tcod.event.Modifier.SHIFT):
+            case tcod.event.KeySym.l if self.engine.player.entity.level_awaiting and (event.mod & tcod.event.Modifier.SHIFT): # Level up
                 self.change_handler(LevelUpMenuHandler(self.engine))
             
             case tcod.event.KeySym(sym) if sym in CURSOR_Y_KEYS and not event.mod:
@@ -1789,7 +1827,7 @@ class MainGameEventHandler(EventHandler):
                 self.message('quick save', color.valid)
                 print('quick save')
                 
-            case tcod.event.KeySym.F9:
+            case tcod.event.KeySym.F9: # Quick load
                 from setup_game import load_game
                 
                 files = glob.glob("data\\user_data\\quicksave*.sav")

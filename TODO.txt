@@ -46,7 +46,7 @@
 
 -[FIXED]Cannot favorite spells in spellbook.
 
--[TODO:]Better save preview. Don't load entire engine, just relevant data.
+-[TODO:]Better save preview. Don't load entire engine, just relevant data. [Not relevant any more?]
 
 -[FIXED]Down Staircase in top left corner.
 
@@ -67,3 +67,17 @@
 -[TODO:]Create and load maps from files.
 
 -[TODO:]Overworld generation
+
+-[TODO:]Action cost and stamina
+
+-[FIXED]Sprite gen error, job assignment
+
+-[FIXED]NPC sprites move cursor
+
+-[DONE]Ability to eat of the ground
+
+-[TODO:]Refactor magic code
+
+-[TODO:]Change favorite bar layout so it doesn't extend past screen
+
+-[FIXME:]Arcane Lock Spell error when cast on locked door

@@ -3,9 +3,11 @@ from entity import Character, Door
 
 import races
 import jobs
-import color
+
+import color, copy
 
 from magic import SPELLS
+import item_data
 
 from ai import HostileEnemy
 
@@ -20,7 +22,8 @@ dev_player = Actor(
         base_CON=14,
         base_STR=14,
         tags=set('player'),
-        spell_book=[*SPELLS]
+        spell_book=[*SPELLS],
+        inventory=[copy.deepcopy(item_data.simple_key)]
         ),
     ai_cls=HostileEnemy
 )

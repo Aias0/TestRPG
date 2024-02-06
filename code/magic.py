@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Tuple, Optional
 import color, actions
 
 from exceptions import Impossible
-from game_types import DamageTypes, MagicFocusTypes, GameTypeNames, ElementTypes
+from game_types import DamageTypes, MagicFocusTypes, GameTypeNames, ElementTypes, ItemTypes
 
 from input_handler import RangedAttackHandler
 
@@ -14,14 +14,14 @@ if TYPE_CHECKING:
     from engine import Engine
 
 class Spell():
-    def __init__(self, name: str, cost: int, damage: int, range: int, element: ElementTypes, activation_time: int, color: Tuple[int, int, int], req_focus_type: MagicFocusTypes | None = None) -> None:
-        """ `activation_time` turns needed to cast spell. 0 is instant."""
+    def __init__(self, name: str, cost: int, range: int, activation_time: int, color: Tuple[int, int, int], duration: int = 0, element: ElementTypes = ElementTypes.NONE, req_focus_type: MagicFocusTypes | None = None) -> None:
+        """ `activation_time` turns needed to cast spell. 0 is instant.\n\n`duration` turns spell is active for. 0 is forever"""
         self.name = name
         self.cost = cost
-        self.damage = damage
         self.range = range
         self.element = element
         self.activation_time = activation_time
+        self.duration = duration
         self.color = color
         self.req_focus_type = req_focus_type
         
@@ -59,7 +59,57 @@ class Spell():
                         if equip_in_dom_hand_itemtypes and  MagicFocusTypes.POWER in equip_in_dom_hand_itemtypes:
                             cost = int(self.cost*1.25)
                         break
-            
+        
+        if caster.mp - cost < 0:
+            raise Impossible(f'Not enough mana to cast. [{cost}>{caster.mp}]')
+        
+        return cost
+    
+    def cast(self, caster: Character, target: Optional[Tuple[int, int]], scroll_cast: bool = False, message: str = None) -> None:
+        cost = self.check_cast_conditions(caster=caster, target=target, scroll_cast=scroll_cast)
+        caster.mp-=cost
+        caster.engine.message_log.add_message(message)
+    
+    def get_action(self, engine: Engine) -> actions.Action:
+        engine.message_log.add_message(
+            "Select a target location.", color.prompt_player
+        )
+        engine.event_handler = RangedAttackHandler(
+            engine,
+            callback=lambda xy: actions.MagicAction(engine.player, self, xy),
+            spell=self
+        )
+        return None
+        
+        
+    def similar(self, other) -> bool:
+        if isinstance(other, self.__class__):
+            for i, pair in enumerate(zip([_[1] for _ in vars(self).items() if _[0] != 'parent' and _[0] != 'dead_character'], [_[1] for _ in vars(other).items() if _[0] != 'parent' and _[0] != 'dead_character'])):
+                if hasattr(pair[0], 'similar') and not pair[0].similar(pair[1]):
+                    return False
+                elif not hasattr(pair[0], 'similar') and pair[0] != pair[1]:
+                    return False
+            return True
+        return False
+
+class AttackSpell(Spell):
+    def __init__(self, name: str, cost: int, damage: int, range: int, element: ElementTypes, activation_time: int, color: Tuple[int, int, int], req_focus_type: MagicFocusTypes | None = None) -> None:
+        """ `activation_time` turns needed to cast spell. 0 is instant."""
+        super().__init__(
+            name=name,
+            cost=cost,
+            range=range,
+            element=element,
+            activation_time=activation_time,
+            color=color,
+            req_focus_type=req_focus_type,
+        )
+        
+        self.damage = damage
+        
+    def check_cast_conditions(self, caster: Character, target: Optional[Tuple[int, int]], scroll_cast: bool = False) -> None:
+        cost = super().check_cast_conditions(caster, target, scroll_cast)
+        
         if target is None:
             raise Impossible(f'{self.name} not cast. Has no target.')
         if caster.parent.distance(*target) > self.range:
@@ -70,9 +120,6 @@ class Spell():
         target_actor = caster.engine.game_map.get_actor_at_location(*target)
         if target_actor is None:
             raise Impossible(f'{self.name} not cast. No actor at location.')
-        
-        if caster.mp - cost < 0:
-            raise Impossible(f'Not enough mana to cast. [{cost}>{caster.mp}]')
         
         return cost
         
@@ -87,29 +134,8 @@ class Spell():
             caster.engine.message_log.add_message(miss_message.replace('ACTOR', str(target_actor.name)).replace('DAMAGE', str(damage_taken)), color.red)
         else:
             caster.engine.message_log.add_message(hit_message.replace('ACTOR', str(target_actor.name)).replace('DAMAGE', str(damage_taken)), color.player_atk)
-    
-    def get_action(self, engine: Engine) -> actions.Action:
-        engine.message_log.add_message(
-            "Select a target location.", color.prompt_player
-        )
-        engine.event_handler = RangedAttackHandler(
-            engine,
-            callback=lambda xy: actions.MagicAction(engine.player, self, xy),
-            spell=self
-        )
-        return None
-    
-    def similar(self, other) -> bool:
-        if isinstance(other, self.__class__):
-            for i, pair in enumerate(zip([_[1] for _ in vars(self).items() if _[0] != 'parent' and _[0] != 'dead_character'], [_[1] for _ in vars(other).items() if _[0] != 'parent' and _[0] != 'dead_character'])):
-                if hasattr(pair[0], 'similar') and not pair[0].similar(pair[1]):
-                    return False
-                elif not hasattr(pair[0], 'similar') and pair[0] != pair[1]:
-                    return False
-            return True
-        return False
 
-class AOESpell(Spell):
+class AOESpell(AttackSpell):
     def __init__(self, name: str, cost: int, damage: int, range: int, radius: int, element: ElementTypes, activation_time: int, color: Tuple[int, int, int]) -> None:
         """ `activation_time` turns needed to cast spell. 0 is instant. """
         super().__init__(
@@ -179,7 +205,7 @@ class AOESpell(Spell):
             else:
                 caster.engine.message_log.add_message(hit_message.replace('ACTOR', str(actor.name)).replace('DAMAGE', str(damage_taken)), color.player_atk)
     
-class LightningBolt(Spell):
+class LightningBolt(AttackSpell):
     def __init__(self) -> None:
         super().__init__(name='Lightning Bolt', cost=5, damage=18, range=15, element=ElementTypes.LIGHTNING, activation_time=0, color=[0, 0, 255])
         
@@ -205,7 +231,7 @@ class FireBall(AOESpell):
             miss_message=f"ACTOR dodges the fire ball!"
         )
         
-class FireBolt(Spell):
+class FireBolt(AttackSpell):
     def __init__(self) -> None:
         super().__init__(name='Fire Bolt', cost=2, damage=10, range=15, element=ElementTypes.FIRE, activation_time=0, color=[255, 0, 0])
         
@@ -217,5 +243,47 @@ class FireBolt(Spell):
             hit_message=f"A fire bolt strikes the ACTOR with a loud blast, for DAMAGE damage!",
             miss_message=f"ACTOR dodges the fire bolt!"
         )
+
+class ArcaneLock(Spell):
+    def __init__(self) -> None:
+        super().__init__(name='Arcane Lock', cost=4, range=5, activation_time=0, color=(80, 201, 217))
         
-SPELLS = [LightningBolt(), FireBall(), FireBolt()]
+    def cast(self, caster: Character, target: Optional[Tuple[int, int]], scroll_cast: bool = False) -> None:
+        from entity import Door, Item
+        from entity_effect import KeyEffect
+        cost = self.check_cast_conditions(caster=caster, target=target, scroll_cast=scroll_cast)
+        
+        target_sprite = caster.engine.game_map.get_sprite_at_location(*target)
+        
+        
+        if not target_sprite:
+            raise Impossible(f'{self.name} not cast. Has no target.')
+        door = target_sprite.entity
+        if not isinstance(door, Door):
+            raise Impossible(f'{self.name} not cast. Target is not a door.')
+        
+        caster.mp-=cost
+        try:
+            door.lock(101)
+        except Impossible as e:
+            if str(e) == 'Door already locked':
+                caster.engine.message_log.add_message('Arcane Lock failed as the door was already locked.')
+            else:
+                raise Exception('Error occurred in arcane lock spell while trying to lock door.')
+        caster.add_inventory(
+            Item(
+                'Arcane Key',
+                0,
+                0,
+                description='Crafted from ethereal energies and adorned with intricate arcane patterns, this key emits a subtle glow.\n\nThis can be used to open an Arcane Lock.',
+                itemtype=ItemTypes.KEY,
+                effect=KeyEffect(101, True),
+                char='⌐',
+                color=self.color,
+            ),
+            True
+        )
+        
+        caster.engine.message_log.add_message('Door locked with Arcane Lock.')
+
+SPELLS = [LightningBolt(), FireBall(), FireBolt(), ArcaneLock()]

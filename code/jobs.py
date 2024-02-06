@@ -9,7 +9,7 @@ import copy
 
 if TYPE_CHECKING:
     from entity import Character, Item
-    from magic import Spell
+    from magic import AttackSpell
 
 class BaseJob():
     parent: Character
@@ -18,7 +18,7 @@ class BaseJob():
         name: str,
         default_color: Tuple[int, int, int],
         starting_equipment: List[Item] = [],
-        starting_spells: List[Spell] = [],
+        starting_spells: List[AttackSpell] = [],
         rarity: int = 10
     ) -> None:
         self.name = name

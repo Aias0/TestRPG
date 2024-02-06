@@ -50,7 +50,7 @@ class BaseRace():
         for job in JOBS:
             if [job for job in JOBS if job.__class__.__name__ in self.job_chance.keys()]:
                 continue
-            self.job_chance[job] = job.rarity
+            self.job_chance[job.name] = job.rarity
             
         self.average_lifespan = average_lifespan
         self.adult_age = adult_age
