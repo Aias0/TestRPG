@@ -13,6 +13,8 @@ from input_handler import SelectTileHandler
 
 import game_types
 
+import entity_effect
+
 if TYPE_CHECKING:
     from engine import Engine
 
@@ -166,6 +168,25 @@ def dev_command(command: str, engine: Engine) -> str:
             ele = {v: k for k, v in game_types.GameTypeNames.elementtype_to_name.items()}
             print(int(amount), dam[type], ele[element], None, False)
             engine.player.entity.take_damage(int(amount), dam[type], ele[element], None, False)
+            
+        case['skey']:
+            engine.player.entity.add_inventory(
+                Item(
+                    'Skeleton Key',
+                    0,
+                    0,
+                    description='A versatile tool, able to effortlessly open any lock.',
+                    itemtype=game_types.ItemTypes.KEY,
+                    effect=entity_effect.KeyEffect(-1),
+                    char='⌐',
+                    color=(200,)*3,
+                )
+            )
+            
+        case['locks']:
+            from values import LockValues
+            return f'{LockValues.lock_vals}'
+            
         
         case['>>>', *cmd]:
             eval(' '.join(cmd))

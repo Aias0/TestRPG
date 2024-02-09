@@ -260,12 +260,10 @@ class BumpAction(ActionWithDirection):
         if self.blocking_sprite and isinstance(self.blocking_sprite.entity, Door):
             door = self.blocking_sprite.entity
             from entity_effect import KeyEffect
-            key = [item for item in self.sprite.entity.inventory if isinstance(item.effect, KeyEffect) and item.effect.key == door.lock_val]
+            key = [item for item in self.sprite.entity.inventory if isinstance(item.effect, KeyEffect) and (item.effect.key == door.lock_val or item.effect.key == -1)]
             if door.lock_val != 0 and key:
                 self.engine.message(f'Unlocked door with {key[0].name}')
-                door.unlock(key[0].effect.key)
-                if key[0].effect.one_time:
-                    self.sprite.entity.inventory.remove(key[0])
+                door.unlock(key[0])
             door.open()
         elif self.target_actor:
             return MeleeAction(self.sprite, self.dx, self.dy).perform()

@@ -18,7 +18,9 @@ b_w_grad = [tuple(map(lambda x: int(x*255), color.rgb)) for color in Color('blac
 
 def normalized_noise2(x, y):
     """ Opensimplex noise normalized to 0-1. """
-    return (opensimplex.noise2(x, y)/.86591+1)/2
+    noise = (opensimplex.noise2(x, y)/.86591+1)/2
+    assert 0 <= noise <= 1
+    return noise
 
 
 def noise_array(shape: tuple, frequency: float = 1, octave_blend: list[float] = [1], redistribution: float = 1) -> NDArray:
@@ -55,6 +57,7 @@ def main():
         
         frequency = 8
         octaves = [1, .5, .25]
+        octaves = [1.5]
         
         water_level = 0
         
@@ -84,16 +87,18 @@ def main():
                             
                         case tcod.event.KeySym.DOWN:
                             frequency+=.5
+                            print(f'Frequency: {frequency}')
                             elevation = noise_array((map_width, map_height), frequency, octaves)
                         case tcod.event.KeySym.UP:
                             frequency-=.5
+                            print(f'Frequency: {frequency}')
                             elevation = noise_array((map_width, map_height), frequency, octaves)
                         case tcod.event.KeySym.LEFT:
                             water_level = min(water_level+.01, 1)
-                            print(water_level)
+                            print(f'Water level: {water_level}')
                         case tcod.event.KeySym.RIGHT:
                             water_level = max(water_level-.01, 0)
-                            print(water_level)
+                            print(f'Water level: {water_level}')
             
 if __name__ == '__main__':
     main()

@@ -6,7 +6,7 @@ from input_handler import GameOverEventHandler, MainGameEventHandler
 
 from game_types import ItemTypes, ItemSubTypes, ElementTypes
 
-from entity_effect import ItemEffect, CharacterEffect, CorpseEffect, DOTEffect
+from entity_effect import ItemEffect, CharacterEffect, CorpseEffect, DOTEffect, KeyEffect
 
 import re, color, exceptions, random, copy
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from sprite import Sprite, Actor
     from races import BaseRace
     from jobs import BaseJob
-    from entity import Character
+    from entity import Character, Item
     from engine import Engine
     from game_map import GameMap
     from magic import AttackSpell
@@ -84,6 +84,10 @@ class Entity():
         if not providing_parent:
             from spritegen import entity_to_sprite
             self.parent = entity_to_sprite(self)
+            
+    @property
+    def display_name(self) -> str:
+        return self.name
         
     @property
     def gamemap(self) -> GameMap:
@@ -185,6 +189,8 @@ class Item(Entity):
             return '¡'
         elif self.itemtype == ItemTypes.SCROLL:
             return '~'
+        elif self.itemtype == ItemTypes.KEY:
+            return '⌐'
         elif ItemTypes.is_armor(self) or self.itemtype == ItemTypes.SHIELD:
             return '['
         elif ItemTypes.is_melee_weapons(self):
@@ -1122,6 +1128,7 @@ class Door(Entity):
         self.opened = opened
         
         self.lock_val: int = 0
+        self.locked = False
         
         if hasattr(self, 'parent'):
             if self.opened:
@@ -1129,8 +1136,15 @@ class Door(Entity):
             else:
                 self.open()
     
+    @property
+    def display_name(self) -> str:
+        status = ''
+        if self.locked:
+            status = 'Locked '
+        return f'{status}{self.name}'
+    
     def open(self):
-        if self.lock_val != 0:
+        if self.locked:
             raise exceptions.Impossible('Door is locked.')
         self.parent.char = '/'
         self.parent.blocks_movement = False
@@ -1152,11 +1166,16 @@ class Door(Entity):
         if self.lock_val != 0:
             raise exceptions.Impossible('Door already locked.')
         self.lock_val = key
+        self.locked = True
         self.close()
     
-    def unlock(self, key: int) -> None:
-        if self.lock_val == key:
-            self.lock_val = 0
+    def unlock(self, key: Item) -> None:
+        if not isinstance(key.effect, KeyEffect):
+            raise exceptions.Impossible(f'Item: {key} is not a key.')
+        if self.lock_val == key.effect.key or key.effect.key == -1:
+            self.locked = False
+            if key.effect.one_time:
+                key.holder.inventory.remove(key)
             return
         raise exceptions.Impossible('Lock does not work on door.')
         

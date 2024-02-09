@@ -10,7 +10,11 @@ import tcod
 
 import numpy as np
 
-from spritegen import gen_enemies, gen_items
+from spritegen import gen_enemies, gen_items, entity_to_sprite
+
+from values import LockValues
+
+import game_types
 
 if TYPE_CHECKING:
     from engine import Engine
@@ -69,7 +73,16 @@ class RectangularRoom(Room):
             
         return points
     
-    def place_doors(self, dungeon:GameMap, chance: float = .5, open_chance: float = .25) -> None:
+    def random_place(self, dungeon: GameMap, sprite: Sprite):
+        while True:
+            loc = random.randint(1, dungeon.width-1), random.randint(1, dungeon.height-1)
+            
+            if dungeon.tiles[*loc]['walkable'] and not any(sprite.x == loc[0] and sprite.y == loc[1] for sprite in dungeon.sprites):
+                sprite.place(*loc, dungeon)
+                break
+                
+    
+    def place_doors(self, dungeon:GameMap, chance: float = .5, open_chance: float = .25, lock_chance: float = .05) -> None:
         surrounding_points = [(0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)]
         from sprite_data import door
         for point in self.outer:
@@ -89,9 +102,20 @@ class RectangularRoom(Room):
                         new_door.close()
                     else:
                         new_door.open()
-            
-                
-        
+                    if random.random() < lock_chance:
+                        lock_val = LockValues.new_lock()[0]
+                        new_door.lock(lock_val)
+                        from entity import Item
+                        from entity_effect import KeyEffect
+                        key_item = Item(
+                            'Rusty Key',
+                            0,
+                            1,
+                            itemtype=game_types.ItemTypes.KEY,
+                            effect=KeyEffect(lock_val),
+                            color=(200,)*3
+                        )
+                        self.random_place(dungeon, entity_to_sprite(key_item))
     
     def intersects(self, other: RectangularRoom) -> bool:
         """Return True if this room overlaps with another RectangularRoom."""

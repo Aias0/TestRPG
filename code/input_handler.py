@@ -36,7 +36,7 @@ from message_log import MessageLog
 
 import numpy as np
 
-from config import SETTINGS, refresh_settings
+from config import SETTINGS, refresh_settings, tryeval
 
 if TYPE_CHECKING:
     from engine import Engine
@@ -91,7 +91,7 @@ FAVORITES: Dict[tcod.event.KeySym, list[Item] | CharacterEffect | AttackSpell | 
 }
 
 class BaseEventHandler(tcod.event.EventDispatch[Action]):
-    def handle_events(self, event: tcod.event.Event):
+    def handle_event(self, event: tcod.event.Event):
         """Handle an event and return the next active event handler."""
         state = self.dispatch(event)
         if isinstance(state, BaseEventHandler):
@@ -110,7 +110,7 @@ class EventHandler(BaseEventHandler):
         self.engine = engine
         self.engine.wait = True
     
-    def handle_events(self, event: tcod.event.Event) -> None:
+    def handle_event(self, event: tcod.event.Event) -> None:
         self.handle_action(self.dispatch(event))
         
     def handle_action(self, action: Optional[Action]) -> bool:
@@ -971,8 +971,19 @@ class SubSettingsHandler(SubMenuEventHandler):
                 self.selected_setting = len(self.settings_section.keys())-1
                 
             case tcod.event.KeySym.RETURN if self.selected_setting != -1:
+                current_val = tryeval(list(self.settings_section.values())[self.selected_setting])
+                if isinstance(current_val, bool):
+                    self.return_text(str(not current_val))
+                    return
+                
                 self.engine.event_handler = SettingsTextInputHandler(
-                    self.engine, x=self.parent.longest_menu_name_len+9+len(list(self.settings_section.keys())[self.selected_setting]), y=4+self.selected_setting*3, width=50, parent=self
+                    self.engine,
+                    x=self.parent.longest_menu_name_len+9+len(list(self.settings_section.keys())[self.selected_setting]),
+                    y=4+self.selected_setting*3,
+                    width=50,
+                    parent=self,
+                    default_text=list(self.settings_section.values())[self.selected_setting],
+                    expected_type=type(current_val),
                 )
                 
             case tcod.event.KeySym.ESCAPE if self.parent.main_menu:
@@ -1919,9 +1930,10 @@ class HistoryViewer(EventHandler):
             self.engine.event_handler = MainGameEventHandler(self.engine)
 
 class TextInputHandler(EventHandler):
-    def __init__(self, engine: Engine, x: int = 20, y: int = 41, width: int = None, parent: EventHandler = None, title: str = 'Input', default_text: str = ''):
+    def __init__(self, engine: Engine, x: int = 20, y: int = 41, width: int = None, parent: EventHandler = None, title: str = 'Input', default_text: str = '', expected_type: type | None = None):
         super().__init__(engine)
         self.text_inputted = str(default_text)
+        self.expected_type = expected_type
         self.highlighted_text = 0
         
         self.title = title
@@ -1979,7 +1991,8 @@ class TextInputHandler(EventHandler):
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
         match event.sym:
             case tcod.event.KeySym.RETURN:
-    
+                if self.expected_type and not isinstance(tryeval(self.text_inputted), self.expected_type):
+                    raise TypeError(f'Expected {self.expected_type.__name__} got {type(tryeval(self.text_inputted)).__name__}')
                 self.use_input()
                 
                 if len(self.engine.input_log) == 0 or self.engine.input_log[0] != self.text_inputted:

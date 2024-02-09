@@ -8,6 +8,8 @@ from game_types import DamageTypes, MagicFocusTypes, GameTypeNames, ElementTypes
 
 from input_handler import RangedAttackHandler
 
+from values import LockValues
+
 if TYPE_CHECKING:
     from entity import Character
     from sprite import Actor
@@ -264,7 +266,7 @@ class ArcaneLock(Spell):
         
         caster.mp-=cost
         try:
-            door.lock(101)
+            door.lock(LockValues.lock_vals['ARCANE_LOCK'])
         except Impossible as e:
             if str(e) == 'Door already locked':
                 caster.engine.message_log.add_message('Arcane Lock failed as the door was already locked.')
@@ -277,8 +279,7 @@ class ArcaneLock(Spell):
                 0,
                 description='Crafted from ethereal energies and adorned with intricate arcane patterns, this key emits a subtle glow.\n\nThis can be used to open an Arcane Lock.',
                 itemtype=ItemTypes.KEY,
-                effect=KeyEffect(101, True),
-                char='⌐',
+                effect=KeyEffect(LockValues.lock_vals['ARCANE_LOCK'], True),
                 color=self.color,
             ),
             True

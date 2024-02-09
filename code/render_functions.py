@@ -19,7 +19,7 @@ def get_names_at_location(x: int, y: int, game_map: GameMap) -> list[str]:
     elif not game_map.in_bounds(x, y) or not game_map.visible[x, y]:
         return []
     
-    names = [sprite.entity.name.capitalize() for sprite in game_map.sprites - {game_map.engine.player} if sprite.x == x and sprite.y == y]
+    names = [sprite.entity.display_name.title() for sprite in game_map.sprites - {game_map.engine.player} if sprite.x == x and sprite.y == y]
     
     return names
 

@@ -23,7 +23,7 @@ dev_player = Actor(
         base_STR=14,
         tags=set('player'),
         spell_book=[*SPELLS],
-        inventory=[copy.deepcopy(item_data.simple_key)]
+        inventory=[]
         ),
     ai_cls=HostileEnemy
 )
