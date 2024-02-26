@@ -46,7 +46,7 @@
 
 -[FIXED]Cannot favorite spells in spellbook.
 
--[TODO:]Better save preview. Don't load entire engine, just relevant data. [Not relevant any more?]
+-[TODO:]Better save preview. Don't load entire engine, just relevant data. (Not relevant any more?)
 
 -[FIXED]Down Staircase in top left corner.
 
@@ -74,10 +74,32 @@
 
 -[FIXED]NPC sprites move cursor
 
--[DONE]Ability to eat of the ground
+-[DONE]Ability to eat/use items off the ground
 
--[TODO:]Refactor magic code
+-[TODO:]Refactor magic code (needs a to work better for non single-target combat and non combat spells)
 
--[TODO:]Change favorite bar layout so it doesn't extend past screen
+-[DONE]Change favorite bar layout so it doesn't extend past screen
 
 -[FIXME:]Arcane Lock Spell error when cast on locked door
+
+-[FIXME:]General interact sometimes uses two actions instead of one. (Happens when more than one interactable entity is in range)
+
+-[FIXED]Favorites do not persist after game is closed. (Moved favorite storage to engine)
+
+-[DONE]Game load screen needs to scroll to see all save games.
+
+-[FIXED]Cannot use Favorites. (Turns out it just effect non-combat spells)
+
+-[FIXME:]Sometimes error happens during error_save and it doesn't save the game. (Seems to be happening when during spell casting and a lambda function)
+
+-[FIXED]Player can still move/interact after death. (Not an issue, only happens when opening the dev console)
+
+-[FIXED]Two doors can spawn on top of each other
+
+-[FIXED]Hover inspect text not centered.
+
+-[TODO:]Keybind options in settings
+
+-[FIXME:]Starting health potion error (has no parent)
+
+-[FIXME:]True/False settings changing when changing other settings.

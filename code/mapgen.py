@@ -95,7 +95,11 @@ class RectangularRoom(Room):
                     door_around = True
             if door_around:
                 continue
-            if (dungeon.tiles[tuple(np.add(point, (0, 1)))] == tile_types.wall and dungeon.tiles[tuple(np.add(point, (0, -1)))] == tile_types.wall) or (dungeon.tiles[tuple(np.add(point, (1, 0)))] == tile_types.wall and dungeon.tiles[tuple(np.add(point, (-1, 0)))] == tile_types.wall):
+            if (
+            ((dungeon.tiles[tuple(np.add(point, (0, 1)))] == tile_types.wall and dungeon.tiles[tuple(np.add(point, (0, -1)))] == tile_types.wall) or
+            (dungeon.tiles[tuple(np.add(point, (1, 0)))] == tile_types.wall and dungeon.tiles[tuple(np.add(point, (-1, 0)))] == tile_types.wall)) and
+            not any(sprite.x == point[0] and sprite.y == point[1] for sprite in dungeon.sprites)
+            ):
                 if random.random() < chance:
                     new_door: Door = door.spawn(dungeon, *point).entity
                     if random.random() > open_chance:

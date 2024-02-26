@@ -185,7 +185,7 @@ class MeleeAction(ActionWithDirection):
         else:
             attack_color = color.enemy_atk
         
-        damage_taken = target.entity.take_damage(self.sprite.entity.phys_atk, attacker=self.sprite.entity)
+        damage_taken = target.entity.take_damage(self.sprite.entity.phys_atk, attacker=self.sprite.entity, silent=True)
         if damage_taken is None:
             self.engine.message_log.add_message(
                 f'{attack_desc} but misses.', attack_color
@@ -198,6 +198,9 @@ class MeleeAction(ActionWithDirection):
             self.engine.message_log.add_message(
                 f'{attack_desc} but does no damage.', attack_color
             )
+        
+        if not target.is_alive:
+            self.engine.message(f'{target.name} is dead!', color.enemy_die)
             
 class InteractAction(Action):
     def __init__(self, sprite: Actor, loc: Tuple[int, int] | None = None) -> None:

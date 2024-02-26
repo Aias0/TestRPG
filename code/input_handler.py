@@ -29,7 +29,7 @@ from actions import (
     WaitAction,
 )
 
-import color, exceptions
+import color, exceptions, copy
 from game_types import ItemTypes
 
 from message_log import MessageLog
@@ -75,19 +75,6 @@ WAIT_KEY = {
 CURSOR_Y_KEYS = {
     tcod.event.KeySym.UP: -1,
     tcod.event.KeySym.DOWN: 1,
-}
-
-FAVORITES: Dict[tcod.event.KeySym, list[Item] | CharacterEffect | AttackSpell | None] = {
-    tcod.event.KeySym.N1: None,
-    tcod.event.KeySym.N2: None,
-    tcod.event.KeySym.N3: None,
-    tcod.event.KeySym.N4: None,
-    tcod.event.KeySym.N5: None,
-    tcod.event.KeySym.N6: None,
-    tcod.event.KeySym.N7: None,
-    tcod.event.KeySym.N8: None,
-    tcod.event.KeySym.N9: None,
-    tcod.event.KeySym.N0: None,
 }
 
 class BaseEventHandler(tcod.event.EventDispatch[Action]):
@@ -188,9 +175,14 @@ class LoadHandler(EventHandler):
             saved_games_list_console.print(x=1, y=saved_games_list_console.height//2, string='No Saved Games Detected', fg=color.ui_text_color)
 
         sg_y = 5
-        for i, save_game in enumerate(self.saved_games):
+        y_limit = saved_games_list_console.height - 10
+        scroll_factor = max(self.selected_index-y_limit, 0)
+
+        for i, save_game in enumerate(self.saved_games[scroll_factor:]):
+            if i > y_limit:
+                continue
             text_color = color.ui_text_color
-            if i == self.selected_index:
+            if i+scroll_factor == self.selected_index:
                 text_color = color.ui_cursor_text_color
             
             saved_games_list_console.print(x=2, y=sg_y, string=save_game, fg=text_color)
@@ -318,6 +310,7 @@ class YNPopUp(EventHandler):
 
 class MenuCollectionEventHandler(EventHandler):
     def __init__(self, engine: Engine, submenu: int = 0) -> None:
+        """ Stats: 0\n\nEquipment: 1\n\nInventory: 2\n\nAbilities: 3\n\nSpellbook: 4\n\n"""
         super().__init__(engine)
         self.menus: list[SubMenuEventHandler] = [
             StatusMenuEventHandler(engine, engine.player.char),
@@ -514,8 +507,8 @@ class StatusMenuEventHandler(SubMenuEventHandler):
 class EquipmentEventHandler(SubMenuEventHandler):
     def __init__(self, engine, title: str):
         super().__init__(engine, title)
-        self.selected_slot = -1
-        self.slots = ['Head', 'Chest', 'Gloves', 'Legs', 'Boots', 'Amulet', 'Right Ring', 'Left Ring', 'Right Hand', 'Left Hand']
+        self.selected_slot = 0
+        self.slots = ['Head', 'Chest', 'Hand', 'Legs', 'Foot', 'Amulet', 'Right Ring', 'Left Ring', 'Right Hand', 'Left Hand']
     
     def on_render(self, console: tcod.console.Console) -> None:
         self.parent.on_render(console)
@@ -533,20 +526,29 @@ class EquipmentEventHandler(SubMenuEventHandler):
         
     def equip_slot(self, console: tcod.console.Console, x: int, y: int, title: str, index: int) -> None:
         item_in_slot = self.engine.player.entity.equipment[title]
-        if item_in_slot:
-            item_name = item_in_slot.name.capitalize()
-        else:
-            item_name = ''
+            
+        title += ':'
             
         slot_color = {True: color.ui_cursor_text_color, False: color.ui_text_color}
+        
         console.print(x=x, y=y, string=title, fg=slot_color[index==self.selected_slot])
+        
+        if item_in_slot:
+            item_name = f'({item_in_slot.char}){item_in_slot.name.capitalize()}'
+            render_functions.print_color(console, x=x+len(title)+1, y=y, string=item_name, fg=color.ui_text_color, specific_color={1: item_in_slot.color})
+        else:
+            item_name = ''
+        
+        console.print(x=x-1, y=y+1, string=f'╘{"".join(["═"]*(len(title)))+"".join(["─"]*(max(10, len(item_name)+2)))}', fg=color.ui_color)
+        
+        """ console.print(x=x, y=y, string=title, fg=slot_color[index==self.selected_slot])
         console.print_box(x=x-1, y=y+1, width=len(title)+2, height=1, string=f'╘{"".join(["═"]*(len(title)))}╛', fg=color.ui_color)
         console.print(x=x, y=y+1, string='╤', fg=color.ui_color)
         
         console.print(x=x+2, y=y+2, string=item_name, fg=color.ui_text_color)
         console.print(x=x, y=y+2, string='│', fg=color.ui_color)
         console.print(x=x, y=y+3, string='└', fg=color.ui_color)
-        console.print(x=x+1, y=y+3, string=f'{"".join(["─"]*(max(len(item_name), 11)))}', fg=color.ui_color)
+        console.print(x=x+1, y=y+3, string=f'{"".join(["─"]*(max(len(item_name), 11)))}', fg=color.ui_color) """
         
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
         super().ev_keydown(event)
@@ -555,7 +557,7 @@ class EquipmentEventHandler(SubMenuEventHandler):
             case tcod.event.KeySym.DOWN:
                 self.selected_slot = min(self.selected_slot+1, len(self.slots)-1)
             case tcod.event.KeySym.UP:
-                self.selected_slot = max(self.selected_slot-1, -1)
+                self.selected_slot = max(self.selected_slot-1, 0)
             case tcod.event.KeySym.HOME:
                 self.selected_slot = 0
             case tcod.event.KeySym.END:
@@ -573,17 +575,22 @@ class EquipEventHandler(EventHandler):
     def __init__(self, engine: Engine, slot: str) -> None:
         super().__init__(engine)
         self.slot = slot
-        self.selected_item = -1
+        self.selected_item = 0
         self.engine.wait = False
         
     def on_render(self, console: tcod.console.Console) -> None:
         self.parent.on_render(console)
         
         self.items_for_slot = list({item for item in self.engine.player.entity.inventory if item.equippable[self.slot]})
+        for item in self.items_for_slot:
+            if self.engine.player.entity.is_equipped(item, self.slot):
+                self.items_for_slot.remove(item)
+                self.items_for_slot.insert(0, item)
         
-        equip_console = tcod.console.Console(30, len(self.items_for_slot)+4)
+        equip_console = tcod.console.Console(30, len(self.items_for_slot)+8)
         equip_console.draw_frame(0, 0, width=equip_console.width, height=equip_console.height, fg=color.ui_color)
-        equip_title = f'Equip {self.slot}'
+        
+        equip_title = f'Currently Equipped'
         equip_console.print_box(
             0, 0, equip_console.width, 1, f'┤{"".join([" "]*len(equip_title))}├', alignment=libtcodpy.CENTER, fg=color.ui_color
         )
@@ -592,20 +599,41 @@ class EquipEventHandler(EventHandler):
         )
         
         
-        acronym = {'Head': 'H', 'Chest': 'C', 'Legs': 'L', 'Boots': 'B', 'Gloves': 'G', 'Amulet': 'A', 'Left Ring': 'LR', 'Right Ring': 'RR', 'Right Hand': 'RH', 'Left Hand': 'LH'}
-        y=2
+        equip_console.print(x=0, y=4, string=f'├{"".join(["─"]*(equip_console.width-2))}┤')
+        
+        
+        equip_title = f'Equip {self.slot}'
+        equip_console.print_box(
+            0, 4, equip_console.width, 1, f'┤{"".join([" "]*len(equip_title))}├', alignment=libtcodpy.CENTER, fg=color.ui_color
+        )
+        equip_console.print_box(
+            0, 4, equip_console.width, 1, equip_title, alignment=libtcodpy.CENTER, fg=color.ui_text_color
+        )
+        
+        
+        acronym = {'Head': 'H', 'Chest': 'C', 'Legs': 'L', 'Foot': 'F', 'Hand': 'H', 'Amulet': 'A', 'Left Ring': 'LR', 'Right Ring': 'RR', 'Right Hand': 'RH', 'Left Hand': 'LH'}
+        y=6
         for i, item in enumerate(self.items_for_slot):
             text_color = color.ui_text_color
             extra = ''
             if i == self.selected_item:
                 text_color = color.ui_cursor_text_color
-            elif self.engine.player.entity.is_equipped(item):
-                text_color = color.ui_selected_text_color
+            #elif self.engine.player.entity.is_equipped(item):
+            #    text_color = color.ui_selected_text_color
+                
             if self.engine.player.entity.is_equipped(item) and self.engine.player.entity.equipment[self.slot] != item:
                 extra = f'[{[acronym[j[0]] for j in self.engine.player.entity.equipment.items() if j[1] == item][0]}]'
-
-            equip_console.print(x=2, y=y, string=f'{item.name}{extra}', fg=text_color)
-            y+=1
+                
+            if len(item.name) % 2 != 0:
+                extra += ' '
+                
+            if self.engine.player.entity.is_equipped(item, self.slot):
+                render_functions.print_color(equip_console, x=equip_console.width//2, y=2, string=f'({item.char}){item.name}{extra}', fg=text_color, alignment=tcod.constants.CENTER,  specific_color={1: item.color})
+                #equip_console.print(x=equip_console.width//2, y=2, string=f'{item.name}{extra}', fg=text_color, alignment=tcod.constants.CENTER)
+            else:
+                render_functions.print_color(equip_console, x=2, y=y, string=f'({item.char}){item.name}{extra}', fg=text_color, specific_color={1: item.color})
+                #equip_console.print(x=2, y=y, string=f'{item.name}{extra}', fg=text_color)
+                y+=1
         
         equip_console.blit(console, dest_x=console.width-equip_console.width-4, dest_y=4)
         
@@ -617,7 +645,7 @@ class EquipEventHandler(EventHandler):
             case tcod.event.KeySym.DOWN:
                 self.selected_item = min(self.selected_item+1, len(self.items_for_slot)-1)
             case tcod.event.KeySym.UP:
-                self.selected_item = max(self.selected_item-1, -1)
+                self.selected_item = max(self.selected_item-1, 0)
             case tcod.event.KeySym.HOME:
                 self.selected_item = 0
             case tcod.event.KeySym.END:
@@ -683,8 +711,8 @@ class InventoryEventHandler(SubMenuEventHandler):
                 if self.engine.player.entity.is_equipped(stack[0]):
                     equipped = '[E]'
                 favorite = ''
-                if [i for i in FAVORITES.values() if i == stack]:
-                    favorite = f'(F{list(FAVORITES.values()).index(stack)+1})'
+                if [i for i in self.engine.player_favorites.values() if i == stack]:
+                    favorite = f'(F{list(self.engine.player_favorites.values()).index(stack)+1})'
                 
                 menu_console.print(x=5, y=y, string=f'{chr(i+65)} - ({stack[0].parent.char}){stack[0].name}{equipped}{favorite} {item_amount}', fg=text_color)
                 item_color = stack[0].parent.color
@@ -770,16 +798,16 @@ class InventoryEventHandler(SubMenuEventHandler):
                 self.engine.message_log.add_message(f'{self.items_on_page[self.selected_item][-1].name} is not edible.', color.impossible)
                 
             case tcod.event.KeySym(sym) if sym in range(tcod.event.KeySym.N0, tcod.event.KeySym.N9+1) and tcod.event.get_keyboard_state()[tcod.event.KeySym.f.scancode] and self.selected_item != -1:
-                global FAVORITES
                 stack = self.items_on_page[self.selected_item]
-                if stack in FAVORITES.values():
-                    FAVORITES[list(FAVORITES.keys())[list(FAVORITES.values()).index(stack)]] = None
-                FAVORITES[sym] = stack
+                if stack in self.engine.player_favorites.values():
+                    self.engine.player_favorites[list(self.engine.player_favorites.keys())[list(self.engine.player_favorites.values()).index(stack)]] = None
+                self.engine.player_favorites[sym] = stack
+                self.engine.player_favorites[tcod.event.KeySym.N0-sym] = copy.deepcopy(stack[0])
             
             case tcod.event.KeySym(sym) if event.scancode == tcod.event.Scancode.GRAVE and not event.mod:
                 stack = self.items_on_page[self.selected_item]
-                if stack in FAVORITES.values():
-                    FAVORITES[list(FAVORITES.keys())[list(FAVORITES.values()).index(stack)]] = None
+                if stack in self.engine.player_favorites.values():
+                    self.engine.player_favorites_mem[list(self.engine.player_favorites.keys())[list(self.engine.player_favorites.values()).index(stack)]] = None
                 
 class DropAmountEventHandler(EventHandler):
     parent: InventoryEventHandler
@@ -847,8 +875,8 @@ class SpellbookMenuHandler(SubMenuEventHandler):
             if i == self.selected_spell:
                 text_color = color.ui_cursor_text_color
             favorite = ''
-            if [i for i in FAVORITES.values() if i == spell]:
-                favorite = f'(F{list(FAVORITES.values()).index(spell)+1})'
+            if [i for i in self.engine.player_favorites.values() if i == spell]:
+                favorite = f'(F{list(self.engine.player_favorites.values()).index(spell)+1})'
                 
             menu_console.print(x=5, y=y, string=f'{single_aoe} - [{spell.cost}]:{spell.name}{favorite}', fg=text_color)
             y+=1
@@ -876,11 +904,11 @@ class SpellbookMenuHandler(SubMenuEventHandler):
                     self.engine.message_log.add_message(exc.args[0], color.impossible)
                     
             case tcod.event.KeySym(sym) if sym in range(tcod.event.KeySym.N0, tcod.event.KeySym.N9+1) and tcod.event.get_keyboard_state()[tcod.event.KeySym.f.scancode] and self.selected_spell != -1:
-                global FAVORITES
                 spell = self.engine.player.entity.spell_book[self.selected_spell]
-                if spell in FAVORITES.values():
-                    FAVORITES[list(FAVORITES.keys())[list(FAVORITES.values()).index(spell)]] = None
-                FAVORITES[sym] = spell
+                if spell in self.engine.player_favorites.values():
+                    self.engine.player_favorites[list(self.engine.player_favorites.keys())[list(self.engine.player_favorites.values()).index(spell)]] = None
+                self.engine.player_favorites[sym] = spell
+                self.engine.player_favorites_mem[tcod.event.KeySym.N0-sym] = None
 
 
 
@@ -1349,32 +1377,41 @@ class MultiPickupHandler(MenuListEventHandler):
                 pickup(self.selected_items)
                 self.engine.event_handler = MainGameEventHandler(self.engine)
 
+
 class FavoriteHandler(MenuListEventHandler):
     def __init__(self, engine: Engine, parent: EventHandler):
         self.engine = engine
         self.selected_index = 0
-        self.menu_items = list(FAVORITES.values())
+        self.menu_items = list(self.engine.player_favorites.values())
         self.parent = parent
         self.engine.wait = False
         
     def on_render(self, console: tcod.console.Console):
-        self.menu_items = list(FAVORITES.values())
+        self.menu_items = list(self.engine.player_favorites.values())
         self.parent.on_render(console)
         from entity import Item
-        menu_console = tcod.console.Console(
-            sum(
-                [len(_.name) for _ in self.menu_items if hasattr(_, 'name')])
-                +sum([len(_[0].name) for _ in self.menu_items if isinstance(_, list) and all(isinstance(t, Item) for t in _)])
-                +sum([2 for _ in self.menu_items if isinstance(_, list) and all(isinstance(t, Item) for t in _) and len(_) > 1])
-                +len([_ for _ in self.menu_items if not isinstance(_, list) and not hasattr(_, 'name')])
-                +1
-                +len(self.menu_items),
-            4
-        )
-        menu_console.draw_frame(0, 0, menu_console.width, menu_console.height-1, fg=color.ui_color)
         
-        item_x = 1
-        prev_name = None
+        longest_name_len = 1
+        for m_item in self.menu_items:
+            if m_item is None:
+                continue
+            elif isinstance(m_item, list):
+                if len(m_item) == 1 and len(m_item[0].name) > longest_name_len:
+                    longest_name_len = len(m_item[0].name)
+                elif len(m_item[0].name)+len(str(len(m_item))) > longest_name_len:
+                    longest_name_len = len(m_item[0].name)+1+len(str(len(m_item)))
+            else:
+                if len(m_item.name) > longest_name_len:
+                    longest_name_len = len(m_item.name)
+        
+        menu_console = tcod.console.Console(
+            longest_name_len+3,
+            len(self.menu_items)*2+1
+        )
+        menu_console.draw_frame(0, 0, 4, menu_console.height, fg=color.ui_color)
+        
+        item_y = 1
+        prev_title = None
         for i, item in enumerate(self.menu_items):
             if i==self.selected_index:
                 color_choice = color.ui_cursor_text_color
@@ -1391,78 +1428,85 @@ class FavoriteHandler(MenuListEventHandler):
             elif hasattr(item, 'name'):
                 title = item.name
             
-            menu_console.print(x=item_x, y=1, string=title, fg=color_choice)
+            if len(title) > 1:
+                menu_console.draw_rect(x=2, y=item_y-1, width=len(title), height=1, ch=ord('─'), fg=color.ui_color)
+                menu_console.print(x=len(title)+2, y=item_y-1, string='┐', fg=color.ui_color)
+                if prev_title is not None and len(title) < len(prev_title):
+                    menu_console.print(x=len(title)+2, y=item_y-1, string='┬', fg=color.ui_color)
+                menu_console.print(x=len(title)+2, y=item_y, string='│', fg=color.ui_color)
+                menu_console.print(x=len(title)+2, y=item_y+1, string='┘', fg=color.ui_color)
+                menu_console.draw_rect(x=2, y=item_y+1, width=len(title), height=1, ch=ord('─'), fg=color.ui_color)
+                
+                for j in range(2, 2+len(title)):
+                    if i != 0 and menu_console.rgba[item_y-2, j][0] == ord('│'):
+                        menu_console.print(y=item_y-1, x=j, string='┴', fg=color.ui_color)
+                
+                if i != 0 and menu_console.rgba[item_y-1, 3][0] != ord('─'):
+                    menu_console.print(y=item_y-1, x=3, string='┴', fg=color.ui_color)
+                
+                if i != len(self.menu_items)-1:
+                    menu_console.print(y=item_y+1, x=3, string='┬', fg=color.ui_color)
             
-            if i != len(self.menu_items)-1:
-                menu_console.print(x=item_x+len(title), y=0, string='┬', fg=color.ui_color)
-                menu_console.print(x=item_x+len(title), y=1, string='│', fg=color.ui_color)
-                menu_console.print(x=item_x+len(title), y=2, string='┴', fg=color.ui_color)
+            menu_console.print(x=2, y=item_y, string=title.replace(' ', '↔'), fg=color_choice)
+                    
+            if i == 0:
+                menu_console.print(y=item_y-1, x=1, string='┬', fg=color.ui_color)
+                
+            num = i+1
+            if num >= 10:
+                num = 0
+            menu_console.print(y=item_y, x=0, string=f'{num}', fg=color_choice)
+            menu_console.print(y=item_y, x=1, string='│', fg=color.ui_color)
             
-            # Drawing numbers and surrounding graphics sugar
-            slot_num = i+1
-            if slot_num == 10:
-                slot_num = 0
-            if len(title) == 1:
-                if i == 0:
-                    menu_console.print(x=item_x-1, y=2, string='├', fg=color.ui_color)
-                    menu_console.print(x=item_x-1, y=3, string='└', fg=color.ui_color)
-                else:
-                    if prev_name and len(prev_name) == 1:
-                        menu_console.print(x=item_x-1, y=3, string='┴', fg=color.ui_color)
-                    else:
-                        menu_console.print(x=item_x-1, y=3, string='└', fg=color.ui_color)
-                    menu_console.print(x=item_x-1, y=2, string='┼', fg=color.ui_color)
-                menu_console.print(x=item_x, y=3, string=f'{slot_num}', fg=color_choice)
-                if i == len(self.menu_items)-1:
-                    menu_console.print(x=item_x+len(title), y=2, string='┤', fg=color.ui_color)
-                    menu_console.print(x=item_x+len(title), y=3, string='┘', fg=color.ui_color)
-                else:
-                    menu_console.print(x=item_x+len(title), y=3, string='┘', fg=color.ui_color)
-                    menu_console.print(x=item_x+len(title), y=2, string='┼', fg=color.ui_color)
+            if i == len(self.menu_items)-1:
+                menu_console.print(y=item_y+1, x=1, string='┴', fg=color.ui_color)
             else:
-                menu_console.print_box(x=item_x-1, y=2, width=len(title)+1, height=1, string='─┬─┬', fg=color.ui_color, alignment=libtcodpy.CENTER)
-                menu_console.print_box(x=item_x-1, y=3, width=len(title)+1, height=1, string=f'   ┘', fg=color.ui_color, alignment=libtcodpy.CENTER)
-                menu_console.print_box(x=item_x-1, y=3, width=len(title)+1, height=1, string=f'  {slot_num}', fg=color_choice, alignment=libtcodpy.CENTER)
-                menu_console.print_box(x=item_x-1, y=3, width=len(title)+1, height=1, string=f'└', fg=color.ui_color, alignment=libtcodpy.CENTER)
-                for i in range(item_x, item_x-1+len(title)+1):
-                    if not menu_console.rgba[3, i][0] == ord(' '):
-                        continue
-                    menu_console.rgba[3, i] = (
+                menu_console.print(y=item_y+1, x=0, string='├', fg=color.ui_color)
+                menu_console.print(y=item_y+1, x=1, string='┼', fg=color.ui_color)
+                menu_console.print(y=item_y+1, x=2, string='─', fg=color.ui_color)
+                if not len(title) > 1:
+                    menu_console.print(y=item_y+1, x=3, string='┤', fg=color.ui_color)
+                                
+            item_y += 2
+            prev_title = title
+        
+        for i, row in enumerate(menu_console.rgba):
+            for j, tile in enumerate(row):
+                if tile[0] == ord(' '):
+                    menu_console.rgba[i, j] = (
                         ord(" "),
                         (0,)*4,
                         (0,)*4,
                     )
-                
-            item_x += len(title)+1
-            prev_name = title
+                elif tile[0] == ord('↔'):
+                    menu_console.print(x=j, y=i, string=' ', fg=color.ui_text_color)
         
-        menu_console.blit(console, dest_x=console.width//2-menu_console.width//2, dest_y=3)
+        menu_console.blit(console, dest_x=1, dest_y=10)
         
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
-        global FAVORITES
         match event.sym:
             case tcod.event.KeySym.ESCAPE:
                 self.engine.event_handler = MainGameEventHandler(self.engine)
             
-            case tcod.event.KeySym.d | tcod.event.KeySym.RIGHT:
+            case tcod.event.KeySym.s | tcod.event.KeySym.DOWN:
                 if  len(self.menu_items) > self.selected_index + 1:
                     self.selected_index +=1
                 else:
                     self.selected_index = len(self.menu_items)-1
                     #self.selected_index = 0
-            case tcod.event.KeySym.a | tcod.event.KeySym.LEFT:
+            case tcod.event.KeySym.w | tcod.event.KeySym.UP:
                 if  0 <= self.selected_index - 1:
                     self.selected_index -=1
                 else:
                     self.selected_index = 0
                     #self.selected_index = len(self.menu_items)-1
             
-            case tcod.event.KeySym(sym) if sym in FAVORITES:
+            case tcod.event.KeySym(sym) if sym in self.engine.player_favorites:
                 from entity import Item
                 from entity_effect import CharacterEffect
-                from magic import AttackSpell
+                from magic import Spell
                 
-                thing = FAVORITES[sym]
+                thing = self.engine.player_favorites[sym]
                 if thing is None:
                     return
                 
@@ -1472,7 +1516,7 @@ class FavoriteHandler(MenuListEventHandler):
                 elif isinstance(thing, CharacterEffect):
                     self.engine.event_handler = self.parent
                     return thing.get_action()
-                elif isinstance(thing, AttackSpell):
+                elif isinstance(thing, Spell):
                     self.engine.event_handler = self.parent
                     return thing.get_action(self.engine)
             
@@ -1729,16 +1773,15 @@ class ExplosionHandler(EventHandler):
 
 class MainGameEventHandler(EventHandler):
     def on_render(self, console: Console) -> None:
-        # Update favorites
+        # Update self.engine.player_favorites
         inventory_stacks = self.engine.player.entity.inventory_as_stacks
         for stack in inventory_stacks:
-            for key, fav in FAVORITES.items():
+            for key, fav in self.engine.player_favorites.items():
                 if fav and isinstance(fav, list) and stack[0] in fav:
-                    FAVORITES[key] = stack
+                    self.engine.player_favorites[key] = stack
         return super().on_render(console)
     
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
-        global FAVORITES
         action: Optional[Action] = None
         
         player = self.engine.player
@@ -1754,17 +1797,17 @@ class MainGameEventHandler(EventHandler):
             case tcod.event.KeySym(sym) if sym in WAIT_KEY and not event.mod: # Wait
                 action = WaitAction(player)
                 
-            case tcod.event.KeySym(sym) if sym in FAVORITES and not event.mod: # Quick favorite
+            case tcod.event.KeySym(sym) if sym in self.engine.player_favorites and not event.mod: # Quick favorite
                 from entity import Item
                 from entity_effect import CharacterEffect
-                from magic import AttackSpell
+                from magic import Spell
                 
-                thing = FAVORITES[sym]
+                thing = self.engine.player_favorites[sym]
                 if isinstance(thing, list) and all(isinstance(t, Item) for t in thing):
                     return thing[0].effect.get_action()
                 elif isinstance(thing, CharacterEffect):
                     return thing.get_action()
-                elif isinstance(thing, AttackSpell):
+                elif isinstance(thing, Spell):
                     return thing.get_action(self.engine)
             
             case tcod.event.KeySym.f if not event.mod: # General Interact
@@ -1793,7 +1836,7 @@ class MainGameEventHandler(EventHandler):
                 except exceptions.Impossible as exc:
                     self.engine.message_log.add_message(exc.args[0], color.impossible)
             
-            case tcod.event.KeySym.m if not event.mod: # Stats Menu
+            case tcod.event.KeySym.N2 if (event.mod & (tcod.event.KMOD_LSHIFT | tcod.event.KMOD_RSHIFT)): # Stats Menu
                 self.change_handler(MenuCollectionEventHandler(self.engine))
 
             case tcod.event.KeySym.i if not event.mod: # Inventory Menu
@@ -1801,6 +1844,10 @@ class MainGameEventHandler(EventHandler):
                 
             case tcod.event.KeySym.TAB if not event.mod: # Equipment Menu
                 self.change_handler(MenuCollectionEventHandler(self.engine, 1))
+                
+            case tcod.event.KeySym.s if (event.mod & (tcod.event.KMOD_LSHIFT | tcod.event.KMOD_RSHIFT)): # Spellbook
+                if self.engine.player.entity.spell_book:
+                    self.change_handler(MenuCollectionEventHandler(self.engine, 4))
                 
             case tcod.event.KeySym(sym) if event.scancode == tcod.event.Scancode.GRAVE and not event.mod: # Favorites Menu
                 self.change_handler(FavoriteHandler(self.engine, self))
@@ -1832,7 +1879,7 @@ class MainGameEventHandler(EventHandler):
                 save_num = 1
                 if files:
                     os.remove(files[0])
-                    save_num = int(files[0].replace("data\\user_data\\quicksave", '').replace(".sav", ''))+1
+                    save_num = int(files[0].replace("data\\user_data\\quicksave_", '').replace(".sav", ''))+1
                 
                 self.engine.save_as(f'quicksave_{save_num}.sav')
                 self.message('quick save', color.valid)
@@ -1935,6 +1982,7 @@ class TextInputHandler(EventHandler):
         self.text_inputted = str(default_text)
         self.expected_type = expected_type
         self.highlighted_text = 0
+        self.cursor_pos = len(self.text_inputted)
         
         self.title = title
         self.input_index = -1
@@ -1975,7 +2023,7 @@ class TextInputHandler(EventHandler):
         # Draw blinking cursor
         elif not len(self.text_inputted) >= self.width-2:
             if self.cursor_blink >= 40:
-                input_console.print(x=len(self.text_inputted), y=0, string='▌', fg=color.ui_text_color)
+                input_console.print(x=self.cursor_pos, y=0, string='▌', fg=color.ui_text_color)
             self.cursor_blink += 1
         input_console.blit(console, self.x, self.y)
             
@@ -1986,7 +2034,9 @@ class TextInputHandler(EventHandler):
         self.cursor_blink = 55
         if len(self.text_inputted) + len(event.text) > self.width-2:
             return
-        self.text_inputted += event.text
+        #self.text_inputted += event.text
+        self.text_inputted = self.text_inputted[:self.cursor_pos] + event.text + self.text_inputted[self.cursor_pos:]
+        self.cursor_pos += 1
     
     def ev_keydown(self, event: tcod.event.KeyDown) -> None:
         match event.sym:
@@ -2003,15 +2053,17 @@ class TextInputHandler(EventHandler):
                 if self.highlighted_text != 0 and self.text_inputted[self.highlighted_text:]:
                     self.text_inputted = self.text_inputted[:self.highlighted_text]
                     self.highlighted_text = 0
-                else:
-                    self.text_inputted = self.text_inputted[:-1]
+                elif self.cursor_pos != 0:
+                    self.text_inputted = self.text_inputted[:self.cursor_pos-1] + self.text_inputted[self.cursor_pos:]
                     self.input_index = -1
+                    self.cursor_pos -= 1
                 
             case tcod.event.KeySym.UP:
                 self.highlighted_text = 0
                 if len(self.engine.input_log) > self.input_index+1:
                     self.input_index +=1
                     self.text_inputted = self.engine.input_log[self.input_index]
+                    self.cursor_pos = len(self.text_inputted)
                         
             case tcod.event.KeySym.DOWN:
                 self.highlighted_text = 0
@@ -2020,23 +2072,32 @@ class TextInputHandler(EventHandler):
                     self.text_inputted = self.engine.input_log[self.input_index]
                 else:
                     self.text_inputted = ''
+                self.cursor_pos = len(self.text_inputted)
             
             case tcod.event.KeySym.ESCAPE:
                 self.engine.event_handler = self.parent
     
             case tcod.event.KeySym.v if (event.mod & tcod.event.Modifier.CTRL):
                 self.text_inputted += pyperclip.paste()
+                self.cursor_pos = len(self.text_inputted)
             case tcod.event.KeySym.c if (event.mod & tcod.event.Modifier.CTRL):
                 pyperclip.copy(self.text_inputted[self.highlighted_text:])
                 
-            case tcod.event.KeySym.LEFT if (event.mod & tcod.event.Modifier.SHIFT):
-                self.highlighted_text = max(self.highlighted_text-1, -len(self.text_inputted))
-            case tcod.event.KeySym.RIGHT if (event.mod & tcod.event.Modifier.SHIFT):
-                self.highlighted_text = min(self.highlighted_text+1, 0)
-            case tcod.event.KeySym.RIGHT if not event.mod:
-                self.highlighted_text = 0
+            case tcod.event.KeySym.LEFT:
+                self.cursor_blink = 55
+                if (event.mod & tcod.event.Modifier.SHIFT):
+                    self.highlighted_text = max(self.highlighted_text-1, -len(self.text_inputted))
+                self.cursor_pos = max(self.cursor_pos-1, 0)
+            case tcod.event.KeySym.RIGHT:
+                self.cursor_blink = 55
+                if (event.mod & tcod.event.Modifier.SHIFT):
+                    self.highlighted_text = min(self.highlighted_text+1, 0)
+                else:
+                    self.highlighted_text = 0
+                self.cursor_pos = min(self.cursor_pos+1, len(self.text_inputted))
             case tcod.event.KeySym.a if (event.mod & tcod.event.Modifier.CTRL):
                 self.highlighted_text = -len(self.text_inputted)
+                self.cursor_pos = 0
                 
             
                     
@@ -2075,7 +2136,7 @@ class BorderedTextInputHandler(TextInputHandler):
         # Draw blinking cursor
         elif not len(self.text_inputted) >= self.width-2:
             if self.cursor_blink >= 40:
-                input_console.print(x=1+len(self.text_inputted), y=1, string='▌', fg=color.ui_text_color)
+                input_console.print(x=self.cursor_pos+1, y=1, string='▌', fg=color.ui_text_color)
             self.cursor_blink += 1
         
         # Connect to other ui elements

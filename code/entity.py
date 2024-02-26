@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, List, Optional, Dict, Tuple
 
+import tcod
+
 from render_order import RenderOrder
 from input_handler import GameOverEventHandler, MainGameEventHandler
 
@@ -163,9 +165,9 @@ class Item(Entity):
             elif self.itemtype == ItemTypes.LEG_ARMOR:
                 equippable = {'Legs': True}
             elif self.itemtype == ItemTypes.FOOT_ARMOR:
-                equippable = {'Boots': True}
+                equippable = {'Foot': True}
             elif self.itemtype == ItemTypes.HAND_ARMOR:
-                equippable = {'Gloves': True}
+                equippable = {'Hand': True}
             elif self.itemtype == ItemTypes.RING:
                 equippable = {'Rings': True}
             elif ItemTypes.is_weapon(self):
@@ -173,7 +175,7 @@ class Item(Entity):
             else:
                 equippable = {}
         
-        self.equippable = {'Head': False, 'Chest': False, 'Legs': False, 'Boots': False, 'Gloves': False, 'Amulet': False, 'Left Ring': False, 'Right Ring': False, 'Right Hand': False, 'Left Hand': False} | equippable
+        self.equippable = {'Head': False, 'Chest': False, 'Legs': False, 'Foot': False, 'Hand': False, 'Amulet': False, 'Left Ring': False, 'Right Ring': False, 'Right Hand': False, 'Left Hand': False} | equippable
         
         self.effect = effect
         self.effect.parent = self
@@ -297,7 +299,7 @@ class Character(Entity):
         self.base_WGT = base_WGT # weight[conceptual](WGT) -> conceptual atk/resist
         self.base_LCK = base_LCK # luck(LCK) -> effects chance
         
-        self.equipment: Dict[str, Optional[Item]] = {'Head': None, 'Chest': None, 'Gloves': None,  'Legs': None, 'Boots': None, 'Amulet': None, 'Right Ring': None, 'Left Ring': None, 'Right Hand': None, 'Left Hand': None}
+        self.equipment: Dict[str, Optional[Item]] = {'Head': None, 'Chest': None, 'Hand': None,  'Legs': None, 'Foot': None, 'Amulet': None, 'Right Ring': None, 'Left Ring': None, 'Right Hand': None, 'Left Hand': None}
         #print(self.job.starting_equipment)
         for item in self.job.starting_equipment:
             self.equip(copy.deepcopy(item), silent=True)
@@ -806,6 +808,14 @@ class Character(Entity):
         if not silent: self.parent.gamemap.engine.message_log.add_message(f'{item.name.capitalize()} added to inventory({self.weight}/{self.carry_weight}).')
         self.update_stats()
         
+        # Stops error when first loading game
+        if not hasattr(self, 'parent') or not hasattr(self.parent, 'parent'):
+            return
+        sim = [i for i in self.engine.player_favorites_mem if item.similar(i)]
+        if sim:
+            stack = [i for i in self.inventory_as_stacks if item in i][0]
+            self.engine.player_favorites[tcod.event.KeySym.N0+self.engine.player_favorites_mem.index(sim[0])] = stack
+        
     def drop_inventory(self, item: str | Item, silent: bool = False) -> None:
         """ `silent` to not print messages. """
         if not 'player' in self.tags:
@@ -840,10 +850,14 @@ class Character(Entity):
             return bool(self.get_with_name(item))
         return item in self.inventory
     
-    def is_equipped(self, item: str | Item) -> bool:
+    def is_equipped(self, item: str | Item, slot: str | None = None) -> bool:
         if isinstance(item, str):
-            return bool(self.get_with_name(item))
-        return item in self.equipment.values()
+            return self.is_equipped(self.get_with_name(item), slot)
+        
+        if not slot:
+            return item in self.equipment.values()
+        
+        return self.equipment[slot] == item
         
     def equip(self, items: Item | str | List[Item|str], slot: Optional[str] = None, silent: bool = False, force: bool = True) -> None:
         """ Equips a single `Item` or multiple. Adds item to inventory if it isn't already present.\n\n`slot` only used on single equip.\n\n`silent` to not print messages.\n\n`force` to equip items in slots that already have items."""
@@ -928,7 +942,7 @@ class Character(Entity):
                 self.equip(item, silent)
     
         
-    def die(self, killer: Character | None = None) -> None:
+    def die(self, killer: Character | None = None, silent: bool = False) -> None:
         self.dead_sprite_info = {'char': self.parent.char, 'color': self.parent.color}
 
         if killer:
@@ -968,8 +982,8 @@ class Character(Entity):
             self.parent.entity.weight = dead_weight
             
 
-        
-        self.engine.message_log.add_message(death_message, death_message_color)
+        if not silent:
+            self.engine.message_log.add_message(death_message, death_message_color)
         
     def resurrect(self, health_percent: float = .5):
         from ai import HostileEnemy
@@ -1012,7 +1026,13 @@ class Character(Entity):
 
     
     def take_damage(
-        self, amount: int, damage_type: DamageTypes = DamageTypes.PHYS, element_type: ElementTypes | None = None, attacker: Optional[Character] = None, dodgeable: bool = True
+        self,
+        amount: int,
+        damage_type: DamageTypes = DamageTypes.PHYS,
+        element_type: ElementTypes | None = None,
+        attacker: Optional[Character] = None,
+        dodgeable: bool = True,
+        silent: bool = False
         ) -> int:
         if self.invincible:
             return 0
@@ -1030,6 +1050,10 @@ class Character(Entity):
             damage = max(damage_after_neg, 0)
         else:
             damage = 1
+            
+        #Apply elemental resistances
+        if element_type:
+            damage *= (100-self.resistances[element_type])/100
         
         #Try to dodge if possible
         if dodgeable:
@@ -1046,11 +1070,8 @@ class Character(Entity):
                     return None
                 elif rand < dodge_chance:
                     damage //= 2
-                    
-        #Apply elemental resistances
-        if element_type:
-            damage *= (100-self.resistances[element_type])/100
             
+        # Apply damage to self
         self.hp -= damage
         if self.hp == 0 and self.parent.ai:
             self.die(attacker)

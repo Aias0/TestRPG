@@ -49,7 +49,7 @@ def dist_formula(point1, point2):
     x2, y2 = point2
     return ((x2-x1)**2+(y2-y1)**2)**.5
 
-def toward_or_away(vector1: tuple, vector1_pos: tuple, vector2: tuple, vector2_pos: tuple):
+def boundary_type(vector1: tuple, vector1_pos: tuple, vector2: tuple, vector2_pos: tuple):
     rel_vect = np.subtract(vector2, vector1)
     rel_pos = np.subtract(vector2_pos, vector1_pos)
 
@@ -57,16 +57,16 @@ def toward_or_away(vector1: tuple, vector1_pos: tuple, vector2: tuple, vector2_p
     dot_product = -np.dot(rel_pos, rel_vect)
 
     b_type = ''
-    if dot_product > 3:
+    if dot_product > 4:
         b_type = 'C' #"Vectors point toward each other"
-    elif dot_product < -3:
+    elif dot_product < -4:
         b_type = 'D' #"Vectors point away from each other"
     else:
         b_type = 'O' #"Vectors are orthogonal (perpendicular)"
     
     return b_type, dot_product
 
-def gen_plates(shape: tuple, num_plates: int) -> tuple[Voronoi, dict[tuple, tuple[str, float]], dict[tuple, tuple]]:
+def gen_plates(shape: tuple, num_plates: int) -> tuple[Voronoi, dict[tuple, tuple[str, float]], dict[tuple, tuple], dict[tuple, tuple[tuple, tuple]]]:
     points = np.array([[np.random.randint(0, shape[0]), np.random.randint(0, shape[1])] for _ in range(num_plates)])
     
     vor = Voronoi(points)
@@ -81,6 +81,7 @@ def gen_plates(shape: tuple, num_plates: int) -> tuple[Voronoi, dict[tuple, tupl
     ptp_bound = vor.points.ptp(axis=0)
     
     plate_boundaries: dict[tuple, tuple[str, float]] = {}
+    boundary_parents: dict[tuple, tuple[tuple, tuple]] = {}
     for pointidx, simplex in zip(vor.ridge_points, vor.ridge_vertices):
         simplex = np.asarray(simplex)
         temp_boundary = None
@@ -108,9 +109,10 @@ def gen_plates(shape: tuple, num_plates: int) -> tuple[Voronoi, dict[tuple, tupl
         parent_points = tuple(vor.points[pointidx[1]]), tuple(vor.points[pointidx[0]])
         parent_vectors = plate_vectors[parent_points[0]], plate_vectors[parent_points[1]]
         
-        plate_boundaries[temp_boundary] = toward_or_away(parent_vectors[0], parent_points[0], parent_vectors[1], parent_points[1])
+        plate_boundaries[temp_boundary] = boundary_type(parent_vectors[0], parent_points[0], parent_vectors[1], parent_points[1])
+        boundary_parents[temp_boundary] = (parent_points, parent_vectors)
     
-    return vor, plate_boundaries, plate_vectors
+    return vor, plate_boundaries, plate_vectors, boundary_parents
 
 def gen_elevation(shape: tuple, plate_boundaries: dict[tuple, tuple[str, float]], frequency: float = 1, octave_blend: list[float] = [1], redistribution: float = 1) -> NDArray:
     elevation = np.zeros(shape)
@@ -158,7 +160,7 @@ def main():
         mouse_location = (0, 0)
         console = tcod.console.Console(map_width, map_height+1, order='F')
         
-        vor, plate_boundaries, plate_vectors = gen_plates((map_width, map_height), num_plates)
+        vor, plate_boundaries, plate_vectors, boundary_parents = gen_plates((map_width, map_height), num_plates)
         elevation = gen_elevation((map_width, map_height), plate_boundaries, frequency, octaves)
         #print(plate_boundaries)
         while True:
@@ -181,11 +183,16 @@ def main():
                     point = tuple(map(lambda x: int(x), point))
                     console.print(*point, ' ', bg=(255, 255, 0))
 
-                    for line, bound_type in plate_boundaries.items():
-                        line_points = tcod.los.bresenham(*line).tolist()
-                        for j in line_points:
-                            d = {'C': (255, 50, 0), 'D': (255, 150, 0), 'O': (255, 100, 255)}
-                            console.print(*j, ' ', bg=d[bound_type[0]])
+                for line, bound_type in plate_boundaries.items():
+                    line_points = tcod.los.bresenham(*line).tolist()
+                    for i, j in enumerate(line_points):
+                        d = {'C': (255, 50, 0), 'D': (255, 150, 0), 'O': (255, 100, 255)}
+                        console.print(*j, ' ', bg=d[bound_type[0]])
+                        if i == (len(line_points)-1)/2 and bound_type[0] == 'C':
+                            new_point = tuple(np.add(j, [int(_*6+1.5) for _ in np.add(*boundary_parents[line][1])]))
+                            for _ in tcod.los.bresenham(j, new_point).tolist():
+                                console.print(*_, '*', fg=(0, 255, 255))
+                                
 
                 for point, vect in plate_vectors.items():
                     new_point = tuple(np.add(point, [int(_*6+1.5) for _ in vect]))
@@ -216,7 +223,7 @@ def main():
                             seed = random.randint(0, 636413622)
                             opensimplex.seed(seed)
                             np.random.seed(seed)
-                            vor, plate_boundaries, plate_vectors = gen_plates((map_width, map_height), num_plates)
+                            vor, plate_boundaries, plate_vectors, boundary_parents = gen_plates((map_width, map_height), num_plates)
                             elevation = gen_elevation((map_width, map_height), plate_boundaries, frequency, octaves)
                             
                         case tcod.event.KeySym.p:

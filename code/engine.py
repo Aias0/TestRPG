@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Set, Iterable, Any
 
+import tcod
 from tcod.console import Console
 from tcod.map import compute_fov
 
@@ -16,12 +17,17 @@ import glob, os
 
 from sprite import Actor
 
+import dill
 import lzma
 import pickle
 
 if TYPE_CHECKING:
     from game_map import GameMap, GameLocation
     from input_handler import EventHandler
+    from entity import Item
+    from sprite import Sprite, Actor
+    from magic import AOESpell, AttackSpell
+    from entity_effect import BaseEffect, CharacterEffect
     
 class MainMenuEngine:
     def __init__(self):
@@ -52,6 +58,7 @@ class Engine:
         self.hover_range = 1
         self.old_hover_range = 1
         
+        # DEV Stuff
         self.wallhacks = False
         self.omniscient = False
         self.ai_on = True
@@ -59,6 +66,21 @@ class Engine:
         
         self.turn_count = 0
         self._blink_counter = 0
+        
+        self.player_favorites: dict[tcod.event.KeySym, list[Item] | CharacterEffect | AttackSpell | None] = {
+            tcod.event.KeySym.N1: None,
+            tcod.event.KeySym.N2: None,
+            tcod.event.KeySym.N3: None,
+            tcod.event.KeySym.N4: None,
+            tcod.event.KeySym.N5: None,
+            tcod.event.KeySym.N6: None,
+            tcod.event.KeySym.N7: None,
+            tcod.event.KeySym.N8: None,
+            tcod.event.KeySym.N9: None,
+            tcod.event.KeySym.N0: None,
+        }
+        
+        self.player_favorites_mem: list[list[Item] | CharacterEffect | AttackSpell | None] = [None,]*len(self.player_favorites)
         
     def message(self, text: str, fg: tuple[int, int, int] = color.white):
         self.message_log.add_message(text=text, fg=fg)
@@ -133,6 +155,8 @@ class Engine:
         console.print(x=console.width-20, y=43, string='┬', fg=color.ui_color)
         console.draw_rect(x=console.width-20, y=44, width=1, height=40, ch=ord('│'), fg=color.ui_color)
         
+        #console.print(x=20+(console.width-40)//2, y=43, string='┼', fg=color.ui_color)
+        
         render_resource_bar(
             x=0,
             y=45,
@@ -163,7 +187,7 @@ class Engine:
         
         if self.hover_range != self.old_hover_range:
             self.hover_depth = 0
-        render_names_at_mouse_location(console=console, x=21, y=44, engine=self)
+        render_names_at_mouse_location(console=console, x=20+(console.width-40)//2, y=44, engine=self, alignment=tcod.constants.CENTER)
         self.old_hover_range = self.hover_range
         
     def save_as(self, filename: str) -> None:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Tuple, List
 
-import color, math, time
+import color, math, time, tcod
 
 import numpy as np
 
@@ -24,7 +24,7 @@ def get_names_at_location(x: int, y: int, game_map: GameMap) -> list[str]:
     return names
 
 def render_names_at_mouse_location(
-    console: Console, x: int, y: int, engine: Engine
+    console: Console, x: int, y: int, engine: Engine, alignment = tcod.constants.LEFT
 ) -> None:
     mouse_x, mouse_y = engine.mouse_location
     
@@ -33,15 +33,29 @@ def render_names_at_mouse_location(
     )
     engine.hover_range = len(names_at_mouse_location)
 
-    extra_after = {True: '...', False: ''}
-    extra_before = {True: '...', False: ''}
+    extra_after = ''
+    extra_before = ''
     if not names_at_mouse_location:
         engine.hover_depth = 0
     else:
         try:
-            console.print(x=x, y=y, string=f'{extra_before[engine.hover_depth>0]}{names_at_mouse_location[engine.hover_depth]}{extra_after[len(names_at_mouse_location)-1>engine.hover_depth]}', fg=color.ui_text_color)
+            names = names_at_mouse_location[engine.hover_depth]
         except IndexError:
             engine.hover_depth = 0
+            names = names_at_mouse_location[engine.hover_depth]
+        
+        if engine.hover_depth>0:
+            extra_before = '...'
+            x-=3
+        if len(names_at_mouse_location)-1>engine.hover_depth:
+            extra_after = '...'
+            
+        if alignment == tcod.constants.CENTER:
+            console.print(x=x-len(names)//2, y=y, string=f'{extra_before}{names}{extra_after}', fg=color.ui_text_color)
+        elif alignment == tcod.constants.LEFT:
+            console.print(x=x, y=y, string=f'{extra_before}{names}{extra_after}', fg=color.ui_text_color)
+        elif alignment == tcod.constants.RIGHT:
+            console.print(x=x-len(names), y=y, string=f'{extra_before}{names}{extra_after}', fg=color.ui_text_color)
 
 resource_colors = {'hp': (color.hp_bar_filled, color.hp_bar_empty), 'mp': (color.mp_bar_filled, color.mp_bar_empty), 'sp': (color.sp_bar_filled, color.sp_bar_empty)}
 
@@ -150,3 +164,32 @@ def draw_all_border(console: Console, fg: tuple[int, int, int] = None) -> None:
     draw_border(console)
     draw_border_detail(console)
     draw_inner_border_detail(console)
+
+def print_color(
+    console: Console,
+    x: int,
+    y: int,
+    string: str,
+    fg: tuple[int, int, int] | None = None,
+    bg: tuple[int, int, int] | None = None,
+    specific_color: dict[int | str, tuple[int, int, int]] | None = None,
+    bg_blend: int = tcod.constants.BKGND_SET,
+    alignment: int = tcod.constants.LEFT
+):
+    if not specific_color:
+        console.print(x, y, string, fg, bg, bg_blend, alignment)
+        return
+    
+    specific_color = {string.index(_[0]) if isinstance(_[0], str) else _[0]: _[1] for _ in specific_color.items()}
+    
+    char_color = {i: fg for i in range(len(string))} | specific_color
+    
+    if alignment == tcod.constants.CENTER:
+        for i, char in enumerate(string):
+            console.print(x=x+i-len(string)//2, y=y, string=char, fg=char_color[i], bg=bg, bg_blend=bg_blend)
+    elif alignment == tcod.constants.LEFT:
+        for i, char in enumerate(string):
+            console.print(x=x+i, y=y, string=char, fg=char_color[i], bg=bg, bg_blend=bg_blend)
+    elif alignment == tcod.constants.RIGHT:
+        for i, char in enumerate(string):
+            console.print(x=x+i-len(string), y=y, string=char, fg=char_color[i], bg=bg, bg_blend=bg_blend)

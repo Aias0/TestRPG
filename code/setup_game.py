@@ -5,7 +5,7 @@ from config import SETTINGS
 
 import copy, color, time
 import tcod, libtcodpy
-import lzma, pickle
+import lzma, dill, pickle
 
 import glob, os
 
