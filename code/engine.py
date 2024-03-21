@@ -16,6 +16,7 @@ import color
 import glob, os
 
 from sprite import Actor
+from favorites import PlayerFavorites
 
 import dill
 import lzma
@@ -50,7 +51,9 @@ class Engine:
         self.event_handler: EventHandler = MainGameEventHandler(self)
         self.message_log = MessageLog()
         self.mouse_location = (0, 0)
+        
         self.player = player
+        self.player.entity.favorites = PlayerFavorites(self.player.entity)
         
         self.input_log = []
         self.wait = True
@@ -66,21 +69,6 @@ class Engine:
         
         self.turn_count = 0
         self._blink_counter = 0
-        
-        self.player_favorites: dict[tcod.event.KeySym, list[Item] | CharacterEffect | AttackSpell | None] = {
-            tcod.event.KeySym.N1: None,
-            tcod.event.KeySym.N2: None,
-            tcod.event.KeySym.N3: None,
-            tcod.event.KeySym.N4: None,
-            tcod.event.KeySym.N5: None,
-            tcod.event.KeySym.N6: None,
-            tcod.event.KeySym.N7: None,
-            tcod.event.KeySym.N8: None,
-            tcod.event.KeySym.N9: None,
-            tcod.event.KeySym.N0: None,
-        }
-        
-        self.player_favorites_mem: list[list[Item] | CharacterEffect | AttackSpell | None] = [None,]*len(self.player_favorites)
         
     def message(self, text: str, fg: tuple[int, int, int] = color.white):
         self.message_log.add_message(text=text, fg=fg)

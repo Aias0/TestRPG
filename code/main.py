@@ -9,8 +9,6 @@ import input_handler
 
 import os, win32api, cv2
 
-import numpy as np
-
 tileset_file = SETTINGS['tileset_file']
 def refresh_tileset() -> None:
     global tileset_file
@@ -85,7 +83,7 @@ def main() -> None:
                             context.convert_event(event)
                             handler.handle_event(event)
                 except exceptions.ExitToMainMenu:
-                    if not isinstance(handler.engine, MainMenuEngine):
+                    if not isinstance(handler.engine, MainMenuEngine) and SETTINGS['auto_save']:
                         save_game(handler, f'exitsave_{abs(hash(handler.engine)) % (10 ** 5)}.sav')
                     handler = MainMenuEngine().event_handler
                 except Exception: # Handle exceptions in game.
@@ -95,7 +93,6 @@ def main() -> None:
                         handler.message(traceback.format_exc(), color.error)
         except exceptions.QuitWithoutSaving:
             raise
-        
         except SystemExit: # Save and Quit
             if not isinstance(handler.engine, MainMenuEngine):
                 save_game(handler, f'exitsave_{abs(hash(handler.engine)) % (10 ** 5)}.sav')
@@ -104,5 +101,6 @@ def main() -> None:
             if not isinstance(handler.engine, MainMenuEngine):
                 save_game(handler, f'errorsave_{abs(hash(handler.engine)) % (10 ** 5)}.sav')
             raise
+
 if __name__ == '__main__':
     main()

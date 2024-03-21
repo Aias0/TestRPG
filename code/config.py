@@ -1,5 +1,7 @@
 import configparser, ast
 
+from typing import Any
+
 def tryeval(val):
     try:
         val = ast.literal_eval(val)
@@ -12,7 +14,7 @@ def tryeval(val):
 config = configparser.ConfigParser()
 config.read('settings.ini')
 
-SETTINGS = {}
+SETTINGS: dict[str, Any] = {}
 for section in config.sections():
     for key in config[section]:
         SETTINGS[key] = tryeval(config[section][key])

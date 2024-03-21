@@ -14,7 +14,7 @@ import re, color, exceptions, random, copy
 
 from game_types import DamageTypes, ElementTypes, MaterialTypes
 
-from collections import Counter
+from favorites import PlayerFavorites
 
 import utils
 
@@ -110,9 +110,12 @@ class Entity():
     def __repr__(self):
         return self.__str__()
     
-    def similar(self, other) -> bool:
+    def similar(self, other, bug = False) -> bool:
         if isinstance(other, self.__class__):
-            for i, pair in enumerate(zip([_[1] for _ in vars(self).items() if _[0] != 'parent'], [_[1] for _ in vars(other).items() if _[0] != 'parent'])):
+            for i, pair in enumerate(zip(
+                [_[1] for _ in vars(self).items() if (_[0] != 'parent' and _[0] != 'holder')],
+                [_[1] for _ in vars(other).items() if (_[0] != 'parent' and _[0] != 'holder')]
+            )):
                 if hasattr(pair[0], 'similar') and not pair[0].similar(pair[1]):
                     return False
                 elif not hasattr(pair[0], 'similar') and pair[0] != pair[1]:
@@ -134,7 +137,7 @@ class Item(Entity):
         char: str = None,
         color: Tuple[int, int, int] = None,
         itemtype: ItemTypes = ItemTypes.MISCELLANEOUS,
-        itemsubtypes: ItemSubTypes | [ItemSubTypes] | None = None,
+        itemsubtypes: ItemSubTypes | list[ItemSubTypes] | None = None,
         description: str = None,
         effect: ItemEffect = ItemEffect(),
         equippable: Optional[Dict[str, bool]] = None,
@@ -255,6 +258,7 @@ class Character(Entity):
         age: int = None,
         providing_parent: bool = False,
         interactable: bool = False,
+        favorites: PlayerFavorites | None = None
         
     ) -> None:
         self.tags = tags
@@ -285,6 +289,8 @@ class Character(Entity):
             self.dominant_hand = random.choices(['right', 'left', 'ambidextrous'], [90, 10, 1])[0]
             
         self.spell_book = spell_book or []
+        
+        self.favorites = favorites
         
         # Attr Guide: 1: Ant | 10: Average Human | 100: Dragon
         # Visible Attributes
@@ -811,10 +817,9 @@ class Character(Entity):
         # Stops error when first loading game
         if not hasattr(self, 'parent') or not hasattr(self.parent, 'parent'):
             return
-        sim = [i for i in self.engine.player_favorites_mem if item.similar(i)]
-        if sim:
-            stack = [i for i in self.inventory_as_stacks if item in i][0]
-            self.engine.player_favorites[tcod.event.KeySym.N0+self.engine.player_favorites_mem.index(sim[0])] = stack
+        
+        if self.favorites:
+            self.favorites.update()
         
     def drop_inventory(self, item: str | Item, silent: bool = False) -> None:
         """ `silent` to not print messages. """
@@ -840,6 +845,10 @@ class Character(Entity):
         item.parent.x = self.parent.x
         item.parent.y = self.parent.y
         self.parent.gamemap.sprites.add(item.parent)
+        item.parent.parent = self.parent.gamemap
+        
+        if self.favorites:
+            self.favorites.update()
         
     def get_with_name(self, name: str) -> Item:
         """ Returns Item in inventory with name `name`. """

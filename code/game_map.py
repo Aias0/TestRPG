@@ -117,7 +117,8 @@ class GameMap:
             
             # Only print sprite that are in the FOV
             if self.visible[sprite.x, sprite.y] or self.engine.wallhacks:
-                if console.rgb[sprite.x, sprite.y][0] not in [ord(" "), ord(">"), ord("<")] and isinstance(sprite.entity, Item):
+                # If multiple items are on the ground print a pile char #
+                if console.rgb[sprite.x, sprite.y][0] not in [ord(" "), ord(">"), ord("<"), ord(sprite.char)] and isinstance(sprite.entity, Item):
                     console.print(
                     x=sprite.x, y=sprite.y, string='#', fg=color.white
                     )

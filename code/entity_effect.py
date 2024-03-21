@@ -113,20 +113,23 @@ class ItemEffect(BaseEffect):
     def consume(self) -> None:
         """Remove the consumed item from its containing inventory."""
         favorite_key = None
-        for key, item in self.parent.engine.player_favorites.items():
+        for key, item in self.parent.holder.favorites.items.items():
             if isinstance(item, list) and self.parent in item:
                 favorite_key = key
                 break
 
         if favorite_key:
-            self.parent.engine.player_favorites[key].remove(self.parent)
-            if not self.parent.engine.player_favorites[key]:
-                self.parent.engine.player_favorites[key] = None
+            self.parent.holder.favorites.items[key].remove(self.parent)
+            if not self.parent.holder.favorites.items[key]:
+                self.parent.holder.favorites.items[key] = None
         
         if self.parent.holder.in_inventory(self.parent):
             self.parent.holder.inventory.remove(self.parent)
         else:
             self.parent.gamemap.sprites.remove(self.parent.parent)
+        
+        if self.parent.holder.favorites:
+            self.parent.holder.favorites.update()
         
     def eat(self, action: actions.EffectAction) -> None:
         raise Impossible(f'{self.parent} is not edible.')

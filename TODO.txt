@@ -100,6 +100,8 @@
 
 -[TODO:]Keybind options in settings
 
--[FIXME:]Starting health potion error (has no parent)
+-[FIXED]Starting health potion error (has no parent)
 
 -[FIXME:]True/False settings changing when changing other settings.
+
+-[FIXED]Favorites broken.

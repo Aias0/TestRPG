@@ -106,7 +106,7 @@ class RectangularRoom(Room):
                         new_door.close()
                     else:
                         new_door.open()
-                    if random.random() < lock_chance:
+                    if random.random() < lock_chance and not self.safe:
                         lock_val = LockValues.new_lock()[0]
                         new_door.lock(lock_val)
                         from entity import Item
@@ -225,8 +225,6 @@ def generate_dungeon_floor(
                 dungeon.tiles[x, y] = tile_types.floor
                 
             center_of_last_room = new_room.center
-            
-        
 
         sprites: List[Sprite] = gen_items(item_num=items_per_room_range)
         if not new_room.safe:

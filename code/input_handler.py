@@ -711,8 +711,8 @@ class InventoryEventHandler(SubMenuEventHandler):
                 if self.engine.player.entity.is_equipped(stack[0]):
                     equipped = '[E]'
                 favorite = ''
-                if [i for i in self.engine.player_favorites.values() if i == stack]:
-                    favorite = f'(F{list(self.engine.player_favorites.values()).index(stack)+1})'
+                if [i for i in self.engine.player.entity.favorites.items.values() if i == stack]:
+                    favorite = f'(F{list(self.engine.player.entity.favorites.items.values()).index(stack)+1})'
                 
                 menu_console.print(x=5, y=y, string=f'{chr(i+65)} - ({stack[0].parent.char}){stack[0].name}{equipped}{favorite} {item_amount}', fg=text_color)
                 item_color = stack[0].parent.color
@@ -799,15 +799,11 @@ class InventoryEventHandler(SubMenuEventHandler):
                 
             case tcod.event.KeySym(sym) if sym in range(tcod.event.KeySym.N0, tcod.event.KeySym.N9+1) and tcod.event.get_keyboard_state()[tcod.event.KeySym.f.scancode] and self.selected_item != -1:
                 stack = self.items_on_page[self.selected_item]
-                if stack in self.engine.player_favorites.values():
-                    self.engine.player_favorites[list(self.engine.player_favorites.keys())[list(self.engine.player_favorites.values()).index(stack)]] = None
-                self.engine.player_favorites[sym] = stack
-                self.engine.player_favorites[tcod.event.KeySym.N0-sym] = copy.deepcopy(stack[0])
+                self.engine.player.entity.favorites.add_fav(sym, stack)
             
             case tcod.event.KeySym(sym) if event.scancode == tcod.event.Scancode.GRAVE and not event.mod:
                 stack = self.items_on_page[self.selected_item]
-                if stack in self.engine.player_favorites.values():
-                    self.engine.player_favorites_mem[list(self.engine.player_favorites.keys())[list(self.engine.player_favorites.values()).index(stack)]] = None
+                self.engine.player.entity.favorites.remove_fav(item=stack)
                 
 class DropAmountEventHandler(EventHandler):
     parent: InventoryEventHandler
@@ -875,8 +871,8 @@ class SpellbookMenuHandler(SubMenuEventHandler):
             if i == self.selected_spell:
                 text_color = color.ui_cursor_text_color
             favorite = ''
-            if [i for i in self.engine.player_favorites.values() if i == spell]:
-                favorite = f'(F{list(self.engine.player_favorites.values()).index(spell)+1})'
+            if [i for i in self.engine.player.entity.favorites.items.values() if i == spell]:
+                favorite = f'(F{list(self.engine.player.entity.favorites.items.values()).index(spell)+1})'
                 
             menu_console.print(x=5, y=y, string=f'{single_aoe} - [{spell.cost}]:{spell.name}{favorite}', fg=text_color)
             y+=1
@@ -905,10 +901,7 @@ class SpellbookMenuHandler(SubMenuEventHandler):
                     
             case tcod.event.KeySym(sym) if sym in range(tcod.event.KeySym.N0, tcod.event.KeySym.N9+1) and tcod.event.get_keyboard_state()[tcod.event.KeySym.f.scancode] and self.selected_spell != -1:
                 spell = self.engine.player.entity.spell_book[self.selected_spell]
-                if spell in self.engine.player_favorites.values():
-                    self.engine.player_favorites[list(self.engine.player_favorites.keys())[list(self.engine.player_favorites.values()).index(spell)]] = None
-                self.engine.player_favorites[sym] = spell
-                self.engine.player_favorites_mem[tcod.event.KeySym.N0-sym] = None
+                self.engine.player.entity.favorites.add_fav(sym, spell)
 
 
 
@@ -919,6 +912,7 @@ class SettingsMenuHandler(MenuCollectionEventHandler):
             SubSettingsHandler(engine, 'Graphics'),
             SubSettingsHandler(engine, 'Display'),
             SubSettingsHandler(engine, 'Controls'),
+            SubSettingsHandler(engine, 'Gameplay'),
             SubSettingsHandler(engine, 'Other'),
         ]
         for menu in self.menus:
@@ -1000,6 +994,7 @@ class SubSettingsHandler(SubMenuEventHandler):
                 
             case tcod.event.KeySym.RETURN if self.selected_setting != -1:
                 current_val = tryeval(list(self.settings_section.values())[self.selected_setting])
+                print(current_val)
                 if isinstance(current_val, bool):
                     self.return_text(str(not current_val))
                     return
@@ -1382,12 +1377,12 @@ class FavoriteHandler(MenuListEventHandler):
     def __init__(self, engine: Engine, parent: EventHandler):
         self.engine = engine
         self.selected_index = 0
-        self.menu_items = list(self.engine.player_favorites.values())
+        self.menu_items = list(self.engine.player.entity.favorites.items.values())
         self.parent = parent
         self.engine.wait = False
         
     def on_render(self, console: tcod.console.Console):
-        self.menu_items = list(self.engine.player_favorites.values())
+        self.menu_items = list(self.engine.player.entity.favorites.items.values())
         self.parent.on_render(console)
         from entity import Item
         
@@ -1501,43 +1496,11 @@ class FavoriteHandler(MenuListEventHandler):
                     self.selected_index = 0
                     #self.selected_index = len(self.menu_items)-1
             
-            case tcod.event.KeySym(sym) if sym in self.engine.player_favorites:
-                from entity import Item
-                from entity_effect import CharacterEffect
-                from magic import Spell
-                
-                thing = self.engine.player_favorites[sym]
-                if thing is None:
-                    return
-                
-                if isinstance(thing, list) and all(isinstance(t, Item) for t in thing):
-                    self.engine.event_handler = self.parent
-                    return thing[0].effect.get_action()
-                elif isinstance(thing, CharacterEffect):
-                    self.engine.event_handler = self.parent
-                    return thing.get_action()
-                elif isinstance(thing, Spell):
-                    self.engine.event_handler = self.parent
-                    return thing.get_action(self.engine)
+            case tcod.event.KeySym(sym) if sym in self.engine.player.entity.favorites.items:
+                return self.engine.player.entity.favorites.activate_slot(sym)
             
             case tcod.event.KeySym.RETURN:
-                from entity import Item
-                from entity_effect import CharacterEffect
-                from magic import AttackSpell
-                
-                thing = self.menu_items[self.selected_index]
-                if thing is None:
-                    return
-                
-                if isinstance(thing, list) and all(isinstance(t, Item) for t in thing):
-                    self.engine.event_handler = self.parent
-                    return thing[0].effect.get_action()
-                elif isinstance(thing, CharacterEffect):
-                    self.engine.event_handler = self.parent
-                    return thing.get_action()
-                elif isinstance(thing, AttackSpell):
-                    self.engine.event_handler = self.parent
-                    return thing.get_action(self.engine)
+                return self.engine.player.entity.favorites.activate_slot(list(self.engine.player.entity.favorites.items.keys())[self.selected_index])
 
 
 class DirectionInputHandler(EventHandler):
@@ -1773,12 +1736,6 @@ class ExplosionHandler(EventHandler):
 
 class MainGameEventHandler(EventHandler):
     def on_render(self, console: Console) -> None:
-        # Update self.engine.player_favorites
-        inventory_stacks = self.engine.player.entity.inventory_as_stacks
-        for stack in inventory_stacks:
-            for key, fav in self.engine.player_favorites.items():
-                if fav and isinstance(fav, list) and stack[0] in fav:
-                    self.engine.player_favorites[key] = stack
         return super().on_render(console)
     
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
@@ -1797,18 +1754,8 @@ class MainGameEventHandler(EventHandler):
             case tcod.event.KeySym(sym) if sym in WAIT_KEY and not event.mod: # Wait
                 action = WaitAction(player)
                 
-            case tcod.event.KeySym(sym) if sym in self.engine.player_favorites and not event.mod: # Quick favorite
-                from entity import Item
-                from entity_effect import CharacterEffect
-                from magic import Spell
-                
-                thing = self.engine.player_favorites[sym]
-                if isinstance(thing, list) and all(isinstance(t, Item) for t in thing):
-                    return thing[0].effect.get_action()
-                elif isinstance(thing, CharacterEffect):
-                    return thing.get_action()
-                elif isinstance(thing, Spell):
-                    return thing.get_action(self.engine)
+            case tcod.event.KeySym(sym) if sym in self.engine.player.entity.favorites.items and not event.mod: # Quick favorite
+                return self.engine.player.entity.favorites.activate_slot(sym)
             
             case tcod.event.KeySym.f if not event.mod: # General Interact
                 action = actions.InteractAction(player)
@@ -1896,17 +1843,6 @@ class MainGameEventHandler(EventHandler):
             
         return action
 
-class LineTester(EventHandler):
-    def on_render(self, console: tcod.console.Console):
-        super().on_render(console)
-        render_functions.draw_line(console, '*', (self.engine.player.x, self.engine.player.y), self.engine.mouse_location, (255, 0, 0))
-        
-    def ev_keydown(self, event: tcod.event.KeyDown):
-        match event.sym:
-            case tcod.event.KeySym.ESCAPE:
-                self.engine.event_handler = MainGameEventHandler(self.engine)
-        
-
 class GameOverEventHandler(EventHandler):
     def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[Action]:
         match event.sym:
@@ -1918,7 +1854,6 @@ class GameOverEventHandler(EventHandler):
                     
     def ev_quit(self, event: tcod.event.Quit) -> None:
         raise exceptions.QuitWithoutSaving()
-
 
 class HistoryViewer(EventHandler):
     """Print the history on a larger window which can be navigated."""
