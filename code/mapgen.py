@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Iterator, Tuple, List
 
 import random
 
-from game_map import GameMap
+from world import GameMap
 import tile_types
 
 import tcod

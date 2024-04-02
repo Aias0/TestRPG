@@ -14,7 +14,7 @@ from numpy.typing import NDArray
 
 import traceback
 
-from game_map import GameLocation
+from world import GameLocation
 import input_handler
 import render_functions
 

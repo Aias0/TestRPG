@@ -23,7 +23,7 @@ import lzma
 import pickle
 
 if TYPE_CHECKING:
-    from game_map import GameMap, GameLocation
+    from world import GameMap, GameLocation
     from input_handler import EventHandler
     from entity import Item
     from sprite import Sprite, Actor

@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from engine import Engine
 
 class GameMap:
+    game_world: GameWorld
+    
     def __init__(
         self, engine: Engine, width: int, height: int, floor_level: int = 0, sprites: Iterable[Sprite] = ()
     ) -> None:

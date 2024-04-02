@@ -8,7 +8,7 @@ import copy, math
 if TYPE_CHECKING:
     from ai import BaseAI
     from entity import Entity, Character
-    from game_map import GameMap
+    from world import GameMap
     
 T = TypeVar("T", bound="Sprite")
 
