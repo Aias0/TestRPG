@@ -62,11 +62,12 @@ def boundary_type(vector1: tuple, vector1_pos: tuple, vector2: tuple, vector2_po
     elif dot_product < -4:
         b_type = 'D' #"Vectors point away from each other"
     else:
-        b_type = 'O' #"Vectors are orthogonal (perpendicular)"
+        b_type = 'T' #"Vectors are orthogonal (perpendicular)"
     
     return b_type, dot_product
 
-def gen_plates(shape: tuple, num_plates: int) -> tuple[Voronoi, dict[tuple, tuple[str, float]], dict[tuple, tuple], dict[tuple, tuple[tuple, tuple]]]:
+def gen_plates(shape: tuple, num_plates: int) -> tuple[Voronoi, dict[tuple, tuple[str, float]], dict[tuple, tuple], dict[tuple, tuple[tuple, tuple]], dict[tuple[tuple, tuple], list[tuple]]]:
+    print('Generating Tectonic Plates...')
     points = np.array([[np.random.randint(0, shape[0]), np.random.randint(0, shape[1])] for _ in range(num_plates)])
     
     vor = Voronoi(points)
@@ -80,8 +81,10 @@ def gen_plates(shape: tuple, num_plates: int) -> tuple[Voronoi, dict[tuple, tupl
     center = vor.points.mean(axis=0)
     ptp_bound = vor.points.ptp(axis=0)
     
-    plate_boundaries: dict[tuple, tuple[str, float]] = {}
+    plate_boundaries: dict[tuple[tuple, tuple], tuple[str, float]] = {}
     boundary_parents: dict[tuple, tuple[tuple, tuple]] = {}
+    ridge_lines: dict[tuple[tuple, tuple], list[tuple]] = {}
+    
     for pointidx, simplex in zip(vor.ridge_points, vor.ridge_vertices):
         simplex = np.asarray(simplex)
         temp_boundary = None
@@ -111,10 +114,30 @@ def gen_plates(shape: tuple, num_plates: int) -> tuple[Voronoi, dict[tuple, tupl
         
         plate_boundaries[temp_boundary] = boundary_type(parent_vectors[0], parent_points[0], parent_vectors[1], parent_points[1])
         boundary_parents[temp_boundary] = (parent_points, parent_vectors)
+        
+        if plate_boundaries[temp_boundary][0] == 'C':
+            ridge_lines[temp_boundary] = tuple(map(lambda x: np.add(x, [int(_*6+1.5) for _ in np.add(*parent_vectors)]), temp_boundary))
     
-    return vor, plate_boundaries, plate_vectors, boundary_parents
+    return vor, plate_boundaries, plate_vectors, boundary_parents, ridge_lines
 
-def gen_elevation(shape: tuple, plate_boundaries: dict[tuple, tuple[str, float]], frequency: float = 1, octave_blend: list[float] = [1], redistribution: float = 1) -> NDArray:
+def points_in_circle_np(radius, x0=0, y0=0, ):
+    x_ = np.arange(x0 - radius - 1, x0 + radius + 1, dtype=int)
+    y_ = np.arange(y0 - radius - 1, y0 + radius + 1, dtype=int)
+    x, y = np.where((x_[:,np.newaxis] - x0)**2 + (y_ - y0)**2 <= radius**2)
+    # x, y = np.where((np.hypot((x_-x0)[:,np.newaxis], y_-y0)<= radius)) # alternative implementation
+    for x, y in zip(x_[x], y_[y]):
+        yield x, y
+
+def gen_elevation(
+    shape: tuple,
+    ridge_lines: dict[tuple, list[tuple]],
+    water_level: float,
+    frequency: float = 1,
+    octave_blend: list[float] = [1],
+    redistribution: float = 1,
+    mountain_radius: int = 5
+) -> NDArray:
+    print('Generating Elevation...')
     elevation = np.zeros(shape)
     
     for i, row in enumerate(elevation):
@@ -129,8 +152,22 @@ def gen_elevation(shape: tuple, plate_boundaries: dict[tuple, tuple[str, float]]
             tectonic_fudge = 0
             
             elevation[i, j] = (total/sum(octave_blend))**(redistribution + tectonic_fudge)
-            
     
+    print('Creating mountains from plate collisions...')
+    black_list = []
+    for rad in range(1, mountain_radius+1):
+        for ridge in ridge_lines.values():
+            for point in tcod.los.bresenham(*ridge).tolist():
+                for c_point in points_in_circle_np(rad, *point):
+                    if (c_point in black_list or
+                        (c_point[0] not in range(len(elevation)) or c_point[1] not in range(len(elevation[0]))) or
+                        elevation[c_point] < water_level
+                    ):
+                        continue
+                    elevation[c_point] += (-rad + 6)/10
+                    black_list.append(c_point)
+            
+    print('Done\n')
     return elevation
 
 
@@ -144,7 +181,7 @@ def main():
     water_level = .5
     
     num_plates = 14
-    show_plates = True
+    show_plates = False
     
     
     tileset = tcod.tileset.load_tilesheet(
@@ -160,8 +197,8 @@ def main():
         mouse_location = (0, 0)
         console = tcod.console.Console(map_width, map_height+1, order='F')
         
-        vor, plate_boundaries, plate_vectors, boundary_parents = gen_plates((map_width, map_height), num_plates)
-        elevation = gen_elevation((map_width, map_height), plate_boundaries, frequency, octaves)
+        vor, plate_boundaries, plate_vectors, boundary_parents, ridge_lines = gen_plates((map_width, map_height), num_plates)
+        elevation = gen_elevation((map_width, map_height), ridge_lines, water_level, frequency, octaves)
         #print(plate_boundaries)
         while True:
             console.clear()
@@ -186,13 +223,24 @@ def main():
                 for line, bound_type in plate_boundaries.items():
                     line_points = tcod.los.bresenham(*line).tolist()
                     for i, j in enumerate(line_points):
-                        d = {'C': (255, 50, 0), 'D': (255, 150, 0), 'O': (255, 100, 255)}
+                        d = {'C': (255, 50, 0), 'D': (255, 150, 0), 'T': (255, 100, 255)}
                         console.print(*j, ' ', bg=d[bound_type[0]])
-                        if i == (len(line_points)-1)/2 and bound_type[0] == 'C':
+                        if (len(line_points)%2 == 0 and i == (len(line_points)-1)/2) or (len(line_points)%2 != 0 and i == (len(line_points)-1)//2) and bound_type[0] == 'C':
                             new_point = tuple(np.add(j, [int(_*6+1.5) for _ in np.add(*boundary_parents[line][1])]))
                             for _ in tcod.los.bresenham(j, new_point).tolist():
                                 console.print(*_, '*', fg=(0, 255, 255))
-                                
+
+                for ridge in ridge_lines.values():
+                    line_points = tcod.los.bresenham(*ridge).tolist()
+                    for point in line_points:
+                        console.print(*point, ' ', bg=[0, 0, 0])
+                    
+                    """
+                    if bound_type[0] == 'C':
+                        ridge_points = map(lambda x: map(int, np.add(x, [int(_*6+1.5) for _ in np.add(*boundary_parents[line][1])])), line_points)
+                        for i, j in enumerate(ridge_points):
+                            console.print(*j, ' ', bg=[0, 0, 0]) """
+                            
 
                 for point, vect in plate_vectors.items():
                     new_point = tuple(np.add(point, [int(_*6+1.5) for _ in vect]))
@@ -223,8 +271,8 @@ def main():
                             seed = random.randint(0, 636413622)
                             opensimplex.seed(seed)
                             np.random.seed(seed)
-                            vor, plate_boundaries, plate_vectors, boundary_parents = gen_plates((map_width, map_height), num_plates)
-                            elevation = gen_elevation((map_width, map_height), plate_boundaries, frequency, octaves)
+                            vor, plate_boundaries, plate_vectors, boundary_parents, ridge_lines = gen_plates((map_width, map_height), num_plates)
+                            elevation = gen_elevation((map_width, map_height), ridge_lines, water_level, frequency, octaves)
                             
                         case tcod.event.KeySym.p:
                             voronoi_plot_2d(vor)
@@ -239,11 +287,11 @@ def main():
                         case tcod.event.KeySym.DOWN:
                             frequency+=.5
                             print(f'Frequency: {frequency}')
-                            elevation = noise_array((map_width, map_height), frequency, octaves)
+                            elevation = gen_elevation((map_width, map_height), ridge_lines, water_level, frequency, octaves)
                         case tcod.event.KeySym.UP:
                             frequency-=.5
                             print(f'Frequency: {frequency}')
-                            elevation = noise_array((map_width, map_height), frequency, octaves)
+                            elevation = gen_elevation((map_width, map_height), ridge_lines, water_level, frequency, octaves)
                         case tcod.event.KeySym.LEFT:
                             water_level = min(water_level+.01, 1)
                             print(f'Water level: {water_level}')

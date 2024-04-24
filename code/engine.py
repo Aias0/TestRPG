@@ -182,5 +182,5 @@ class Engine:
         """ Save this instance as a compressed file. """
         save_data = lzma.compress(pickle.dumps(self))
         
-        with open(f'data/user_data/{filename}', 'wb') as f:
+        with open(f'data/user_data/save_data/{filename}', 'wb') as f:
             f.write(save_data)
