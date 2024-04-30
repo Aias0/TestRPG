@@ -6,6 +6,8 @@ from numpy.typing import NDArray
 from scipy.spatial import Voronoi, voronoi_plot_2d
 import matplotlib.pyplot as plt
 
+from itertools import starmap
+
 from colour import Color
 
 import random
@@ -154,18 +156,20 @@ def gen_elevation(
             elevation[i, j] = (total/sum(octave_blend))**(redistribution + tectonic_fudge)
     
     print('Creating mountains from plate collisions...')
-    black_list = []
-    for rad in range(1, mountain_radius+1):
-        for ridge in ridge_lines.values():
-            for point in tcod.los.bresenham(*ridge).tolist():
-                for c_point in points_in_circle_np(rad, *point):
-                    if (c_point in black_list or
-                        (c_point[0] not in range(len(elevation)) or c_point[1] not in range(len(elevation[0]))) or
-                        elevation[c_point] < water_level
-                    ):
-                        continue
-                    elevation[c_point] += (-rad + 6)/10
-                    black_list.append(c_point)
+    
+    ridge_points = sum([[
+        point for point in tcod.los.bresenham(*ridge).tolist()
+        if point[0] in range(len(elevation)) and point[1] in range(len(elevation[0]))] for ridge in ridge_lines.values()
+    ], [])
+
+    for rad in range(mountain_radius, 0, -1):
+        points = {
+            p for p in set().union(*starmap(points_in_circle_np, [(rad, *point) for point in ridge_points]))
+            if p[0] in range(len(elevation)) and p[1] in range(len(elevation[0])) and elevation[p] > water_level
+        }
+        
+        for point in points:
+            elevation[point] += .2/rad
             
     print('Done\n')
     return elevation
@@ -196,7 +200,8 @@ def main():
     ) as context:
         mouse_location = (0, 0)
         console = tcod.console.Console(map_width, map_height+1, order='F')
-        
+        global seed
+        print(f'\nSeed: {seed}')
         vor, plate_boundaries, plate_vectors, boundary_parents, ridge_lines = gen_plates((map_width, map_height), num_plates)
         elevation = gen_elevation((map_width, map_height), ridge_lines, water_level, frequency, octaves)
         #print(plate_boundaries)
@@ -260,7 +265,7 @@ def main():
             #plt.show()
             
             for event in tcod.event.get():
-                context.convert_event(event)
+                event_tile = context.convert_event(event)
 
                 if isinstance(event, tcod.event.KeyDown):
                     match event.sym:
@@ -271,6 +276,7 @@ def main():
                             seed = random.randint(0, 636413622)
                             opensimplex.seed(seed)
                             np.random.seed(seed)
+                            print(f'\nSeed: {seed}')
                             vor, plate_boundaries, plate_vectors, boundary_parents, ridge_lines = gen_plates((map_width, map_height), num_plates)
                             elevation = gen_elevation((map_width, map_height), ridge_lines, water_level, frequency, octaves)
                             
@@ -299,8 +305,8 @@ def main():
                             water_level = max(water_level-.01, 0)
                             print(f'Water level: {water_level}')
                             
-                elif isinstance(event, tcod.event.MouseMotion):
-                    mouse_location = event.tile.x, min(event.tile.y, map_height-1)
+                if isinstance(event_tile, tcod.event.MouseMotion):
+                    mouse_location = event_tile.position.x, min(event_tile.position.y, map_height-1)
             
 if __name__ == '__main__':
     main()
