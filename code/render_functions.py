@@ -10,7 +10,7 @@ import bresenham
 if TYPE_CHECKING:
     from tcod.console import Console
     from engine import Engine
-    from game_map import GameMap
+    from world import GameMap
     
 
 def get_names_at_location(x: int, y: int, game_map: GameMap) -> list[str]:

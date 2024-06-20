@@ -46,7 +46,56 @@ class GameMap:
     def parent(self) -> GameWorld:
         return self.game_world
     
+    def get_sprites_at_location(self, x: int, y: int, exclude: set[Sprite] = set()) -> list[Sprite]:
+        sprites_at_loc = []
+        for sprite in self.sprites - exclude:
+            if sprite.x == x and sprite.y == y:
+                sprites_at_loc.append(sprite)
+               
+        return sprites_at_loc
     
+    def get_sprite_at_location(self, x: int, y: int, exclude: set[Sprite] = set()) -> Sprite | None:
+        for sprite in self.sprites - exclude:
+            if sprite.x == x and sprite.y == y:
+                return sprite
+        
+        return None
+    
+    
+    def get_actors_at_location(self, x: int, y: int, exclude: set[Actor] = set()) -> list[Actor]:
+        from sprite import Actor
+        
+        sprites = self.get_sprites_at_location(x, y, exclude)
+        return [sprite for sprite in sprites if isinstance(sprite, Actor)]
+    
+    def get_actor_at_location(self, x: int, y: int, exclude: set[Actor] = set()) -> Actor | None:
+        from sprite import Actor
+        
+        for sprite in self.sprites - exclude:
+            if sprite.x == x and sprite.y == y and isinstance(sprite, Actor):
+                return sprite
+        
+        return None
+    
+    
+    def get_items_at_location(self, x: int, y: int, exclude: set[Sprite] = set()) -> list[Sprite]:
+        from entity import Item
+        
+        sprites = self.get_sprites_at_location(x, y, exclude)
+        return [sprite for sprite in sprites if isinstance(sprite.entity, Item)]
+    
+    def get_item_at_location(self, x: int, y: int, exclude: set[Sprite] = set()) -> Item:
+        from entity import Item
+        for sprite in self.sprites - exclude:
+            if sprite.x == x and sprite.y == y and isinstance(sprite.entity, Item):
+                return sprite
+        
+        return None
+    
+    
+    def in_bounds(self, x: int, y: int) -> bool:
+        """Return True if x and y are inside of the bounds of this map."""
+        return 0 <= x < self.width and 0 <= y < self.height
 
 class GameWorld:
     

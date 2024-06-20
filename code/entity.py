@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from jobs import BaseJob
     from entity import Character, Item
     from engine import Engine
-    from game_map import GameMap
+    from world import GameMap
     from magic import AttackSpell
 
 class Entity():

@@ -71,7 +71,7 @@ def main() -> None:
                 
                 root_console.clear()
                 handler.on_render(console=root_console)
-                context.present(root_console)
+                context.present(root_console, integer_scaling=False, keep_aspect=True)
 
                 try:
                     if False: # hasattr(handler, 'engine') and handler.engine.wait

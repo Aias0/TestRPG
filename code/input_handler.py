@@ -143,7 +143,7 @@ class LoadHandler(EventHandler):
         self.selected_index = 0
         
         self.saved_games: list[str] = []
-        for file in glob.glob("data\\user_data\\*.sav"):
+        for file in glob.glob("data\\user_data\\save_data\\*.sav"):
             self.saved_games.append(file)
         sg_sorted = sorted(self.saved_games, key=os.path.getctime, reverse=True)
         self.saved_games = [sg.replace('data\\user_data\\', '').replace('.sav', '') for sg in sg_sorted]

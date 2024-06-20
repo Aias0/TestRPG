@@ -23,7 +23,7 @@ import lzma
 import pickle
 
 if TYPE_CHECKING:
-    from game_map import GameMap, GameLocation
+    from world import GameMap, GameLocation
     from input_handler import EventHandler
     from entity import Item
     from sprite import Sprite, Actor
@@ -182,5 +182,5 @@ class Engine:
         """ Save this instance as a compressed file. """
         save_data = lzma.compress(pickle.dumps(self))
         
-        with open(f'data/user_data/{filename}', 'wb') as f:
+        with open(f'data/user_data/save_data/{filename}', 'wb') as f:
             f.write(save_data)
