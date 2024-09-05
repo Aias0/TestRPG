@@ -2,3 +2,8 @@ opensimplex
 colour
 tcod
 numpy
+pywin32
+opencv-python
+bresenham
+dill
+pyperclip
