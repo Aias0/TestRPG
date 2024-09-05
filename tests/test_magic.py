@@ -38,10 +38,14 @@ class _runeattribute(Enum):
     LIGHTNING = auto()
     
     # Magnitude
+    INFERIOR = auto()
+
     MINOR = auto()
     LESSER = auto()
+    
     GREATER = auto()
     SUPERIOR = auto()
+    
     SUPREME = auto()
         
     # INTEGRITY
@@ -62,6 +66,7 @@ class _runeattribute(Enum):
     @staticmethod
     def attr_val(attr: Enum) -> int:
         d = {
+            _runeattribute.INFERIOR: -15,
             _runeattribute.MINOR: -10,
             _runeattribute.LESSER: -5,
             _runeattribute.GREATER: 5,
